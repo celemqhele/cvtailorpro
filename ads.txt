@@ -1,0 +1,8 @@
+# Ads.txt for goapply.co.za
+# NOTE: A server-side redirect has been configured via vercel.json (Vercel) and _redirects (Netlify) to point to:
+# https://srv.adstxtmanager.com/19390/goapply.co.za
+
+# IF THE REDIRECT FAILS (e.g., if you are not hosting on Vercel or Netlify):
+# 1. Delete this content.
+# 2. Copy the lines from your Ezoic Dashboard > Ads.txt Manager.
+# 3. Paste them here manually.
