@@ -94,13 +94,15 @@ export const generateWordDocument = async (
     // Bullet Points
     else if (line.startsWith('•') || line.startsWith('- ') || line.startsWith('* ')) {
       const cleanLine = line.replace(/^[•\-*]\s+/, '');
-      // Handle bolding inside bullets
+      
+      // Handle bolding inside bullets (e.g. **Category**: Skills)
       const parts = cleanLine.split(/(\*\*.*?\*\*)/);
       const runs = parts.map(part => {
         if (part.startsWith('**') && part.endsWith('**')) {
             return new TextRun({
                 text: part.replace(/\*\*/g, ''),
-                bold: true
+                bold: true,
+                color: "2E74B5" // Apply brand blue color to bold parts in bullets (Core Competencies)
             });
         }
         return new TextRun({ text: part });

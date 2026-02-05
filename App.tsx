@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Button } from './components/Button';
 import { FileUpload } from './components/FileUpload';
+import { AdBanner } from './components/AdBanner';
+import { DonationModal } from './components/DonationModal';
 import { generateTailoredApplication } from './services/geminiService';
 import { FileData, GeneratorResponse, Status } from './types';
 import { APP_NAME } from './constants';
@@ -9,13 +11,16 @@ import { generateWordDocument } from './utils/docHelper';
 const App: React.FC = () => {
   const [file, setFile] = useState<FileData | null>(null);
   const [jobSpec, setJobSpec] = useState('');
-  // Updated with the new key provided
   const [apiKey] = useState('csk-rmv54ykfk8mp439ww3xrrjy98nk3phnh3hentfprjxp2xwv3');
   const [status, setStatus] = useState<Status>(Status.IDLE);
   const [result, setResult] = useState<GeneratorResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showDonationModal, setShowDonationModal] = useState(false);
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (forceOverride: boolean = false) => {
+    // Ensure forceOverride is a boolean (onClick passes event object)
+    const force = typeof forceOverride === 'boolean' ? forceOverride : false;
+
     if (!file || !jobSpec.trim() || !apiKey.trim()) return;
 
     setStatus(Status.LOADING);
@@ -23,9 +28,14 @@ const App: React.FC = () => {
     setResult(null);
 
     try {
-      const response = await generateTailoredApplication(file, jobSpec, apiKey);
+      const response = await generateTailoredApplication(file, jobSpec, apiKey, force);
       setResult(response);
       setStatus(response.outcome === 'REJECT' ? Status.REJECTED : Status.SUCCESS);
+      
+      // Trigger donation popup if successful
+      if (response.outcome === 'PROCEED') {
+        setTimeout(() => setShowDonationModal(true), 1500); // Small delay for UX
+      }
     } catch (e: any) {
       console.error(e);
       setStatus(Status.ERROR);
@@ -42,10 +52,13 @@ const App: React.FC = () => {
     setJobSpec('');
     setStatus(Status.IDLE);
     setResult(null);
+    setShowDonationModal(false);
   };
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans">
+      <DonationModal isOpen={showDonationModal} onClose={() => setShowDonationModal(false)} />
+
       <div className="max-w-4xl mx-auto space-y-8">
         
         {/* Header */}
@@ -60,6 +73,9 @@ const App: React.FC = () => {
             Powered by <strong>Cerebras Cloud (Llama 3.1)</strong>. Upload your CV (.docx/txt) and a job description for instant AI tailoring.
           </p>
         </header>
+
+        {/* Top Ad Banner */}
+        <AdBanner className="hidden md:flex" />
 
         {/* Main Interface */}
         <main className="grid grid-cols-1 gap-8">
@@ -98,7 +114,7 @@ const App: React.FC = () => {
 
               <div className="pt-4">
                 <Button 
-                  onClick={handleGenerate} 
+                  onClick={() => handleGenerate(false)} 
                   isLoading={status === Status.LOADING}
                   disabled={!file || !jobSpec}
                   className="w-full text-lg py-4 bg-indigo-600 hover:bg-indigo-700"
@@ -189,13 +205,17 @@ const App: React.FC = () => {
                     </div>
                  </div>
               </div>
-              <div className="pt-4 text-center">
-                 <Button variant="secondary" onClick={reset}>Try a Different Role</Button>
+              <div className="pt-4 flex flex-col md:flex-row items-center justify-center gap-4">
+                 <Button variant="secondary" onClick={reset} className="w-full md:w-auto">Try a Different Role</Button>
+                 <Button variant="primary" onClick={() => handleGenerate(true)} className="w-full md:w-auto bg-slate-800 hover:bg-slate-900">Generate Anyway (Force)</Button>
               </div>
             </div>
           )}
 
         </main>
+        
+        {/* Bottom Ad Banner */}
+        <AdBanner />
 
         <footer className="text-center text-slate-400 text-sm py-8">
           &copy; {new Date().getFullYear()} CV Tailor Pro. Privacy Focused - No data is stored.

@@ -42,7 +42,8 @@ async function extractTextFromFile(file: FileData): Promise<string> {
 export const generateTailoredApplication = async (
   cvFile: FileData,
   jobDescription: string,
-  apiKey: string
+  apiKey: string,
+  force: boolean = false
 ): Promise<GeneratorResponse> => {
   
   if (!apiKey) {
@@ -84,10 +85,23 @@ export const generateTailoredApplication = async (
   }
   `;
 
+  let systemContent = SYSTEM_PROMPT + "\n\n" + SCHEMA_INSTRUCTION;
+
+  if (force) {
+    systemContent += `
+    
+    IMPORTANT OVERRIDE: 
+    The user has requested to FORCE GENERATION regardless of qualification match.
+    IGNORE the instruction to reject unqualified candidates.
+    You MUST generate the tailored CV and Cover Letter to the best of your ability, even if the match is low.
+    Set "outcome" to "PROCEED".
+    `;
+  }
+
   const messages = [
     {
       role: "system",
-      content: SYSTEM_PROMPT + "\n\n" + SCHEMA_INSTRUCTION
+      content: systemContent
     },
     {
       role: "user",
