@@ -3,6 +3,7 @@ import { Button } from './components/Button';
 import { FileUpload } from './components/FileUpload';
 import { AdBanner } from './components/AdBanner';
 import { DonationModal } from './components/DonationModal';
+import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { generateTailoredApplication } from './services/geminiService';
 import { FileData, GeneratorResponse, Status } from './types';
 import { APP_NAME } from './constants';
@@ -16,6 +17,7 @@ const App: React.FC = () => {
   const [result, setResult] = useState<GeneratorResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showDonationModal, setShowDonationModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   const handleGenerate = async (forceOverride: boolean = false) => {
     // Ensure forceOverride is a boolean (onClick passes event object)
@@ -58,6 +60,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans">
       <DonationModal isOpen={showDonationModal} onClose={() => setShowDonationModal(false)} />
+      <PrivacyPolicyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
 
       <div className="max-w-4xl mx-auto space-y-8">
         
@@ -70,7 +73,7 @@ const App: React.FC = () => {
           </div>
           <h1 className="text-4xl font-bold text-slate-900 tracking-tight">{APP_NAME}</h1>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Powered by <strong>Cerebras Cloud (Llama 3.1)</strong>. Upload your CV (.docx/txt) and a job description for instant AI tailoring.
+            Stop sending generic applications. Instantly tailor your CV to beat the ATS bots, impress recruiters, and land interviews 3x faster.
           </p>
         </header>
 
@@ -217,8 +220,14 @@ const App: React.FC = () => {
         {/* Bottom Ad Banner - Ezoic Placeholder 102 */}
         <AdBanner slotId={102} />
 
-        <footer className="text-center text-slate-400 text-sm py-8">
-          &copy; {new Date().getFullYear()} CV Tailor Pro. Privacy Focused - No data is stored.
+        <footer className="text-center text-slate-400 text-sm py-8 space-y-2">
+          <p>&copy; {new Date().getFullYear()} CV Tailor Pro. Privacy Focused - No data is stored.</p>
+          <button 
+            onClick={() => setShowPrivacyModal(true)}
+            className="text-slate-400 hover:text-slate-600 underline underline-offset-2 text-xs"
+          >
+            Privacy Policy
+          </button>
         </footer>
       </div>
     </div>
