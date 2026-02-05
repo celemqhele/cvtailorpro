@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { Button } from './Button';
 
 interface PrivacyPolicyModalProps {
@@ -7,26 +7,6 @@ interface PrivacyPolicyModalProps {
 }
 
 export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, onClose }) => {
-  const ezoicContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    // When the component mounts, finding the Ezoic element in the DOM (placed in index.html)
-    // and moving it into this modal. This ensures Ezoic finds it on page load, but we control visibility.
-    const ezoicWrapper = document.getElementById('ezoic-privacy-policy-wrapper');
-    
-    if (ezoicWrapper && ezoicContainerRef.current) {
-      // Make sure it's visible now that it's inside our modal (which handles visibility)
-      ezoicWrapper.style.display = 'block';
-      // Append the existing DOM node to preserve any event listeners/scripts attached by Ezoic
-      ezoicContainerRef.current.appendChild(ezoicWrapper);
-    }
-
-    return () => {
-      // Optional: Move it back or cleanup if needed, but for a singleton app modal it's fine.
-      // If we unmount, we might lose the content if we don't put it back, but the user likely won't need it outside the modal.
-    };
-  }, []);
-
   return (
     <div 
       className={`fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all duration-300 ${
@@ -80,16 +60,10 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
             </p>
             
             <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-                <h5 className="font-bold text-slate-700 mb-2 text-xs uppercase tracking-wider">Full Disclosure & Settings</h5>
-                
-                {/* Ezoic Content Container - React will move the global element here */}
-                <div 
-                    ref={ezoicContainerRef} 
-                    className="text-xs text-slate-500 leading-normal ezoic-policy-content"
-                >
-                   {/* The #ezoic-privacy-policy-wrapper will be injected here */}
-                </div>
-
+                <p className="text-xs text-slate-500">
+                    We use Ezoic to serve ads. Ezoic may collect data for personalization. 
+                    You can manage your preferences via the link below.
+                </p>
                 <p className="mt-4 text-xs text-slate-400 border-t border-slate-200 pt-2">
                     Direct Link: <a href="http://g.ezoic.net/privacy/goapply.co.za" target="_blank" rel="noreferrer" className="text-indigo-600 underline">Ezoic Privacy Policy</a>
                 </p>
