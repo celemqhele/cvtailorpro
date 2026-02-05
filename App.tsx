@@ -74,8 +74,8 @@ const App: React.FC = () => {
           </p>
         </header>
 
-        {/* Top Ad Banner */}
-        <AdBanner className="hidden md:flex" />
+        {/* Top Ad Banner - Ezoic Placeholder 101 */}
+        <AdBanner slotId={101} className="hidden md:flex" />
 
         {/* Main Interface */}
         <main className="grid grid-cols-1 gap-8">
@@ -214,8 +214,8 @@ const App: React.FC = () => {
 
         </main>
         
-        {/* Bottom Ad Banner */}
-        <AdBanner />
+        {/* Bottom Ad Banner - Ezoic Placeholder 102 */}
+        <AdBanner slotId={102} />
 
         <footer className="text-center text-slate-400 text-sm py-8">
           &copy; {new Date().getFullYear()} CV Tailor Pro. Privacy Focused - No data is stored.
