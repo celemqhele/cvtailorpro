@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Button } from './components/Button';
 import { FileUpload } from './components/FileUpload';
 import { AdBanner } from './components/AdBanner';
-import { DonationModal } from './components/DonationModal';
+import { PaymentModal } from './components/DonationModal'; 
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { generateTailoredApplication } from './services/geminiService';
 import { FileData, GeneratorResponse, Status } from './types';
@@ -16,11 +17,15 @@ const App: React.FC = () => {
   const [status, setStatus] = useState<Status>(Status.IDLE);
   const [result, setResult] = useState<GeneratorResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [showDonationModal, setShowDonationModal] = useState(false);
+  
+  // Payment & Restore State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [isPaid, setIsPaid] = useState(false);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [restoreIdInput, setRestoreIdInput] = useState('');
 
   const handleGenerate = async (forceOverride: boolean = false) => {
-    // Ensure forceOverride is a boolean (onClick passes event object)
     const force = typeof forceOverride === 'boolean' ? forceOverride : false;
 
     if (!file || !jobSpec.trim() || !apiKey.trim()) return;
@@ -28,16 +33,13 @@ const App: React.FC = () => {
     setStatus(Status.LOADING);
     setErrorMsg(null);
     setResult(null);
+    setIsPaid(false);
+    setOrderId(null);
 
     try {
       const response = await generateTailoredApplication(file, jobSpec, apiKey, force);
       setResult(response);
       setStatus(response.outcome === 'REJECT' ? Status.REJECTED : Status.SUCCESS);
-      
-      // Trigger donation popup if successful
-      if (response.outcome === 'PROCEED') {
-        setTimeout(() => setShowDonationModal(true), 1500); // Small delay for UX
-      }
     } catch (e: any) {
       console.error(e);
       setStatus(Status.ERROR);
@@ -45,8 +47,53 @@ const App: React.FC = () => {
     }
   };
 
-  const downloadWord = async (filename: string, content: string, brandingImage?: string) => {
-     await generateWordDocument(filename, content, brandingImage);
+  const handlePaymentSuccess = async (newOrderId: string) => {
+    setIsPaid(true);
+    setOrderId(newOrderId);
+    setShowPaymentModal(false);
+
+    // Save to Local Storage for "Restore" functionality
+    if (result) {
+        const savedData = {
+            result: result,
+            date: new Date().toISOString()
+        };
+        localStorage.setItem(`cv_order_${newOrderId}`, JSON.stringify(savedData));
+    }
+
+    // Auto-download after payment
+    if (result?.cv) await generateWordDocument(result.cv.title, result.cv.content, undefined);
+    if (result?.coverLetter) await generateWordDocument(result.coverLetter.title, result.coverLetter.content, undefined);
+  };
+
+  const handleRestore = () => {
+    if (!restoreIdInput.trim()) return;
+    const cleanId = restoreIdInput.trim().toUpperCase();
+    
+    try {
+        const saved = localStorage.getItem(`cv_order_${cleanId}`);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            setResult(parsed.result);
+            setStatus(Status.SUCCESS);
+            setIsPaid(true);
+            setOrderId(cleanId);
+            setRestoreIdInput('');
+            alert(`Order ${cleanId} restored successfully!`);
+        } else {
+            alert("Order ID not found on this device. Please check the ID or ensure you are using the same browser.");
+        }
+    } catch (e) {
+        alert("Failed to restore order.");
+    }
+  };
+
+  const downloadWord = async (filename: string, content: string) => {
+     if (!isPaid) {
+         setShowPaymentModal(true);
+         return;
+     }
+     await generateWordDocument(filename, content, undefined);
   };
 
   const reset = () => {
@@ -54,30 +101,54 @@ const App: React.FC = () => {
     setJobSpec('');
     setStatus(Status.IDLE);
     setResult(null);
-    setShowDonationModal(false);
+    setIsPaid(false);
+    setOrderId(null);
   };
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans">
-      <DonationModal isOpen={showDonationModal} onClose={() => setShowDonationModal(false)} />
+      <PaymentModal 
+        isOpen={showPaymentModal} 
+        onClose={() => setShowPaymentModal(false)}
+        onSuccess={handlePaymentSuccess}
+        documentTitle={result?.cv?.title || "Tailored Application"}
+      />
       <PrivacyPolicyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
 
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-8">
         
-        {/* Header */}
-        <header className="text-center space-y-4">
-          <div className="inline-flex items-center justify-center p-3 bg-indigo-600 rounded-2xl shadow-lg mb-2">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-            </svg>
+        {/* Header with Restore Function */}
+        <header className="flex flex-col md:flex-row justify-between items-center gap-6 border-b border-slate-200 pb-8">
+          <div className="text-center md:text-left">
+            <div className="flex items-center gap-3 justify-center md:justify-start mb-2">
+                <div className="p-2 bg-indigo-600 rounded-lg shadow-md">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    </svg>
+                </div>
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{APP_NAME}</h1>
+            </div>
+            <p className="text-slate-600 text-sm">Tailor your CV to beat ATS bots and land interviews.</p>
           </div>
-          <h1 className="text-4xl font-bold text-slate-900 tracking-tight">{APP_NAME}</h1>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Stop sending generic applications. Instantly tailor your CV to beat the ATS bots, impress recruiters, and land interviews 3x faster.
-          </p>
+
+          <div className="w-full md:w-auto bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-2">
+             <input 
+                type="text" 
+                placeholder="Enter Order ID to restore"
+                value={restoreIdInput}
+                onChange={(e) => setRestoreIdInput(e.target.value)}
+                className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full sm:w-48"
+             />
+             <button 
+                onClick={handleRestore}
+                className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors whitespace-nowrap"
+             >
+                Restore CV
+             </button>
+          </div>
         </header>
 
-        {/* Top Ad Banner - Ezoic Placeholder 101 */}
+        {/* Top Ad Banner */}
         <AdBanner slotId={101} className="hidden md:flex" />
 
         {/* Main Interface */}
@@ -85,8 +156,7 @@ const App: React.FC = () => {
           
           {/* Input Section */}
           {(status === Status.IDLE || status === Status.LOADING || status === Status.ERROR) && (
-            <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 space-y-8">
-              
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 space-y-8 animate-fade-in">
               <div className="space-y-4">
                 <label className="block text-sm font-semibold text-slate-700 uppercase tracking-wider">
                   1. Upload your Current CV
@@ -105,7 +175,7 @@ const App: React.FC = () => {
                   value={jobSpec}
                   onChange={(e) => setJobSpec(e.target.value)}
                   placeholder="Paste the full job description here..."
-                  className="w-full h-48 p-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none text-slate-700"
+                  className="w-full h-48 p-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none text-slate-700 font-mono text-sm"
                 />
               </div>
 
@@ -122,10 +192,10 @@ const App: React.FC = () => {
                   disabled={!file || !jobSpec}
                   className="w-full text-lg py-4 bg-indigo-600 hover:bg-indigo-700"
                 >
-                  {status === Status.LOADING ? 'Tailoring Application...' : 'Generate Tailored CV'}
+                  {status === Status.LOADING ? 'Analyzing & Tailoring...' : 'Generate Tailored CV'}
                 </Button>
                 <p className="text-xs text-center text-slate-400 mt-4">
-                  Using Cerebras Inference Speed (Llama 3.1 8B).
+                  Powered by Llama 3.1 8B via Cerebras
                 </p>
               </div>
             </div>
@@ -133,52 +203,118 @@ const App: React.FC = () => {
 
           {/* Result Section - Success */}
           {status === Status.SUCCESS && result && (
-            <div className="space-y-8 animate-fade-in">
-               <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center space-y-4">
-                  <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                  </div>
-                  <h2 className="text-3xl font-bold text-green-800">Application Tailored Successfully!</h2>
-                  <p className="text-green-700 max-w-xl mx-auto">
-                    Your CV and Cover Letter have been optimized for ATS (≥85% Match Target).
-                  </p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
-                    {result.cv && (
-                      <div className="bg-white p-6 rounded-xl shadow-md border border-green-100 flex flex-col justify-between h-full">
-                        <div>
-                            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Document 1</div>
-                            <h3 className="text-xl font-bold text-slate-800 mb-2">Tailored CV</h3>
-                            <p className="text-sm text-slate-500 mb-6 truncate">{result.cv.title}</p>
-                        </div>
-                        <Button onClick={() => result.cv && downloadWord(result.cv.title, result.cv.content, undefined)} className="bg-indigo-600 hover:bg-indigo-700">
-                          Download CV (.docx)
-                        </Button>
-                      </div>
-                    )}
-                    
-                    {result.coverLetter && (
-                       <div className="bg-white p-6 rounded-xl shadow-md border border-green-100 flex flex-col justify-between h-full">
-                        <div>
-                           <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Document 2</div>
-                           <h3 className="text-xl font-bold text-slate-800 mb-2">Cover Letter</h3>
-                           <p className="text-sm text-slate-500 mb-6 truncate">{result.coverLetter.title}</p>
-                        </div>
-                        <Button variant="secondary" onClick={() => result.coverLetter && downloadWord(result.coverLetter.title, result.coverLetter.content)}>
-                          Download Cover Letter (.docx)
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+            <div className="animate-fade-in space-y-6">
+               
+               {/* Order ID Banner (If Paid) */}
+               {isPaid && orderId && (
+                   <div className="bg-green-100 border border-green-200 text-green-800 p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
+                       <div className="flex items-center gap-3">
+                           <div className="bg-white p-2 rounded-full">
+                               <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                           </div>
+                           <div>
+                               <p className="font-bold">Purchase Successful!</p>
+                               <p className="text-sm">Save this Order ID to restore your CV later: <strong className="font-mono bg-white px-2 py-0.5 rounded border border-green-300 select-all">{orderId}</strong></p>
+                           </div>
+                       </div>
+                       <Button onClick={reset} variant="secondary" className="text-sm">Create New</Button>
+                   </div>
+               )}
 
-                  <div className="pt-8">
-                    <button 
-                      onClick={reset}
-                      className="text-slate-500 hover:text-slate-800 font-medium underline underline-offset-4"
-                    >
-                      Start Over
-                    </button>
-                  </div>
+               {/* Action Area */}
+               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                   
+                   {/* Left Column: Actions */}
+                   <div className="lg:col-span-1 space-y-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100">
+                            <h3 className="text-xl font-bold text-slate-900 mb-4">Downloads</h3>
+                            <div className="space-y-3">
+                                <Button 
+                                    onClick={() => result.cv && downloadWord(result.cv.title, result.cv.content)} 
+                                    className={`w-full justify-between ${isPaid ? 'bg-green-600 hover:bg-green-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                                >
+                                    <span>Download CV (.docx)</span>
+                                    {!isPaid && <span className="bg-indigo-800 text-xs py-1 px-2 rounded">R100</span>}
+                                </Button>
+                                <Button 
+                                    variant="secondary"
+                                    onClick={() => result.coverLetter && downloadWord(result.coverLetter.title, result.coverLetter.content)} 
+                                    className="w-full justify-between"
+                                >
+                                    <span>Download Cover Letter</span>
+                                    {!isPaid && <span className="bg-slate-200 text-xs py-1 px-2 rounded text-slate-600">Locked</span>}
+                                </Button>
+                            </div>
+                            
+                            {!isPaid && (
+                                <p className="text-xs text-slate-500 mt-4 text-center">
+                                    Secure payment via Paystack. Includes both documents.
+                                </p>
+                            )}
+                        </div>
+
+                        {!isPaid && (
+                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
+                                <strong>Free Option:</strong> You can copy the text from the preview on the right and format it yourself manually.
+                            </div>
+                        )}
+
+                        <Button 
+                            onClick={reset} 
+                            variant="secondary" 
+                            className="w-full text-slate-600 border-slate-300 hover:bg-slate-100"
+                        >
+                            Make New CV
+                        </Button>
+                   </div>
+
+                   {/* Right Column: Preview */}
+                   <div className="lg:col-span-2">
+                       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative min-h-[600px]">
+                           
+                           {/* Header */}
+                           <div className="bg-slate-100 p-4 border-b border-slate-200 flex justify-between items-center">
+                               <span className="font-bold text-slate-700">Preview: {result.cv?.title}</span>
+                               {!isPaid && <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-bold">PREVIEW MODE</span>}
+                           </div>
+
+                           {/* Content Window */}
+                           <div className="p-8 h-[600px] overflow-y-auto relative bg-white">
+                               {/* Watermark Overlay */}
+                               {!isPaid && (
+                                   <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none select-none overflow-hidden">
+                                       <div className="transform -rotate-45 text-slate-900/5 text-6xl font-black whitespace-nowrap">
+                                           CV TAILOR PRO • UNPAID PREVIEW • CV TAILOR PRO
+                                       </div>
+                                       <div className="transform -rotate-45 text-slate-900/5 text-6xl font-black whitespace-nowrap mt-32">
+                                           CV TAILOR PRO • UNPAID PREVIEW • CV TAILOR PRO
+                                       </div>
+                                       <div className="transform -rotate-45 text-slate-900/5 text-6xl font-black whitespace-nowrap mt-32">
+                                           CV TAILOR PRO • UNPAID PREVIEW • CV TAILOR PRO
+                                       </div>
+                                   </div>
+                               )}
+
+                               {/* Text Content - Rendered Markdown */}
+                               <div className="relative z-0">
+                                   <ReactMarkdown 
+                                     className="prose prose-sm max-w-none text-slate-800"
+                                     components={{
+                                       h1: ({node, ...props}) => <h1 className="text-3xl font-bold text-[#2E74B5] text-center border-b-2 border-[#2E74B5] pb-2 mb-6 mt-2" {...props} />,
+                                       h2: ({node, ...props}) => <h2 className="text-xl font-bold text-[#2E74B5] uppercase border-b border-gray-300 pb-1 mb-3 mt-8" {...props} />,
+                                       h3: ({node, ...props}) => <h3 className="text-lg font-bold text-slate-900 mb-2 mt-4" {...props} />,
+                                       p: ({node, ...props}) => <p className="mb-2 leading-relaxed text-justify" {...props} />,
+                                       ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 mb-4" {...props} />,
+                                       li: ({node, ...props}) => <li className="pl-1" {...props} />,
+                                       strong: ({node, ...props}) => <strong className="font-bold text-[#2E74B5]" {...props} />,
+                                     }}
+                                   >
+                                     {result.cv?.content}
+                                   </ReactMarkdown>
+                               </div>
+                           </div>
+                       </div>
+                   </div>
                </div>
             </div>
           )}
@@ -217,17 +353,21 @@ const App: React.FC = () => {
 
         </main>
         
-        {/* Bottom Ad Banner - Ezoic Placeholder 102 */}
+        {/* Bottom Ad Banner */}
         <AdBanner slotId={102} />
 
-        <footer className="text-center text-slate-400 text-sm py-8 space-y-2">
-          <p>&copy; {new Date().getFullYear()} CV Tailor Pro. Privacy Focused - No data is stored.</p>
-          <button 
-            onClick={() => setShowPrivacyModal(true)}
-            className="text-slate-400 hover:text-slate-600 underline underline-offset-2 text-xs"
-          >
-            Privacy Policy
-          </button>
+        <footer className="text-center text-slate-400 text-sm py-8 space-y-2 border-t border-slate-200 mt-12">
+          <p>&copy; {new Date().getFullYear()} CV Tailor Pro.</p>
+          <div className="flex justify-center gap-4">
+            <button 
+                onClick={() => setShowPrivacyModal(true)}
+                className="text-slate-400 hover:text-slate-600 underline underline-offset-2 text-xs"
+            >
+                Privacy Policy
+            </button>
+            <span className="text-slate-300">|</span>
+            <span className="text-xs text-slate-400">Restoring CVs requires using the same device/browser.</span>
+          </div>
         </footer>
       </div>
     </div>

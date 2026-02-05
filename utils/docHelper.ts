@@ -30,7 +30,7 @@ export const generateWordDocument = async (
       children.push(new Paragraph({
         children: [image],
         alignment: AlignmentType.CENTER,
-        spacing: { after: 400 } // Space after header image
+        spacing: { after: 200 } 
       }));
     } catch (e) {
       console.error("Failed to add image to doc", e);
@@ -41,8 +41,8 @@ export const generateWordDocument = async (
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) {
-        // Add a small spacer
-        children.push(new Paragraph({ text: "", spacing: { after: 100 } })); 
+        // Add a very small spacer for empty lines in source, but strictly controlled
+        children.push(new Paragraph({ text: "", spacing: { after: 0 } })); 
         continue;
     }
 
@@ -52,7 +52,7 @@ export const generateWordDocument = async (
         text: line.replace('# ', '').toUpperCase(),
         heading: HeadingLevel.HEADING_1,
         alignment: AlignmentType.CENTER,
-        spacing: { before: 200, after: 200 },
+        spacing: { before: 100, after: 60 }, // Tightened spacing
         border: {
           bottom: {
             color: "2E74B5", // Professional Blue
@@ -68,7 +68,7 @@ export const generateWordDocument = async (
       children.push(new Paragraph({
         text: line.replace('## ', '').toUpperCase(),
         heading: HeadingLevel.HEADING_2,
-        spacing: { before: 300, after: 100 },
+        spacing: { before: 200, after: 60 }, // Tightened spacing
         border: {
              bottom: {
                  color: "A0A0A0", // Light Grey
@@ -88,7 +88,7 @@ export const generateWordDocument = async (
           size: 24, // 12pt
           color: "333333"
         })],
-        spacing: { before: 200, after: 50 }
+        spacing: { before: 120, after: 40 } // Tightened spacing
       }));
     } 
     // Bullet Points
@@ -102,7 +102,7 @@ export const generateWordDocument = async (
             return new TextRun({
                 text: part.replace(/\*\*/g, ''),
                 bold: true,
-                color: "2E74B5" // Apply brand blue color to bold parts in bullets (Core Competencies)
+                color: "2E74B5" // Apply brand blue color to bold parts in bullets
             });
         }
         return new TextRun({ text: part });
@@ -113,7 +113,7 @@ export const generateWordDocument = async (
         bullet: {
           level: 0
         },
-        spacing: { after: 50 }
+        spacing: { after: 0 } // No extra space after bullets for tight lists
       }));
     } 
     // Normal Text
@@ -125,7 +125,7 @@ export const generateWordDocument = async (
             return new TextRun({
                 text: part.replace(/\*\*/g, ''),
                 bold: true,
-                color: "2E74B5" // Highlight key terms in blue
+                color: "2E74B5"
             });
         }
         return new TextRun({ text: part });
@@ -133,7 +133,7 @@ export const generateWordDocument = async (
 
       children.push(new Paragraph({
         children: runs,
-        spacing: { after: 120 },
+        spacing: { after: 80 }, // Minimal space after paragraphs
         alignment: AlignmentType.JUSTIFIED
       }));
     }
@@ -150,7 +150,7 @@ export const generateWordDocument = async (
             color: "000000",
           },
           paragraph: {
-            spacing: { line: 276 }, // 1.15 line spacing
+            spacing: { line: 240 }, // Single spacing (approx 1.0) to prevent gaps
           },
         },
         heading1: {

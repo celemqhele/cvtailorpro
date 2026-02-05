@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Button } from './Button';
 
-interface DonationModalProps {
+interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess: (orderId: string) => void;
+  documentTitle: string;
 }
 
 // Paystack global definition
@@ -15,117 +17,87 @@ declare global {
   }
 }
 
-export const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose }) => {
-  const [countdown, setCountdown] = useState<number | null>(null);
-
-  // Reset state when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setCountdown(null);
-    }
-  }, [isOpen]);
-
-  // Handle countdown logic
-  useEffect(() => {
-    if (countdown === null) return;
-
-    if (countdown === 0) {
-      onClose();
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setCountdown((prev) => (prev !== null ? prev - 1 : null));
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [countdown, onClose]);
-
+export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, documentTitle }) => {
   if (!isOpen) return null;
 
-  const PUBLIC_KEY = 'pk_live_9989ae457450be7da1256d8a2c2c0b181d0a2d30';
-  const USER_EMAIL = 'supporter@cvtailor.pro'; // Placeholder email for donation
+  const PUBLIC_KEY = 'pk_live_9989ae457450be7da1256d8a2c2c0b181d0a2d30'; 
+  const PRICE_ZAR = 100;
 
-  const handleDonation = (amountInRands: number) => {
-    // If user decides to donate during countdown, cancel countdown
-    setCountdown(null);
-
+  const handlePayment = () => {
+    const uniqueRef = 'ORD-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    
     const paystack = window.PaystackPop.setup({
       key: PUBLIC_KEY,
-      email: USER_EMAIL,
-      amount: amountInRands * 100, // Convert to cents (kobo)
+      email: 'customer@cvtailor.pro', // Placeholder, or ask user for email
+      amount: PRICE_ZAR * 100, // In cents (kobo)
       currency: 'ZAR',
-      ref: '' + Math.floor((Math.random() * 1000000000) + 1),
+      ref: uniqueRef,
       onClose: () => {
-        // User closed payment modal
+        // User closed modal
       },
       callback: (response: any) => {
         // Payment complete
-        alert('Thank you so much for your support! It keeps this tool running.');
-        onClose();
+        onSuccess(uniqueRef);
       }
     });
     
     paystack.openIframe();
   };
 
-  const handleSkip = () => {
-    setCountdown(3);
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 md:p-8 relative overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-0 overflow-hidden relative">
         
-        {/* Decorative background circle */}
-        <div className="absolute -top-10 -right-10 w-32 h-32 bg-indigo-100 rounded-full opacity-50 blur-xl"></div>
+        <div className="bg-indigo-600 p-6 text-center">
+            <h3 className="text-2xl font-bold text-white">Unlock Download</h3>
+            <p className="text-indigo-100 text-sm mt-1">Get your professional Word documents</p>
+        </div>
 
-        <div className="text-center space-y-4 relative z-10">
-          <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
-          </div>
+        <div className="p-8 text-center space-y-6">
           
-          <h3 className="text-2xl font-bold text-slate-800">Support CV Tailor Pro</h3>
-          <p className="text-slate-600">
-            We hope your new CV helps you land that dream job! <br/>
-            If you found this tool useful, please consider a small donation to help us cover server costs.
-          </p>
-
-          <div className="grid grid-cols-1 gap-3 pt-4">
-            <button 
-              onClick={() => handleDonation(20)}
-              className="w-full py-3 px-4 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold rounded-xl transition-all flex items-center justify-between group"
-            >
-              <span>☕ Buy us a coffee</span>
-              <span className="bg-white px-2 py-1 rounded-md text-sm shadow-sm group-hover:scale-105 transition-transform">R20</span>
-            </button>
-
-            <button 
-              onClick={() => handleDonation(50)}
-              className="w-full py-3 px-4 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold rounded-xl transition-all flex items-center justify-between group"
-            >
-              <span>🚀 Fuel the server</span>
-              <span className="bg-white px-2 py-1 rounded-md text-sm shadow-sm group-hover:scale-105 transition-transform">R50</span>
-            </button>
-
-            <button 
-              onClick={() => handleDonation(100)}
-              className="w-full py-3 px-4 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-between group"
-            >
-              <span>💎 Become a Super Fan</span>
-              <span className="bg-white/20 px-2 py-1 rounded-md text-sm backdrop-blur-sm group-hover:scale-105 transition-transform">R100</span>
-            </button>
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+             <p className="text-slate-500 text-xs uppercase font-bold tracking-wider mb-1">Item</p>
+             <p className="text-slate-800 font-medium">{documentTitle}</p>
+             <p className="text-slate-800 font-medium">+ Cover Letter</p>
           </div>
 
-          <div className="pt-4">
+          <div className="space-y-2">
+            <div className="text-4xl font-bold text-slate-900">R{PRICE_ZAR}</div>
+            <p className="text-slate-500 text-sm">One-time payment. Securely processed.</p>
+          </div>
+
+          <ul className="text-left text-sm text-slate-600 space-y-2 bg-indigo-50/50 p-4 rounded-lg">
+             <li className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                Editable Microsoft Word (.docx) files
+             </li>
+             <li className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                No Watermarks
+             </li>
+             <li className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                Perfect ATS Formatting
+             </li>
+             <li className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                Lifetime access via Order ID
+             </li>
+          </ul>
+
+          <div className="pt-2 space-y-3">
             <button 
-              onClick={handleSkip}
-              disabled={countdown !== null}
-              className={`text-sm font-medium transition-colors ${countdown !== null ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-slate-600'}`}
+              onClick={handlePayment}
+              className="w-full py-4 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
             >
-              {countdown !== null 
-                ? `Closing in ${countdown}...` 
-                : "No thanks, maybe next time"}
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+              Pay R{PRICE_ZAR} to Download
+            </button>
+            <button 
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-600 text-sm font-medium"
+            >
+              Cancel
             </button>
           </div>
         </div>

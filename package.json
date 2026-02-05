@@ -13,7 +13,8 @@
     "react-dom": "^18.2.0",
     "mammoth": "^1.6.0",
     "docx": "^8.5.0",
-    "file-saver": "^2.0.5"
+    "file-saver": "^2.0.5",
+    "react-markdown": "^9.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
