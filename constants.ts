@@ -7,9 +7,11 @@ export const ANALYSIS_PROMPT = `
 Goal: precise viability assessment.
 Analyze the Candidate CV against the Job Description.
 
-Output strictly valid JSON:
+Output a single valid JSON object. Do not include markdown formatting (like \`\`\`json) outside the object.
+
+Required JSON Structure:
 {
-  "decision": "APPLY" or "CAUTION" or "SKIP",
+  "decision": "APPLY" | "CAUTION" | "SKIP",
   "matchScore": number (0-100),
   "headline": "Short punchy summary (e.g. 'Strong Technical Match, Weak Domain')",
   "pros": ["Key strength 1", "Key strength 2"],

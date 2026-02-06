@@ -94,6 +94,21 @@ async function extractTextFromFile(file: FileData): Promise<string> {
 }
 
 /**
+ * Cleans the AI response string to ensure it is valid JSON.
+ * Removes markdown code blocks (```json ... ```) and whitespace.
+ */
+function cleanJsonString(str: string): string {
+    let clean = str.trim();
+    // Remove markdown code blocks if present
+    if (clean.startsWith('```json')) {
+        clean = clean.replace(/^```json/, '').replace(/```$/, '');
+    } else if (clean.startsWith('```')) {
+        clean = clean.replace(/^```/, '').replace(/```$/, '');
+    }
+    return clean.trim();
+}
+
+/**
  * Common function to call Cerebras API
  */
 async function callCerebrasAPI(systemPrompt: string, userPrompt: string): Promise<any> {
@@ -122,7 +137,7 @@ async function callCerebrasAPI(systemPrompt: string, userPrompt: string): Promis
 
         if (!response.ok) {
             const err = await response.text();
-            throw new Error(`Cerebras API Error: ${err}`);
+            throw new Error(`Cerebras API Error (${response.status}): ${err}`);
         }
 
         const data = await response.json();
@@ -130,7 +145,9 @@ async function callCerebrasAPI(systemPrompt: string, userPrompt: string): Promis
 
         if (!content) throw new Error("No content received from AI.");
 
-        return JSON.parse(content);
+        const cleanedContent = cleanJsonString(content);
+        return JSON.parse(cleanedContent);
+
     } catch (e: any) {
         console.error("AI Service Error:", e);
         throw e;
@@ -154,6 +171,19 @@ export const analyzeMatch = async (
 
     try {
         const result = await callCerebrasAPI(ANALYSIS_PROMPT, userPrompt);
+        // Basic Validation
+        if (!result.decision || !result.matchScore) {
+             console.warn("Invalid analysis structure received:", result);
+             // Fallback for partial data
+             return {
+                 decision: result.decision || "SKIP",
+                 matchScore: result.matchScore || 0,
+                 headline: result.headline || "Analysis Incomplete",
+                 pros: result.pros || [],
+                 cons: result.cons || [],
+                 reasoning: result.reasoning || "Could not parse full analysis."
+             };
+        }
         return result as MatchAnalysis;
     } catch (e) {
         console.error("Analysis failed", e);
