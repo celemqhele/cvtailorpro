@@ -12,12 +12,17 @@ import { createSubscription, verifySubscription, saveOrder, restoreOrder } from 
 import { FileData, GeneratorResponse, Status, MatchAnalysis } from './types';
 import { APP_NAME } from './constants';
 import { generateWordDocument } from './utils/docHelper';
-import { generateScannedPdf, generateSelectablePdf } from './utils/pdfHelper';
+import { generateSelectablePdf } from './utils/pdfHelper';
 
 const App: React.FC = () => {
   const [file, setFile] = useState<FileData | null>(null);
+  
+  // Job Input State
+  const [inputMode, setInputMode] = useState<'url' | 'text'>('url');
   const [jobLink, setJobLink] = useState('');
+  const [manualJobText, setManualJobText] = useState('');
   const [jobSpec, setJobSpec] = useState(''); 
+  
   const [apiKey] = useState('csk-rmv54ykfk8mp439ww3xrrjy98nk3phnh3hentfprjxp2xwv3');
   
   const [status, setStatus] = useState<Status>(Status.IDLE);
@@ -87,7 +92,9 @@ const App: React.FC = () => {
   };
 
   const handleScanAndAnalyze = async () => {
-      if (!file || !jobLink) return;
+      if (!file) return;
+      if (inputMode === 'url' && !jobLink) return;
+      if (inputMode === 'text' && !manualJobText.trim()) return;
       
       setStatus(Status.SCANNING);
       setErrorMsg(null);
@@ -95,11 +102,22 @@ const App: React.FC = () => {
       setJobSpec('');
 
       try {
-          const scrapedText = await scrapeJobFromUrl(jobLink);
-          setJobSpec(scrapedText);
+          let textToAnalyze = '';
+
+          if (inputMode === 'url') {
+              textToAnalyze = await scrapeJobFromUrl(jobLink);
+          } else {
+              textToAnalyze = manualJobText;
+          }
+
+          if (!textToAnalyze || textToAnalyze.length < 20) {
+              throw new Error("Job description is too short. Please provide more details.");
+          }
+
+          setJobSpec(textToAnalyze);
           setStatus(Status.ANALYZING);
 
-          const analysisResult = await analyzeMatch(file, scrapedText, apiKey);
+          const analysisResult = await analyzeMatch(file, textToAnalyze, apiKey);
           setAnalysis(analysisResult);
           setStatus(Status.ANALYSIS_COMPLETE);
 
@@ -290,6 +308,8 @@ const App: React.FC = () => {
     setFile(null);
     setJobLink('');
     setJobSpec('');
+    setManualJobText('');
+    setInputMode('url');
     setStatus(Status.IDLE);
     setResult(null);
     setAnalysis(null);
@@ -402,7 +422,6 @@ const App: React.FC = () => {
       />
 
       {/* Hidden Render Container for PDF */}
-      {/* Note: Updated padding to 12mm (wider) and using pdfMarkdownComponents (smaller text) */}
       {result && (
         <div className="fixed left-[-9999px] top-0">
             <div id="hidden-cv-content" className="bg-white p-[12mm] w-[210mm] text-slate-900">
@@ -478,19 +497,47 @@ const App: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                <label className="block text-sm font-semibold text-slate-700 uppercase tracking-wider">
-                  2. Paste Job Link
-                </label>
-                <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={jobLink}
-                      onChange={(e) => setJobLink(e.target.value)}
-                      placeholder="https://linkedin.com/jobs/..."
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700"
-                    />
+                <div className="flex justify-between items-center">
+                    <label className="block text-sm font-semibold text-slate-700 uppercase tracking-wider">
+                      2. Job Details
+                    </label>
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                        <button 
+                            onClick={() => setInputMode('url')}
+                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${inputMode === 'url' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Link
+                        </button>
+                        <button 
+                            onClick={() => setInputMode('text')}
+                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${inputMode === 'text' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Text
+                        </button>
+                    </div>
                 </div>
-                <p className="text-xs text-slate-400">Supported: LinkedIn, Indeed, Glassdoor, Company Pages.</p>
+
+                {inputMode === 'url' ? (
+                    <>
+                        <div className="flex gap-2">
+                            <input
+                              type="url"
+                              value={jobLink}
+                              onChange={(e) => setJobLink(e.target.value)}
+                              placeholder="https://linkedin.com/jobs/..."
+                              className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700"
+                            />
+                        </div>
+                        <p className="text-xs text-slate-400">Supported: LinkedIn, Indeed, Glassdoor, Company Pages.</p>
+                    </>
+                ) : (
+                     <textarea 
+                        value={manualJobText}
+                        onChange={(e) => setManualJobText(e.target.value)}
+                        placeholder="Paste the full job description here (Responsibilities, Requirements, etc)..."
+                        className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 h-32 text-sm resize-none"
+                    />
+                )}
               </div>
 
               {errorMsg && (
@@ -502,10 +549,10 @@ const App: React.FC = () => {
               <div className="pt-4">
                 <Button 
                   onClick={handleScanAndAnalyze} 
-                  disabled={!file || !jobLink}
+                  disabled={!file || (inputMode === 'url' ? !jobLink : !manualJobText.trim())}
                   className="w-full text-lg py-4 bg-slate-800 hover:bg-slate-900"
                 >
-                  Scan Job & Analyze Match
+                  {inputMode === 'url' ? 'Scan Link & Analyze Match' : 'Analyze Job Match'}
                 </Button>
                 <p className="text-xs text-center text-slate-400 mt-4">
                   Powered by Llama 3.3 70B via Cerebras
@@ -522,12 +569,12 @@ const App: React.FC = () => {
                  </div>
                  <div>
                      <h3 className="text-xl font-bold text-slate-800">
-                         {status === Status.SCANNING && 'Scanning Job Link...'}
+                         {status === Status.SCANNING && 'Processing Job Details...'}
                          {status === Status.ANALYZING && 'Analyzing Match Viability...'}
                          {status === Status.GENERATING && 'Tailoring your CV...'}
                      </h3>
                      <p className="text-slate-500 mt-2">
-                         {status === Status.SCANNING && 'Extracting details from the provided URL.'}
+                         {status === Status.SCANNING && (inputMode === 'url' ? 'Extracting details from the provided URL.' : 'Reading provided job text.')}
                          {status === Status.ANALYZING && 'Comparing your profile against the requirements.'}
                          {status === Status.GENERATING && 'Optimizing keywords and achievements.'}
                      </p>
