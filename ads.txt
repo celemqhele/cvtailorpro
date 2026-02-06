@@ -1,2 +1,2 @@
-# DELETE THIS FILE
-# It conflicts with the Vercel redirect.
+# Redirecting to Ezoic Ads.txt Manager via vercel.json
+# Please do not add entries here manually.
