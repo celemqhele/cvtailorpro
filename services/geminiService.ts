@@ -5,9 +5,7 @@ import { SYSTEM_PROMPT, ANALYSIS_PROMPT } from "../constants";
 import { FileData, GeneratorResponse, MatchAnalysis } from "../types";
 
 /**
- * Scrapes job content from a URL.
- * Strategy 1: Jina.ai (Markdown Reader) - Best quality.
- * Strategy 2: AllOrigins (CORS Proxy) - Fallback if Jina is firewalled.
+ * Scrapes job content from a URL using Jina.ai (free markdown reader).
  */
 export const scrapeJobFromUrl = async (url: string): Promise<string> => {
     let targetUrl = url;
@@ -15,49 +13,24 @@ export const scrapeJobFromUrl = async (url: string): Promise<string> => {
         targetUrl = 'https://' + url;
     }
 
-    // Strategy 1: Jina.ai
-    try {
-        const scrapeUrl = `https://r.jina.ai/${targetUrl}`;
-        const response = await fetch(scrapeUrl, { 
-            method: 'GET',
-            headers: { 'Accept': 'text/plain' }
-        });
+    const scrapeUrl = `https://r.jina.ai/${targetUrl}`;
 
-        if (response.ok) {
-            const text = await response.text();
-            if (text && text.length > 100 && !text.includes("Cloudflare")) {
-                return text;
-            }
+    try {
+        const response = await fetch(scrapeUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to scan job link (${response.status})`);
         }
-    } catch (e) {
-        console.warn("Jina scraping failed (likely firewall), attempting fallback...", e);
-    }
-
-    // Strategy 2: AllOrigins Proxy (Bypasses many corporate firewalls that block AI scrapers)
-    try {
-        const encodedUrl = encodeURIComponent(targetUrl);
-        const fallbackUrl = `https://api.allorigins.win/get?url=${encodedUrl}`;
+        const text = await response.text();
         
-        const response = await fetch(fallbackUrl);
-        if (response.ok) {
-            const data = await response.json();
-            const htmlContent = data.contents; // Returns raw HTML
-            
-            if (htmlContent && htmlContent.length > 200) {
-                 // Simple stripping of HTML tags to give the AI something readable
-                 // We don't need perfect markdown, Gemini handles raw text/html well enough
-                 const tempDiv = document.createElement("div");
-                 tempDiv.innerHTML = htmlContent;
-                 const text = tempDiv.textContent || tempDiv.innerText || "";
-                 return text.replace(/\s+/g, ' ').trim();
-            }
+        if (!text || text.length < 100) {
+             throw new Error("Scanned content is too short. The link might be protected or invalid.");
         }
-    } catch (e) {
-        console.error("AllOrigins fallback failed", e);
+        
+        return text;
+    } catch (e: any) {
+        console.error("Scraping error:", e);
+        throw new Error(e.message || "Failed to scan job link.");
     }
-
-    // If both fail
-    throw new Error("Firewall blocked link access. Please copy and paste the Job Text manually into the 'Text' tab.");
 };
 
 /**

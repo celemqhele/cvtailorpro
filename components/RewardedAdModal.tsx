@@ -65,7 +65,7 @@ export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({ isOpen, onClos
            
            {/* Ad Content */}
            <div className="bg-white p-1 rounded w-full flex justify-center min-h-[250px] items-center relative z-10">
-              <AdBanner slotId={106} fallbackVariant="single_unlock" /> 
+              <AdBanner slotId={106} /> 
            </div>
            
            <p className="text-slate-500 text-xs mt-4">

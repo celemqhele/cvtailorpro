@@ -1,2 +1,5 @@
-// This file is unused and has been cleared.
-export {};
+import React from 'react';
+
+export const AccessControl: React.FC = () => {
+  return null;
+};
