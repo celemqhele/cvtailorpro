@@ -3,7 +3,7 @@
     {
       "source": "/ads.txt",
       "destination": "https://srv.adstxtmanager.com/83086/goapply.co.za",
-      "permanent": true
+      "statusCode": 301
     }
   ]
 }

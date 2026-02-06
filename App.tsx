@@ -496,7 +496,7 @@ const App: React.FC = () => {
 
       <div className="max-w-5xl mx-auto space-y-8">
         
-        <header className="flex flex-col md:flex-row justify-between items-center gap-6 border-b border-slate-200 pb-8">
+        <header className="flex flex-col md:flex-row justify-between items-center gap-6 border-b border-slate-200 pb-8 relative">
           <div className="text-center md:text-left">
             <div className="flex items-center gap-3 justify-center md:justify-start mb-2">
                 <div className="p-2 bg-indigo-600 rounded-lg shadow-md">
@@ -506,6 +506,13 @@ const App: React.FC = () => {
             </div>
             <p className="text-slate-600 text-sm">Tailor your CV to beat ATS bots and land interviews.</p>
           </div>
+
+          {/* AD PLACEMENT 1: HEADER (115) - Only show if NO subscription */}
+          {!subscriptionActive && (
+              <div className="hidden lg:block absolute left-1/2 transform -translate-x-1/2 -top-4">
+                  <AdBanner slotId={115} className="my-0 scale-90" />
+              </div>
+          )}
 
           <div className="w-full md:w-auto flex flex-col items-end gap-2">
              {subscriptionActive ? (
@@ -543,8 +550,8 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {/* HIDE ADS IF PRO PLUS */}
-        {!subscriptionActive && <AdBanner slotId={101} className="hidden md:flex" />}
+        {/* AD PLACEMENT 2: MAIN FLOW (114) */}
+        {!subscriptionActive && <AdBanner slotId={114} className="md:flex" />}
 
         <main className="grid grid-cols-1 gap-8">
           
@@ -717,6 +724,9 @@ const App: React.FC = () => {
                                             <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                                         </Button>
 
+                                        {/* AD PLACEMENT 3: IN SIDEBAR (112) - Only show if locked */}
+                                        <AdBanner slotId={112} className="my-2" />
+
                                         <div className="pt-4 border-t border-slate-100">
                                             <button 
                                                 onClick={initiateFreeDownload}
@@ -813,8 +823,8 @@ const App: React.FC = () => {
 
         </main>
         
-        {/* HIDE ADS IF PRO PLUS */}
-        {!subscriptionActive && <AdBanner slotId={102} />}
+        {/* AD PLACEMENT 4: FOOTER (113) - Only show if NO subscription */}
+        {!subscriptionActive && <AdBanner slotId={113} />}
         
         <footer className="text-center text-slate-400 text-sm py-8 space-y-2 border-t border-slate-200 mt-12">
           <p>&copy; {new Date().getFullYear()} CV Tailor Pro.</p>

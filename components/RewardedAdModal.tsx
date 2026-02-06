@@ -8,7 +8,7 @@ interface RewardedAdModalProps {
 }
 
 export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({ isOpen, onClose, onComplete }) => {
-  const DURATION = 10;
+  const DURATION = 10; // 10 seconds wait time
   const [timeLeft, setTimeLeft] = useState(DURATION);
   const [canDownload, setCanDownload] = useState(false);
 
@@ -20,6 +20,7 @@ export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({ isOpen, onClos
       setTimeLeft(DURATION);
       setCanDownload(false);
 
+      // --- Countdown Timer ---
       timer = window.setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
@@ -54,13 +55,13 @@ export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({ isOpen, onClos
           </button>
         </div>
 
-        {/* Ad Container - Simulating a Video Player Look */}
+        {/* Ad Container */}
         <div className="w-full bg-black flex flex-col items-center justify-center p-6 min-h-[300px]">
-           <p className="text-slate-400 text-sm mb-4">Watch this brief message to unlock your download...</p>
+           <p className="text-slate-400 text-sm mb-4">View this message to unlock your download...</p>
            
-           {/* Ad Slot */}
+           {/* Standard Ezoic Ad Slot - ID 106 */}
            <div className="bg-white p-2 rounded w-full flex justify-center min-h-[250px] items-center">
-              <AdBanner slotId={103} /> 
+              <AdBanner slotId={106} /> 
            </div>
         </div>
 

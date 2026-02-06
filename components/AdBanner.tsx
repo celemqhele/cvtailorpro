@@ -7,7 +7,12 @@ interface AdBannerProps {
 
 declare global {
   interface Window {
-    adsbygoogle: any[];
+    ezstandalone: {
+      cmd: Array<() => void>;
+      showAds: (placeholderId: number) => void;
+      define: (placeholderId: number) => void;
+      hasAd: (placeholderId: number) => boolean;
+    };
     PaystackPop: {
       setup: (options: any) => { openIframe: () => void };
     };
@@ -19,19 +24,28 @@ export const AdBanner: React.FC<AdBannerProps> = ({ slotId, className = '' }) =>
   const [isPaid, setIsPaid] = useState(false);
 
   useEffect(() => {
-    // Check for AdSense or Ad Blockers after a delay
-    const timer = setTimeout(() => {
-      const adsenseLoaded = !!window.adsbygoogle;
-      
-      // Since we removed Ezoic, we primarily check for AdSense loading or just show placeholder
-      if (!adsenseLoaded) {
-        setShowFallback(true);
-      }
-    }, 2000);
+    // 1. Check if Ezoic is blocked immediately
+    if (typeof window.ezstandalone === 'undefined') {
+       // We wait a moment in case script loads slowly
+       setTimeout(() => {
+         if (typeof window.ezstandalone === 'undefined') {
+           setShowFallback(true);
+         }
+       }, 2000);
+    }
 
-    return () => {
-      clearTimeout(timer);
-    };
+    // 2. Initialize Ezoic Ad
+    if (window.ezstandalone) {
+      try {
+        window.ezstandalone.cmd.push(function() {
+          // Define and Show the ad
+          window.ezstandalone.define(slotId);
+          window.ezstandalone.showAds(slotId);
+        });
+      } catch (e) {
+        console.error("Ezoic Ad Error:", e);
+      }
+    }
   }, [slotId]);
 
   const handleDonate = (amount: number) => {
@@ -69,7 +83,7 @@ export const AdBanner: React.FC<AdBannerProps> = ({ slotId, className = '' }) =>
      return null; // Hide banner area if they donated this session
   }
 
-  // Fallback View (Donation)
+  // Fallback View (Donation - Shows if AdBlocker is detected)
   if (showFallback) {
     return (
       <div className={`w-full flex justify-center items-center my-6 ${className}`}>
@@ -103,10 +117,10 @@ export const AdBanner: React.FC<AdBannerProps> = ({ slotId, className = '' }) =>
     );
   }
 
-  // Standard Ad View Placeholder
+  // Ezoic Ad Placeholder
   return (
     <div className={`w-full flex justify-center items-center my-6 min-h-[90px] ${className}`}>
-      {/* Placeholder for future AdSense units */}
+        <div id={`ezoic-pub-ad-placeholder-${slotId}`}></div>
     </div>
   );
 };

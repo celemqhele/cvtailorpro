@@ -1,7 +1,2 @@
-# ACTION REQUIRED: DELETE THIS FILE
-# 
-# You must delete this 'ads.txt' file from your project for the Ezoic redirect to work.
-# Vercel serves static files (like this one) before processing the redirects defined in vercel.json.
-# 
-# Once you delete this file, the redirect in vercel.json will take effect and point to:
-# https://srv.adstxtmanager.com/83086/goapply.co.za
+# DELETE THIS FILE
+# It conflicts with the Vercel redirect.
