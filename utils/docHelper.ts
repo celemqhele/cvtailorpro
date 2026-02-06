@@ -4,14 +4,15 @@ import saveAs from "file-saver";
 export const generateWordDocument = async (
   filename: string,
   textContent: string,
-  brandingImageBase64?: string
+  brandingImageBase64?: string,
+  isWatermarked: boolean = false
 ) => {
   if (!textContent) {
     console.error("Document content is missing or empty.");
     return;
   }
 
-  const { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, AlignmentType, BorderStyle } = docx;
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, AlignmentType, BorderStyle, Header, Footer } = docx;
 
   const lines = textContent.split('\n');
   const children: (docx.Paragraph | docx.ImageRun)[] = [];
@@ -139,6 +140,46 @@ export const generateWordDocument = async (
     }
   }
 
+  // Define Headers (Used for Watermark)
+  const headers = {
+    default: new Header({
+        children: isWatermarked ? [
+            new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                    new TextRun({
+                        text: "UNPAID PREVIEW • CV TAILOR PRO • UNPAID PREVIEW",
+                        size: 24,
+                        color: "FF0000",
+                        bold: true,
+                    }),
+                ],
+                spacing: { after: 200 }
+            }),
+             new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                    new TextRun({
+                        text: "Please upgrade to remove this watermark.",
+                        size: 16,
+                        color: "808080",
+                        italics: true
+                    }),
+                ],
+                border: {
+                    bottom: {
+                        color: "FF0000",
+                        space: 1,
+                        style: BorderStyle.SINGLE,
+                        size: 6
+                    }
+                },
+                 spacing: { after: 400 }
+            })
+        ] : []
+    })
+  };
+
   // 3. Document Styles Definition
   const doc = new Document({
     styles: {
@@ -184,11 +225,13 @@ export const generateWordDocument = async (
             },
           },
         },
+        headers: headers,
         children: children,
       },
     ],
   });
 
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, filename.replace('.txt', '.docx').replace('.md', '.docx'));
+  const filePrefix = isWatermarked ? 'PREVIEW_' : 'TAILORED_';
+  saveAs(blob, filePrefix + filename.replace('.txt', '.docx').replace('.md', '.docx'));
 };

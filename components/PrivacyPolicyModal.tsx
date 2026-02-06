@@ -49,7 +49,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
           <section>
             <h4 className="font-bold text-slate-900 mb-2">3. Third-Party AI Services</h4>
              <p>
-              We utilize Cerebras AI (Llama 3.1) to process text. By using this tool, you acknowledge that your input data is sent to the Cerebras API.
+              We utilize Cerebras AI (powering models like Llama 3.3 70B) to process text. By using this tool, you acknowledge that your input data is sent to the Cerebras API.
             </p>
           </section>
 

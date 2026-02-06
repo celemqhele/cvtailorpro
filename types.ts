@@ -1,6 +1,9 @@
 export enum Status {
   IDLE = 'IDLE',
-  LOADING = 'LOADING',
+  SCANNING = 'SCANNING',
+  ANALYZING = 'ANALYZING',
+  ANALYSIS_COMPLETE = 'ANALYSIS_COMPLETE',
+  GENERATING = 'GENERATING',
   SUCCESS = 'SUCCESS',
   ERROR = 'ERROR',
   REJECTED = 'REJECTED'
@@ -28,4 +31,13 @@ export interface FileData {
   base64: string;
   mimeType: string;
   name: string;
+}
+
+export interface MatchAnalysis {
+  decision: 'APPLY' | 'CAUTION' | 'SKIP';
+  matchScore: number;
+  headline: string;
+  pros: string[];
+  cons: string[];
+  reasoning: string;
 }

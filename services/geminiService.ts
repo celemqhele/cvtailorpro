@@ -1,9 +1,42 @@
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
-import { SYSTEM_PROMPT } from "../constants";
-import { FileData, GeneratorResponse } from "../types";
+import { SYSTEM_PROMPT, ANALYSIS_PROMPT } from "../constants";
+import { FileData, GeneratorResponse, MatchAnalysis } from "../types";
 
 const CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions";
+
+/**
+ * Scrapes job content from a URL using Jina.ai (free markdown reader).
+ * Note: SERP_API_KEY is available in constants if needed for specific engines,
+ * but Jina is used here for direct URL text extraction compatibility on frontend.
+ */
+export const scrapeJobFromUrl = async (url: string): Promise<string> => {
+    // Validating URL
+    let targetUrl = url;
+    if (!url.startsWith('http')) {
+        targetUrl = 'https://' + url;
+    }
+
+    // Using r.jina.ai as a reader proxy to get Markdown content
+    const scrapeUrl = `https://r.jina.ai/${targetUrl}`;
+
+    try {
+        const response = await fetch(scrapeUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to scan job link (${response.status})`);
+        }
+        const text = await response.text();
+        
+        if (!text || text.length < 100) {
+             throw new Error("Scanned content is too short. The link might be protected or invalid.");
+        }
+        
+        return text;
+    } catch (e: any) {
+        console.error("Scraping error:", e);
+        throw new Error(e.message || "Failed to scan job link.");
+    }
+};
 
 /**
  * Helper to extract raw text from the uploaded file.
@@ -32,12 +65,17 @@ async function extractTextFromFile(file: FileData): Promise<string> {
   // Handle PDF
   else if (file.mimeType === "application/pdf" || file.name.endsWith(".pdf")) {
     try {
-      // Set worker source to CDN to avoid bundler issues
-      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+      // Fix for "Cannot read properties of undefined (reading 'workerSrc')"
+      // In some environments, the library is the default export
+      const pdfjs = (pdfjsLib as any).default || pdfjsLib;
+
+      // Set worker source to CDN to avoid bundler/browser issues
+      if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+        const version = pdfjs.version || '3.11.174';
+        pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
       }
 
-      const loadingTask = pdfjsLib.getDocument({ data: byteArray });
+      const loadingTask = pdfjs.getDocument({ data: byteArray });
       const pdf = await loadingTask.promise;
       let fullText = "";
 
@@ -45,7 +83,8 @@ async function extractTextFromFile(file: FileData): Promise<string> {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         
-        // Extract strings from text items
+        // Extract strings from text items and join with spaces
+        // Use a more robust join to prevent words running together
         const pageText = textContent.items
           .map((item: any) => item.str)
           .join(' ');
@@ -65,6 +104,53 @@ async function extractTextFromFile(file: FileData): Promise<string> {
     return decoder.decode(byteArray);
   }
 }
+
+export const analyzeMatch = async (
+    cvFile: FileData,
+    jobDescription: string,
+    apiKey: string
+): Promise<MatchAnalysis> => {
+    
+    // 1. Extract Text
+    const cvText = await extractTextFromFile(cvFile);
+
+    // 2. Prepare Messages
+    const messages = [
+        {
+            role: "system",
+            content: ANALYSIS_PROMPT
+        },
+        {
+            role: "user",
+            content: `JOB DESCRIPTION:\n${jobDescription.substring(0, 10000)}\n\nCANDIDATE CV:\n${cvText.substring(0, 10000)}`
+        }
+    ];
+
+    try {
+        const response = await fetch(CEREBRAS_API_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: "llama-3.3-70b", 
+                messages: messages,
+                temperature: 0.7,
+                response_format: { type: "json_object" }
+            })
+        });
+
+        if (!response.ok) throw new Error("Analysis API failed");
+        
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+        return JSON.parse(content);
+    } catch (e) {
+        console.error("Analysis failed", e);
+        throw new Error("Failed to analyze job match.");
+    }
+};
 
 export const generateTailoredApplication = async (
   cvFile: FileData,
@@ -145,7 +231,7 @@ export const generateTailoredApplication = async (
         "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "llama3.1-8b", 
+        model: "llama-3.3-70b", 
         messages: messages,
         temperature: 0.7,
         max_completion_tokens: 4000,

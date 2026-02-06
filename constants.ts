@@ -1,5 +1,21 @@
 
 export const APP_NAME = "CV Tailor Pro";
+export const SERP_API_KEY = "694175e6871350996f0a04ee41ef7c632ef94fa12aa40725a94b78e708f999bc";
+
+export const ANALYSIS_PROMPT = `
+Goal: precise viability assessment.
+Analyze the Candidate CV against the Job Description.
+
+Output strictly valid JSON:
+{
+  "decision": "APPLY" or "CAUTION" or "SKIP",
+  "matchScore": number (0-100),
+  "headline": "Short punchy summary (e.g. 'Strong Technical Match, Weak Domain')",
+  "pros": ["Key strength 1", "Key strength 2"],
+  "cons": ["Missing requirement 1", "Gap 2"],
+  "reasoning": "2-3 sentences on why they should or shouldn't apply."
+}
+`;
 
 export const SYSTEM_PROMPT = `
 Goal: Transform the existing CV into a highly tailored, high quality document that maximizes ATS compatibility (target ≥85% match), improves recruiter readability, and positions the candidate as a direct match — without inventing achievements.

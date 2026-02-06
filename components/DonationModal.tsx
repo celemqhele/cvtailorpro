@@ -5,6 +5,7 @@ interface PaymentModalProps {
   onClose: () => void;
   onSuccess: (orderId: string) => void;
   documentTitle: string;
+  existingOrderId: string | null;
 }
 
 // Paystack global definition
@@ -16,14 +17,15 @@ declare global {
   }
 }
 
-export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, documentTitle }) => {
+export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, documentTitle, existingOrderId }) => {
   if (!isOpen) return null;
 
   const PUBLIC_KEY = 'pk_live_9989ae457450be7da1256d8a2c2c0b181d0a2d30'; 
   const PRICE_ZAR = 100;
 
   const handlePayment = () => {
-    const uniqueRef = 'ORD-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    // Use existing Order ID if available to allow resuming/upgrading, otherwise create new
+    const uniqueRef = existingOrderId || ('ORD-' + Math.random().toString(36).substring(2, 8).toUpperCase());
     
     const paystack = window.PaystackPop.setup({
       key: PUBLIC_KEY,
@@ -58,6 +60,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
              <p className="text-slate-500 text-xs uppercase font-bold tracking-wider mb-1">Item</p>
              <p className="text-slate-800 font-medium">{documentTitle}</p>
              <p className="text-slate-800 font-medium">+ Cover Letter</p>
+             {existingOrderId && (
+                 <p className="text-xs text-slate-400 mt-2">Ref: {existingOrderId}</p>
+             )}
           </div>
 
           <div className="space-y-2">
