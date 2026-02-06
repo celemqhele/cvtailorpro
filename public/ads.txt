@@ -1,4 +1,1 @@
-#Ads.txt goapply.co.za
-
-# 11201
-google.com, pub-6881973057585692, DIRECT
+# Ads.txt is managed via redirect to https://srv.adstxtmanager.com/19390/goapply.co.za

@@ -1,20 +1,12 @@
 {
-  "headers": [
+  "redirects": [
     {
       "source": "/ads.txt",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "text/plain"
-        }
-      ]
+      "destination": "https://srv.adstxtmanager.com/19390/goapply.co.za",
+      "permanent": true
     }
   ],
   "rewrites": [
-    {
-      "source": "/ads.txt",
-      "destination": "/ads.txt"
-    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
