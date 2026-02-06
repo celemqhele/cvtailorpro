@@ -74,3 +74,37 @@ export const verifySubscription = async (subscriptionId: string): Promise<{ acti
     return { active: false };
   }
 };
+
+// --- Single Order Functions ---
+
+export const saveOrder = async (orderId: string, paymentRef: string) => {
+  try {
+    const { error } = await supabase
+      .from('orders')
+      .insert([
+        {
+          id: orderId,
+          payment_ref: paymentRef,
+          created_at: new Date().toISOString()
+        }
+      ]);
+    return { success: !error, error };
+  } catch (e: any) {
+    console.error("Order save failed", e);
+    return { success: false, error: e.message };
+  }
+};
+
+export const verifyOrder = async (orderId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('id', orderId)
+      .single();
+    
+    return { valid: !!data && !error };
+  } catch (e) {
+    return { valid: false };
+  }
+};

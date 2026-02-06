@@ -1,3 +1,4 @@
+
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
 import { SYSTEM_PROMPT, ANALYSIS_PROMPT } from "../constants";
@@ -188,7 +189,7 @@ export const generateTailoredApplication = async (
     },
     "coverLetter": {
       "title": "Candidate_Name_Cover_Letter.docx",
-      "content": "Full Cover Letter content in plain text..."
+      "content": "# Full, multi-paragraph Cover Letter in Markdown format including Date, Recipient info, Body, and Sign-off."
     },
     // If outcome is REJECT:
     "rejectionDetails": {

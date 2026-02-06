@@ -10,13 +10,13 @@ export const generateScannedPdf = async (elementId: string, filename: string) =>
 
   // Create canvas from element (converts text to image)
   const canvas = await html2canvas(element, {
-    scale: 2, // Improve resolution
+    scale: 4, // Increased from 2 to 4 for better resolution
     useCORS: true,
     logging: false,
     backgroundColor: '#ffffff'
   });
 
-  const imgData = canvas.toDataURL('image/jpeg', 0.9);
+  const imgData = canvas.toDataURL('image/jpeg', 1.0); // Use max quality jpeg
   const pdf = new jsPDF('p', 'mm', 'a4');
   
   const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -34,10 +34,7 @@ export const generateScannedPdf = async (elementId: string, filename: string) =>
 
   // Subsequent pages if content overflows A4
   while (heightLeft > 0) {
-    position = heightLeft - imgHeight; // This positioning logic for multipage images in jspdf is tricky, usually simpler to just slice
-    // Simplified multipage approach for image-based PDFs often just puts the next slice on a new page
-    // However, exact slicing is complex. 
-    // For this use case, we will add pages and shift the image up, masking the rest.
+    position = heightLeft - imgHeight; 
     pdf.addPage();
     // Shift image up by page height * page number
     pdf.addImage(imgData, 'JPEG', 0, -(imgHeight - heightLeft), imgWidth, imgHeight); 

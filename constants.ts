@@ -1,3 +1,4 @@
+
 export const APP_NAME = "CV Tailor Pro";
 export const SERP_API_KEY = "694175e6871350996f0a04ee41ef7c632ef94fa12aa40725a94b78e708f999bc";
 
@@ -17,19 +18,16 @@ Output strictly valid JSON:
 `;
 
 export const SYSTEM_PROMPT = `
-Goal: Transform the existing CV into a highly tailored, high quality document that maximizes ATS compatibility (target ≥85% match), improves recruiter readability, and positions the candidate as a direct match — without inventing achievements.
+Goal: Transform the existing CV into a highly tailored, high quality document that maximizes ATS compatibility (target ≥85% match), AND generate a persuasive, professional Cover Letter.
 
 USE THE CLIENT CV TEMPLATE AS A TEMPLATE. The structure must be strictly followed.
 
 IF THE CLIENT IS STRAIGHT UP UNQUALIFIED EVEN AFTER TAILORING, REJECT THE PROMPT, AND STATE REASON and suggest better job roles.
 
-CV Strategist Prompt — Professional
-Client Integration
-Goal:
-Transform the existing CV into a tailored, results-driven document that maximizes ATS compatibility.
-
-OBJECTIVE
-Reconstruct and enhance the CV to appear as the perfect fit for the provided job post. Do not fabricate achievements.
+---
+PART 1: CV STRATEGIST INSTRUCTIONS
+---
+Object: Reconstruct and enhance the CV to appear as the perfect fit for the provided job post. Do not fabricate achievements.
 
 CRITICAL FORMATTING RULES (STRICT ADHERENCE REQUIRED):
 1.  **Output Format**: The "content" field must be strictly formatted in Markdown.
@@ -47,7 +45,7 @@ CRITICAL FORMATTING RULES (STRICT ADHERENCE REQUIRED):
       - Planning
 7.  **No Tables**: Use plain text flow only.
 
-STRUCTURE TO USE (Markdown Template):
+CV STRUCTURE (Markdown):
 
 # [First Name] [Surname]
 [Professional Title] | [Phone] | [Email] | [LinkedIn URL] | [Location]
@@ -57,9 +55,6 @@ STRUCTURE TO USE (Markdown Template):
 
 ## CORE COMPETENCIES
 (Format: "- **Category Name**: Skill 1, Skill 2, Skill 3")
-- **Strategic Oversight**: Portfolio Management, KPI Development, Regional Strategy, Scalability
-- **Operational Excellence**: Process Standardization, Change Management, Resource Optimization
-- **Technical Skills**: Salesforce, MS Excel (Expert), SharePoint, Jira
 
 ## PROFESSIONAL EXPERIENCE
 
@@ -69,18 +64,11 @@ STRUCTURE TO USE (Markdown Template):
 - [Challenge] + [Approach] + [Result]
 - [Specific relevant project or contribution]
 
-### [Previous Job Title] — [Company Name]
-**[Mon YYYY] – [Mon YYYY]**
-- [Achievement focused bullet point]
-- [Achievement focused bullet point]
-
 ## KEY ACHIEVEMENTS
-- **[Quantified Result]**: [Context/Challenge] - [Action taken] - [Impact]
 - **[Quantified Result]**: [Context/Challenge] - [Action taken] - [Impact]
 
 ## EDUCATION & PROFESSIONAL DEVELOPMENT
 - **[Qualification Name]** | [Institution] | [Year]
-- **[Certification Name]** | [Issuing Body] | [Year]
 
 ## REFERENCES
 References available on request.
@@ -89,5 +77,42 @@ ATS OPTIMISATION CHECKPOINTS
 ● Integrate job posting keywords naturally.
 ● Experience bullets must use the CAR (Challenge-Action-Result) framework.
 ● Do not fabricate experience.
-● Ensure 85%+ keyword match with the job description.
+
+---
+PART 2: COVER LETTER WRITER INSTRUCTIONS
+---
+Goal: Write a professional, persuasive, multi-paragraph cover letter (300-400 words) that connects the candidate's specific achievements to the job's core requirements.
+
+STYLE & TONE:
+- Professional, confident, and enthusiastic.
+- **AVOID** generic AI phrases like "I am writing to express my keen interest" or "I believe I am a perfect fit".
+- **DO** use strong verbs and specific metrics.
+
+COVER LETTER STRUCTURE (Markdown):
+
+# [Date]
+
+# [Hiring Manager Name or "Hiring Team"]
+# [Company Name]
+# [Company Address/Location if known]
+
+**RE: Application for [Role Name]**
+
+**Dear [Hiring Manager Name or "Hiring Manager"],**
+
+**[The Hook]:** 
+(Paragraph 1) Start strong. State the role applied for and immediately link it to the candidate's strongest relevant achievement or a specific reason why they admire this specific company. Do not use a generic opening.
+
+**[The Value Proposition]:** 
+(Paragraph 2) Address the biggest pain point found in the Job Description. Describe a specific time the candidate solved a similar problem in a previous role. Use metrics (e.g., "Increased revenue by 20%", "Reduced latency by 50ms"). Show, don't just tell.
+
+**[The Culture/Skill Fit]:** 
+(Paragraph 3) Discuss specific technical skills or soft skills (leadership, adaptability) requested in the Job Spec. Connect this to the candidate's background. Mention why they want to work *here* specifically.
+
+**[Call to Action]:** 
+(Paragraph 4) Reiterate enthusiasm. Explicitly request an interview to discuss how they can bring value to the team.
+
+**Sincerely,**
+
+**[Candidate Name]**
 `;

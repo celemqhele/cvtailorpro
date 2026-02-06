@@ -8,7 +8,7 @@ import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { RewardedAdModal } from './components/RewardedAdModal';
 import { ProPlusPromoModal } from './components/ProPlusPromoModal';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from './services/geminiService';
-import { createSubscription, verifySubscription } from './services/subscriptionService';
+import { createSubscription, verifySubscription, saveOrder, verifyOrder } from './services/subscriptionService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis } from './types';
 import { APP_NAME } from './constants';
 import { generateWordDocument } from './utils/docHelper';
@@ -150,6 +150,10 @@ const App: React.FC = () => {
         const finalId = orderId || data;
         setIsPaid(true);
         setOrderId(finalId);
+        
+        // Save to Supabase for record keeping
+        await saveOrder(finalId, finalId);
+
         if (result) {
             saveOrderToStorage(finalId, result, true);
         }
@@ -180,7 +184,16 @@ const App: React.FC = () => {
                 setRestoreIdInput('');
                 alert(`Order ${cleanId} restored!`);
             } else {
-                alert("ID not found (Check if it is a Pro Plus ID 'SUB-' or Order ID 'ORD-')");
+                // Check Supabase
+                const { valid } = await verifyOrder(cleanId);
+                if (valid) {
+                     setOrderId(cleanId);
+                     setIsPaid(true);
+                     setRestoreIdInput('');
+                     alert("Order Verified. Note: We do not store CV content on our servers to protect your privacy, so content cannot be restored, but your payment is verified.");
+                } else {
+                     alert("ID not found (Check if it is a Pro Plus ID 'SUB-' or Order ID 'ORD-')");
+                }
             }
         } catch (e) {
             alert("Failed to restore ID.");
@@ -237,13 +250,10 @@ const App: React.FC = () => {
   const executeFreeDownload = async () => {
     setShowAdModal(false);
     if (result?.cv) {
-        await generateScannedPdf('hidden-cv-content', result.cv.title);
+        // Use generateSelectablePdf for better quality (text vs image)
+        await generateSelectablePdf('hidden-cv-content', result.cv.title);
     }
-    if (result?.coverLetter) {
-        setTimeout(async () => {
-           await generateScannedPdf('hidden-cl-content', result.coverLetter.title);
-        }, 1000);
-    }
+    // Note: Free download NO LONGER includes Cover Letter
     triggerPromoIfNeeded();
   };
 
@@ -259,11 +269,11 @@ const App: React.FC = () => {
   };
 
   const markdownComponents = {
-      h1: ({node, ...props}: any) => <h1 className="text-3xl font-bold text-[#2E74B5] text-center border-b-2 border-[#2E74B5] pb-2 mb-6 mt-2" {...props} />,
-      h2: ({node, ...props}: any) => <h2 className="text-xl font-bold text-[#2E74B5] uppercase border-b border-gray-300 pb-1 mb-3 mt-8" {...props} />,
-      h3: ({node, ...props}: any) => <h3 className="text-lg font-bold text-slate-900 mb-2 mt-4" {...props} />,
-      p: ({node, ...props}: any) => <p className="mb-2 leading-relaxed text-justify" {...props} />,
-      ul: ({node, ...props}: any) => <ul className="list-disc pl-5 space-y-1 mb-4" {...props} />,
+      h1: ({node, ...props}: any) => <h1 className="text-4xl font-extrabold text-[#2E74B5] text-center border-b-2 border-[#2E74B5] pb-4 mb-8 mt-2 tracking-tight" {...props} />,
+      h2: ({node, ...props}: any) => <h2 className="text-xl font-bold text-[#2E74B5] uppercase border-b border-gray-300 pb-2 mb-4 mt-8 tracking-wide" {...props} />,
+      h3: ({node, ...props}: any) => <h3 className="text-lg font-bold text-slate-900 mb-2 mt-6" {...props} />,
+      p: ({node, ...props}: any) => <p className="mb-3 leading-relaxed text-justify text-slate-700" {...props} />,
+      ul: ({node, ...props}: any) => <ul className="list-disc pl-5 space-y-2 mb-6 text-slate-700" {...props} />,
       li: ({node, ...props}: any) => <li className="pl-1" {...props} />,
       strong: ({node, ...props}: any) => <strong className="font-bold text-[#2E74B5]" {...props} />,
   };
@@ -578,8 +588,13 @@ const App: React.FC = () => {
                                                 className="w-full text-sm text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                                {subscriptionActive ? 'Download PDF' : 'Download Free PDF (Scanned)'}
+                                                {subscriptionActive ? 'Download PDF' : 'Download Free CV (PDF)'}
                                             </button>
+                                            {!subscriptionActive && (
+                                                <p className="text-[10px] text-center text-slate-400 mt-2">
+                                                    (Cover Letter included in Pro version)
+                                                </p>
+                                            )}
                                         </div>
                                     </>
                                 )}

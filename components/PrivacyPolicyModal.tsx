@@ -39,22 +39,33 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
           </section>
 
           <section>
-            <h4 className="font-bold text-slate-900 mb-2">2. Data Handling & Security</h4>
-            <ul className="list-disc pl-5 space-y-1">
-              <li><strong>No Retention:</strong> We do not store your uploaded CVs or generated documents. Data is processed in-memory and discarded.</li>
-              <li><strong>Processing:</strong> Data is transmitted securely to our AI providers (Cerebras) solely for generation purposes.</li>
+            <h4 className="font-bold text-slate-900 mb-2">2. Data Retention & Database Storage</h4>
+            <ul className="list-disc pl-5 space-y-2">
+              <li>
+                <strong>Transaction IDs:</strong> We store <strong>Pro Plus IDs</strong> (Subscriptions) and <strong>Order IDs</strong> (Single Downloads) in our secure database (Supabase). This is strictly to verify your purchase status, manage subscription validity, and allow you to restore access on different devices.
+              </li>
+              <li>
+                <strong>No Content Storage:</strong> We <strong>DO NOT</strong> store the actual content of your uploaded CVs, generated CVs, or Cover Letters in our database. These documents are generated in-memory and may be temporarily saved to your browser's local storage for your convenience, but they are never uploaded to our servers for permanent storage.
+              </li>
             </ul>
           </section>
 
           <section>
             <h4 className="font-bold text-slate-900 mb-2">3. Third-Party AI Services</h4>
              <p>
-              We utilize Cerebras AI (powering models like Llama 3.3 70B) to process text. By using this tool, you acknowledge that your input data is sent to the Cerebras API.
+              We utilize Cerebras AI (powering models like Llama 3.3 70B) to process text. By using this tool, you acknowledge that your input data is sent to the Cerebras API solely for the purpose of generating your tailored application.
             </p>
           </section>
 
           <section>
-            <h4 className="font-bold text-slate-900 mb-2">4. Contact</h4>
+            <h4 className="font-bold text-slate-900 mb-2">4. Payment Information</h4>
+            <p>
+              Payments are processed securely via Paystack. We do not store your credit card details. We only store the transaction reference linked to your Order ID or Subscription ID to confirm payment success.
+            </p>
+          </section>
+
+          <section>
+            <h4 className="font-bold text-slate-900 mb-2">5. Contact</h4>
             <p>
               Questions? Contact us at <a href="mailto:customerservice@goapply.co.za" className="text-indigo-600 hover:underline">customerservice@goapply.co.za</a>.
             </p>
