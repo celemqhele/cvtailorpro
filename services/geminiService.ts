@@ -1,8 +1,11 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
 import { SYSTEM_PROMPT, ANALYSIS_PROMPT } from "../constants";
 import { FileData, GeneratorResponse, MatchAnalysis } from "../types";
+
+// Cerebras API Configuration
+const CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions";
+const MODEL_NAME = "llama3.1-70b"; // Using Llama 3.1 70B as per Cerebras availability
 
 /**
  * Scrapes job content from a URL using Jina.ai (free markdown reader).
@@ -90,46 +93,68 @@ async function extractTextFromFile(file: FileData): Promise<string> {
   }
 }
 
+/**
+ * Common function to call Cerebras API
+ */
+async function callCerebrasAPI(systemPrompt: string, userPrompt: string): Promise<any> {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) throw new Error("API Key is missing. Please check configuration.");
+
+    try {
+        const response = await fetch(CEREBRAS_API_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: MODEL_NAME,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt }
+                ],
+                response_format: { type: "json_object" }, // Enforce JSON output
+                temperature: 0.7,
+                max_tokens: 4096,
+                top_p: 1
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.text();
+            throw new Error(`Cerebras API Error: ${err}`);
+        }
+
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+
+        if (!content) throw new Error("No content received from AI.");
+
+        return JSON.parse(content);
+    } catch (e: any) {
+        console.error("AI Service Error:", e);
+        throw e;
+    }
+}
+
 export const analyzeMatch = async (
     cvFile: FileData,
     jobDescription: string
 ): Promise<MatchAnalysis> => {
     
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const cvText = await extractTextFromFile(cvFile);
+    
+    const userPrompt = `
+        JOB DESCRIPTION:
+        ${jobDescription.substring(0, 15000)}
+
+        CANDIDATE CV:
+        ${cvText.substring(0, 15000)}
+    `;
 
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: {
-                parts: [
-                    { text: "Analyze the Candidate CV against the Job Description to determine fit." },
-                    { text: `JOB DESCRIPTION:\n${jobDescription.substring(0, 20000)}` },
-                    { text: `CANDIDATE CV:\n${cvText.substring(0, 20000)}` }
-                ]
-            },
-            config: {
-                systemInstruction: ANALYSIS_PROMPT,
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        decision: { type: Type.STRING, enum: ["APPLY", "CAUTION", "SKIP"] },
-                        matchScore: { type: Type.INTEGER },
-                        headline: { type: Type.STRING },
-                        pros: { type: Type.ARRAY, items: { type: Type.STRING } },
-                        cons: { type: Type.ARRAY, items: { type: Type.STRING } },
-                        reasoning: { type: Type.STRING }
-                    },
-                    required: ["decision", "matchScore", "headline", "pros", "cons", "reasoning"]
-                }
-            }
-        });
-
-        const text = response.text;
-        if (!text) throw new Error("No response from AI");
-        return JSON.parse(text);
-
+        const result = await callCerebrasAPI(ANALYSIS_PROMPT, userPrompt);
+        return result as MatchAnalysis;
     } catch (e) {
         console.error("Analysis failed", e);
         throw new Error("Failed to analyze job match.");
@@ -142,7 +167,6 @@ export const generateTailoredApplication = async (
   force: boolean = false
 ): Promise<GeneratorResponse> => {
   
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   let cvText = "";
   try {
     cvText = await extractTextFromFile(cvFile);
@@ -154,7 +178,7 @@ export const generateTailoredApplication = async (
     throw new Error("Could not extract enough text from the CV. Please check the file.");
   }
 
-  const prompt = `
+  const userPrompt = `
     Job Description:
     ${jobDescription}
 
@@ -167,53 +191,8 @@ export const generateTailoredApplication = async (
   `;
 
   try {
-    const response = await ai.models.generateContent({
-        model: "gemini-3-pro-preview",
-        contents: {
-            parts: [{ text: prompt }]
-        },
-        config: {
-            systemInstruction: SYSTEM_PROMPT,
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    outcome: { type: Type.STRING, enum: ["PROCEED", "REJECT"] },
-                    rejectionDetails: {
-                        type: Type.OBJECT,
-                        properties: {
-                            reason: { type: Type.STRING },
-                            suggestion: { type: Type.STRING }
-                        }
-                    },
-                    cv: {
-                        type: Type.OBJECT,
-                        properties: {
-                            title: { type: Type.STRING },
-                            content: { type: Type.STRING }
-                        },
-                        required: ["title", "content"]
-                    },
-                    coverLetter: {
-                        type: Type.OBJECT,
-                        properties: {
-                            title: { type: Type.STRING },
-                            content: { type: Type.STRING }
-                        },
-                        required: ["title", "content"]
-                    },
-                    brandingImage: { type: Type.STRING }
-                },
-                required: ["outcome"]
-            }
-        }
-    });
-
-    const text = response.text;
-    if (!text) throw new Error("No response from AI");
-    
-    return JSON.parse(text) as GeneratorResponse;
-
+    const result = await callCerebrasAPI(SYSTEM_PROMPT, userPrompt);
+    return result as GeneratorResponse;
   } catch (e: any) {
     console.error("Generation failed", e);
     throw new Error(e.message || "Failed to generate tailored application.");
