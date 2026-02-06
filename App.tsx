@@ -268,6 +268,7 @@ const App: React.FC = () => {
     setOrderId(null);
   };
 
+  // Components for Screen Preview (Larger, Web Optimized)
   const markdownComponents = {
       h1: ({node, ...props}: any) => <h1 className="text-4xl font-extrabold text-[#2E74B5] text-center border-b-2 border-[#2E74B5] pb-4 mb-8 mt-2 tracking-tight" {...props} />,
       h2: ({node, ...props}: any) => <h2 className="text-xl font-bold text-[#2E74B5] uppercase border-b border-gray-300 pb-2 mb-4 mt-8 tracking-wide" {...props} />,
@@ -275,6 +276,18 @@ const App: React.FC = () => {
       p: ({node, ...props}: any) => <p className="mb-3 leading-relaxed text-justify text-slate-700" {...props} />,
       ul: ({node, ...props}: any) => <ul className="list-disc pl-5 space-y-2 mb-6 text-slate-700" {...props} />,
       li: ({node, ...props}: any) => <li className="pl-1" {...props} />,
+      strong: ({node, ...props}: any) => <strong className="font-bold text-[#2E74B5]" {...props} />,
+  };
+
+  // Components for PDF Generation (Compact, Print Optimized)
+  // Text is smaller (xs), margins are tighter
+  const pdfMarkdownComponents = {
+      h1: ({node, ...props}: any) => <h1 className="text-2xl font-extrabold text-[#2E74B5] text-center border-b-2 border-[#2E74B5] pb-2 mb-4 mt-0 tracking-tight" {...props} />,
+      h2: ({node, ...props}: any) => <h2 className="text-base font-bold text-[#2E74B5] uppercase border-b border-gray-300 pb-1 mb-2 mt-4 tracking-wide" {...props} />,
+      h3: ({node, ...props}: any) => <h3 className="text-sm font-bold text-slate-900 mb-1 mt-3" {...props} />,
+      p: ({node, ...props}: any) => <p className="mb-2 leading-snug text-justify text-slate-900 text-xs" {...props} />,
+      ul: ({node, ...props}: any) => <ul className="list-disc pl-4 space-y-1 mb-3 text-slate-900 text-xs" {...props} />,
+      li: ({node, ...props}: any) => <li className="pl-0.5" {...props} />,
       strong: ({node, ...props}: any) => <strong className="font-bold text-[#2E74B5]" {...props} />,
   };
 
@@ -360,13 +373,14 @@ const App: React.FC = () => {
       />
 
       {/* Hidden Render Container for PDF */}
+      {/* Note: Updated padding to 12mm (wider) and using pdfMarkdownComponents (smaller text) */}
       {result && (
         <div className="fixed left-[-9999px] top-0">
-            <div id="hidden-cv-content" className="bg-white p-[20mm] w-[210mm] text-slate-900">
-                <ReactMarkdown components={markdownComponents}>{result.cv?.content || ''}</ReactMarkdown>
+            <div id="hidden-cv-content" className="bg-white p-[12mm] w-[210mm] text-slate-900">
+                <ReactMarkdown components={pdfMarkdownComponents}>{result.cv?.content || ''}</ReactMarkdown>
             </div>
-            <div id="hidden-cl-content" className="bg-white p-[20mm] w-[210mm] text-slate-900">
-                <ReactMarkdown components={markdownComponents}>{result.coverLetter?.content || ''}</ReactMarkdown>
+            <div id="hidden-cl-content" className="bg-white p-[12mm] w-[210mm] text-slate-900">
+                <ReactMarkdown components={pdfMarkdownComponents}>{result.coverLetter?.content || ''}</ReactMarkdown>
             </div>
         </div>
       )}
