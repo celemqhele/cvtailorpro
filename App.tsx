@@ -6,7 +6,9 @@ import { AdBanner } from './components/AdBanner';
 import { PaymentModal } from './components/DonationModal'; 
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { RewardedAdModal } from './components/RewardedAdModal';
+import { ProPlusPromoModal } from './components/ProPlusPromoModal';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from './services/geminiService';
+import { createSubscription, verifySubscription } from './services/subscriptionService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis } from './types';
 import { APP_NAME } from './constants';
 import { generateWordDocument } from './utils/docHelper';
@@ -15,7 +17,7 @@ import { generateScannedPdf, generateSelectablePdf } from './utils/pdfHelper';
 const App: React.FC = () => {
   const [file, setFile] = useState<FileData | null>(null);
   const [jobLink, setJobLink] = useState('');
-  const [jobSpec, setJobSpec] = useState(''); // Stores scraped text
+  const [jobSpec, setJobSpec] = useState(''); 
   const [apiKey] = useState('csk-rmv54ykfk8mp439ww3xrrjy98nk3phnh3hentfprjxp2xwv3');
   
   const [status, setStatus] = useState<Status>(Status.IDLE);
@@ -23,13 +25,47 @@ const App: React.FC = () => {
   const [result, setResult] = useState<GeneratorResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-  // Payment, Ads & Restore State
+  // Payment, Ads, Restore & Subscription State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showAdModal, setShowAdModal] = useState(false); 
+  const [showPromoModal, setShowPromoModal] = useState(false); // New Promo Modal
+  
   const [isPaid, setIsPaid] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [restoreIdInput, setRestoreIdInput] = useState('');
+  
+  // New Subscription State
+  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
+  const [subscriptionExpiry, setSubscriptionExpiry] = useState<string | null>(null);
+
+  // Check for stored subscription on load
+  useEffect(() => {
+    const storedSub = localStorage.getItem('cv_subscription_id');
+    if (storedSub) {
+        checkSubscription(storedSub, true);
+    }
+  }, []);
+
+  const checkSubscription = async (subId: string, silent: boolean = false) => {
+      if (!silent) setStatus(Status.SCANNING); // Temporary UI feedback
+      
+      const { active, expiresAt } = await verifySubscription(subId);
+      
+      if (active) {
+          setSubscriptionId(subId);
+          setSubscriptionActive(true);
+          setSubscriptionExpiry(expiresAt || null);
+          localStorage.setItem('cv_subscription_id', subId);
+          if (!silent) alert(`Pro Plus Mode Activated!\nID: ${subId}`);
+      } else {
+          localStorage.removeItem('cv_subscription_id'); // Clear invalid
+          if (!silent) alert("Invalid or Expired Pro Plus ID.");
+      }
+      
+      if (!silent) setStatus(Status.IDLE);
+  };
 
   // Helper to save current state to local storage
   const saveOrderToStorage = (id: string, data: GeneratorResponse, paid: boolean) => {
@@ -50,12 +86,10 @@ const App: React.FC = () => {
       setJobSpec('');
 
       try {
-          // 1. Scrape
           const scrapedText = await scrapeJobFromUrl(jobLink);
           setJobSpec(scrapedText);
           setStatus(Status.ANALYZING);
 
-          // 2. Analyze
           const analysisResult = await analyzeMatch(file, scrapedText, apiKey);
           setAnalysis(analysisResult);
           setStatus(Status.ANALYSIS_COMPLETE);
@@ -99,51 +133,85 @@ const App: React.FC = () => {
     }
   };
 
-  const handlePaymentSuccess = async (processedOrderId: string) => {
-    setIsPaid(true);
-    const finalId = orderId || processedOrderId;
-    setOrderId(finalId);
-    setShowPaymentModal(false);
-
-    if (result) {
-        saveOrderToStorage(finalId, result, true);
+  const handlePaymentSuccess = async (data: string, isSubscription: boolean) => {
+    if (isSubscription) {
+        // Data is the plan ID, we need to generate subscription
+        const ref = 'PAY-' + Date.now();
+        const subResult = await createSubscription(data, ref);
+        
+        if (subResult.success && subResult.subscriptionId) {
+            setSubscriptionId(subResult.subscriptionId);
+            setSubscriptionActive(true);
+            localStorage.setItem('cv_subscription_id', subResult.subscriptionId);
+            alert(`Pro Plus Activated! Your ID is: ${subResult.subscriptionId}. Keep this safe!`);
+        }
+    } else {
+        // Single Order
+        const finalId = orderId || data;
+        setIsPaid(true);
+        setOrderId(finalId);
+        if (result) {
+            saveOrderToStorage(finalId, result, true);
+        }
+        if (result?.cv) await generateWordDocument(result.cv.title, result.cv.content, undefined, false);
     }
-    if (result?.cv) await generateWordDocument(result.cv.title, result.cv.content, undefined, false);
+    setShowPaymentModal(false);
   };
 
-  const handleRestore = () => {
+  const handleActivateProPlus = async () => {
     if (!restoreIdInput.trim()) return;
     const cleanId = restoreIdInput.trim().toUpperCase();
     
-    try {
-        const saved = localStorage.getItem(`cv_order_${cleanId}`);
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            setResult(parsed.result);
-            const wasPaid = parsed.isPaid === true;
-            setIsPaid(wasPaid);
-            setOrderId(cleanId);
-            setStatus(Status.SUCCESS);
-            setRestoreIdInput('');
-            alert(`Order ${cleanId} restored!`);
-        } else {
-            alert("Order ID not found on this device.");
+    // Check if it's a Subscription ID
+    if (cleanId.startsWith('SUB-')) {
+        await checkSubscription(cleanId);
+        setRestoreIdInput('');
+    } else {
+        // Fallback for restoring Single Orders via the same box
+        try {
+            const saved = localStorage.getItem(`cv_order_${cleanId}`);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                setResult(parsed.result);
+                const wasPaid = parsed.isPaid === true;
+                setIsPaid(wasPaid);
+                setOrderId(cleanId);
+                setStatus(Status.SUCCESS);
+                setRestoreIdInput('');
+                alert(`Order ${cleanId} restored!`);
+            } else {
+                alert("ID not found (Check if it is a Pro Plus ID 'SUB-' or Order ID 'ORD-')");
+            }
+        } catch (e) {
+            alert("Failed to restore ID.");
         }
-    } catch (e) {
-        alert("Failed to restore order.");
     }
   };
 
+  // Logic: Unlocked if Single Paid OR Subscription Active
+  const isUnlocked = isPaid || subscriptionActive;
+
+  // Trigger Promo only if user is NOT a Pro Plus member
+  const triggerPromoIfNeeded = () => {
+      if (!subscriptionActive) {
+          // Small delay to let download start
+          setTimeout(() => {
+              setShowPromoModal(true);
+          }, 2000);
+      }
+  };
+
   const downloadWord = async (filename: string, content: string) => {
-     if (!isPaid) {
+     if (!isUnlocked) {
          setShowPaymentModal(true);
          return;
      }
      await generateWordDocument(filename, content, undefined, false);
+     triggerPromoIfNeeded();
   };
 
   const downloadSelectablePdfHandler = async (type: 'cv' | 'coverLetter') => {
-      if (!isPaid) {
+      if (!isUnlocked) {
           setShowPaymentModal(true);
           return;
       }
@@ -153,11 +221,17 @@ const App: React.FC = () => {
       
       if (filename) {
           await generateSelectablePdf(elementId, filename);
+          triggerPromoIfNeeded();
       }
   };
 
   const initiateFreeDownload = () => {
-    setShowAdModal(true);
+    // If Pro Plus, skip ads directly
+    if (subscriptionActive) {
+        executeFreeDownload();
+    } else {
+        setShowAdModal(true);
+    }
   };
 
   const executeFreeDownload = async () => {
@@ -170,6 +244,7 @@ const App: React.FC = () => {
            await generateScannedPdf('hidden-cl-content', result.coverLetter.title);
         }, 1000);
     }
+    triggerPromoIfNeeded();
   };
 
   const reset = () => {
@@ -193,10 +268,8 @@ const App: React.FC = () => {
       strong: ({node, ...props}: any) => <strong className="font-bold text-[#2E74B5]" {...props} />,
   };
 
-  // UI Components for Analysis
   const AnalysisDashboard = () => {
       if (!analysis) return null;
-      
       const isPositive = analysis.decision === 'APPLY';
       const colorClass = isPositive ? 'border-green-200 bg-green-50' : analysis.decision === 'CAUTION' ? 'border-amber-200 bg-amber-50' : 'border-red-200 bg-red-50';
       const textClass = isPositive ? 'text-green-800' : analysis.decision === 'CAUTION' ? 'text-amber-800' : 'text-red-800';
@@ -213,7 +286,6 @@ const App: React.FC = () => {
                           <span className="text-sm font-medium text-slate-600">Decision: {analysis.decision}</span>
                       </div>
                   </div>
-                  {/* Status Indicator */}
                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isPositive ? 'bg-green-200 text-green-700' : 'bg-red-200 text-red-700'}`}>
                       {isPositive ? (
                           <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -243,21 +315,8 @@ const App: React.FC = () => {
               </div>
 
               <div className="pt-2 flex gap-4">
-                  <Button 
-                    onClick={() => handleGenerate(false)} 
-                    className="w-full bg-indigo-600 hover:bg-indigo-700"
-                  >
-                    Generate Tailored CV
-                  </Button>
-                  {!isPositive && (
-                     <Button 
-                       onClick={reset} 
-                       variant="secondary"
-                       className="w-1/3"
-                     >
-                       Cancel
-                     </Button>
-                  )}
+                  <Button onClick={() => handleGenerate(false)} className="w-full bg-indigo-600 hover:bg-indigo-700">Generate Tailored CV</Button>
+                  {!isPositive && <Button onClick={reset} variant="secondary" className="w-1/3">Cancel</Button>}
               </div>
           </div>
       );
@@ -274,6 +333,16 @@ const App: React.FC = () => {
       />
       <PrivacyPolicyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
       
+      {/* Promo Modal shows after download if user is NOT Pro Plus */}
+      <ProPlusPromoModal 
+        isOpen={showPromoModal}
+        onClose={() => setShowPromoModal(false)}
+        onUpgrade={() => {
+            setShowPromoModal(false);
+            setShowPaymentModal(true);
+        }}
+      />
+
       <RewardedAdModal 
         isOpen={showAdModal} 
         onClose={() => setShowAdModal(false)} 
@@ -305,38 +374,54 @@ const App: React.FC = () => {
             <p className="text-slate-600 text-sm">Tailor your CV to beat ATS bots and land interviews.</p>
           </div>
 
-          <div className="w-full md:w-auto bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-2">
-             <input 
-                type="text" 
-                placeholder="Enter Order ID to restore"
-                value={restoreIdInput}
-                onChange={(e) => setRestoreIdInput(e.target.value)}
-                className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full sm:w-48"
-             />
-             <button 
-                onClick={handleRestore}
-                className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors whitespace-nowrap"
-             >
-                Restore CV
-             </button>
+          <div className="w-full md:w-auto flex flex-col items-end gap-2">
+             {subscriptionActive ? (
+                 <div className="bg-gradient-to-r from-indigo-900 to-indigo-700 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+                     <svg className="w-5 h-5 text-amber-300" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                     <div>
+                         <p className="font-bold text-sm">Pro Plus Active</p>
+                         <p className="text-[10px] text-indigo-200">ID: {subscriptionId}</p>
+                     </div>
+                 </div>
+             ) : (
+                <button 
+                    onClick={() => setShowPaymentModal(true)} 
+                    className="text-xs text-indigo-600 font-bold hover:underline"
+                >
+                    Upgrade to Pro Plus
+                </button>
+             )}
+
+             <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-2">
+                 <input 
+                    type="text" 
+                    placeholder="Enter Pro Plus ID"
+                    value={restoreIdInput}
+                    onChange={(e) => setRestoreIdInput(e.target.value)}
+                    className="px-3 py-2 border-0 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full sm:w-48 bg-transparent"
+                 />
+                 <button 
+                    onClick={handleActivateProPlus}
+                    className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors whitespace-nowrap"
+                 >
+                    Activate
+                 </button>
+             </div>
           </div>
         </header>
 
-        <AdBanner slotId={101} className="hidden md:flex" />
+        {/* HIDE ADS IF PRO PLUS */}
+        {!subscriptionActive && <AdBanner slotId={101} className="hidden md:flex" />}
 
         <main className="grid grid-cols-1 gap-8">
           
-          {/* STEP 1 & 2: INPUTS (Only show if not yet analyzing/success) */}
           {(status === Status.IDLE || status === Status.ERROR) && (
             <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 space-y-8 animate-fade-in">
               <div className="space-y-4">
                 <label className="block text-sm font-semibold text-slate-700 uppercase tracking-wider">
                   1. Upload your Current CV
                 </label>
-                <FileUpload 
-                  onFileSelect={setFile} 
-                  selectedFileName={file?.name} 
-                />
+                <FileUpload onFileSelect={setFile} selectedFileName={file?.name} />
               </div>
 
               <div className="space-y-4">
@@ -376,7 +461,6 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* LOADING STATES */}
           {(status === Status.SCANNING || status === Status.ANALYZING || status === Status.GENERATING) && (
              <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-12 flex flex-col items-center justify-center text-center space-y-6 animate-fade-in">
                  <div className="relative w-20 h-20">
@@ -398,7 +482,6 @@ const App: React.FC = () => {
              </div>
           )}
 
-          {/* ANALYSIS RESULT (Pre-Generation) */}
           {status === Status.ANALYSIS_COMPLETE && analysis && (
               <div className="space-y-6">
                   <div className="flex items-center gap-2 text-slate-500 mb-2 cursor-pointer hover:text-indigo-600" onClick={reset}>
@@ -409,26 +492,24 @@ const App: React.FC = () => {
               </div>
           )}
 
-          {/* FINAL SUCCESS STATE */}
           {status === Status.SUCCESS && result && (
             <div className="animate-fade-in space-y-6">
                
-               {/* Order ID Banner */}
-               {orderId && (
-                   <div className={`border p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 ${isPaid ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
+               {(orderId || subscriptionId) && (
+                   <div className={`border p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 ${isUnlocked ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
                        <div className="flex items-center gap-3">
                            <div className="bg-white p-2 rounded-full shadow-sm">
-                               {isPaid ? (
+                               {isUnlocked ? (
                                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                                ) : (
                                    <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                )}
                            </div>
                            <div>
-                               <p className="font-bold">{isPaid ? 'Unlocked & Ready' : 'Document Generated Successfully'}</p>
+                               <p className="font-bold">{isUnlocked ? 'Unlocked & Ready' : 'Document Generated Successfully'}</p>
                                <p className="text-sm">
-                                   Order ID: <strong className="font-mono bg-white px-2 py-0.5 rounded border border-slate-200 select-all">{orderId}</strong>
-                                   {!isPaid && <span className="ml-2 opacity-75">(Save this to upgrade later)</span>}
+                                   ID: <strong className="font-mono bg-white px-2 py-0.5 rounded border border-slate-200 select-all">{subscriptionActive ? subscriptionId : orderId}</strong>
+                                   {!isUnlocked && <span className="ml-2 opacity-75">(Save this)</span>}
                                </p>
                            </div>
                        </div>
@@ -436,16 +517,13 @@ const App: React.FC = () => {
                    </div>
                )}
 
-               {/* Action Area */}
                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                   
-                   {/* Left Column: Actions */}
                    <div className="lg:col-span-1 space-y-6">
                         <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100">
                             <h3 className="text-xl font-bold text-slate-900 mb-4">Downloads</h3>
                             <div className="space-y-3">
                                 
-                                {isPaid ? (
+                                {isUnlocked ? (
                                     <>
                                         <Button 
                                             onClick={() => result.cv && downloadWord(result.cv.title, result.cv.content)} 
@@ -500,7 +578,7 @@ const App: React.FC = () => {
                                                 className="w-full text-sm text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                                Download Free PDF (Scanned)
+                                                {subscriptionActive ? 'Download PDF' : 'Download Free PDF (Scanned)'}
                                             </button>
                                         </div>
                                     </>
@@ -509,22 +587,21 @@ const App: React.FC = () => {
                         </div>
                    </div>
 
-                   {/* Right Column: Preview */}
                    <div className="lg:col-span-2">
                        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative min-h-[600px]">
                            <div className="bg-slate-100 p-4 border-b border-slate-200 flex justify-between items-center">
                                <span className="font-bold text-slate-700">Preview: {result.cv?.title}</span>
-                               {!isPaid && <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-bold">PREVIEW MODE</span>}
+                               {!isUnlocked && <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-bold">PREVIEW MODE</span>}
                            </div>
                            <div className="p-8 h-[600px] overflow-y-auto relative bg-white">
-                               {!isPaid && (
+                               {!isUnlocked && (
                                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none select-none overflow-hidden">
                                        <div className="transform -rotate-45 text-slate-900/5 text-6xl font-black whitespace-nowrap">CV TAILOR PRO • UNPAID PREVIEW</div>
                                    </div>
                                )}
-                               <div className="relative z-0">
-                                   <ReactMarkdown className="prose prose-sm max-w-none text-slate-800" components={markdownComponents}>
-                                     {result.cv?.content}
+                               <div className="relative z-0 prose prose-sm max-w-none text-slate-800">
+                                   <ReactMarkdown components={markdownComponents}>
+                                     {result.cv?.content || ''}
                                    </ReactMarkdown>
                                </div>
                            </div>
@@ -534,7 +611,6 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* REJECTED STATE */}
           {status === Status.REJECTED && result && (
             <div className="bg-white rounded-2xl shadow-xl border-l-8 border-red-500 p-8 space-y-6 animate-fade-in">
               <div className="flex items-start gap-4">
@@ -563,12 +639,14 @@ const App: React.FC = () => {
 
         </main>
         
-        <AdBanner slotId={102} />
+        {/* HIDE ADS IF PRO PLUS */}
+        {!subscriptionActive && <AdBanner slotId={102} />}
         
         <footer className="text-center text-slate-400 text-sm py-8 space-y-2 border-t border-slate-200 mt-12">
           <p>&copy; {new Date().getFullYear()} CV Tailor Pro.</p>
-          <div className="flex justify-center gap-4">
+          <div className="flex flex-col items-center gap-2">
             <button onClick={() => setShowPrivacyModal(true)} className="text-slate-400 hover:text-slate-600 underline underline-offset-2 text-xs">Privacy Policy</button>
+            <p className="text-xs">Questions? Contact us at <a href="mailto:customerservice@goapply.co.za" className="text-indigo-400 hover:underline">customerservice@goapply.co.za</a></p>
           </div>
         </footer>
       </div>

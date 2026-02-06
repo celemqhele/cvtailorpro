@@ -7,12 +7,6 @@ interface AdBannerProps {
 
 declare global {
   interface Window {
-    ezstandalone: {
-      cmd: any[];
-      showAds: (...args: any[]) => void;
-      destroyPlaceholders: (...args: any[]) => void;
-      destroyAll: () => void;
-    };
     adsbygoogle: any[];
     PaystackPop: {
       setup: (options: any) => { openIframe: () => void };
@@ -25,31 +19,18 @@ export const AdBanner: React.FC<AdBannerProps> = ({ slotId, className = '' }) =>
   const [isPaid, setIsPaid] = useState(false);
 
   useEffect(() => {
-    // 1. Try to load Ezoic
-    if (window.ezstandalone) {
-      window.ezstandalone.cmd.push(function () {
-        window.ezstandalone.showAds(slotId);
-      });
-    }
-
-    // 2. Check for Ad Blockers / Script Failures after a delay
-    // If neither Ezoic nor AdSense scripts are detected, show fallback
+    // Check for AdSense or Ad Blockers after a delay
     const timer = setTimeout(() => {
-      const ezoicLoaded = !!window.ezstandalone;
       const adsenseLoaded = !!window.adsbygoogle;
       
-      if (!ezoicLoaded && !adsenseLoaded) {
+      // Since we removed Ezoic, we primarily check for AdSense loading or just show placeholder
+      if (!adsenseLoaded) {
         setShowFallback(true);
       }
     }, 2000);
 
     return () => {
       clearTimeout(timer);
-      if (window.ezstandalone) {
-        window.ezstandalone.cmd.push(function () {
-          window.ezstandalone.destroyPlaceholders(slotId);
-        });
-      }
     };
   }, [slotId]);
 
@@ -59,7 +40,7 @@ export const AdBanner: React.FC<AdBannerProps> = ({ slotId, className = '' }) =>
 
     const paystack = window.PaystackPop.setup({
       key: PUBLIC_KEY,
-      email: 'donor@cvtailor.pro',
+      email: 'customerservice@goapply.co.za',
       amount: amount * 100, // ZAR to Cents
       currency: 'ZAR',
       ref: ref,
@@ -122,11 +103,10 @@ export const AdBanner: React.FC<AdBannerProps> = ({ slotId, className = '' }) =>
     );
   }
 
-  // Standard Ad View
+  // Standard Ad View Placeholder
   return (
     <div className={`w-full flex justify-center items-center my-6 min-h-[90px] ${className}`}>
-      {/* Ezoic Ad Placeholder */}
-      <div id={`ezoic-pub-ad-placeholder-${slotId}`}></div>
+      {/* Placeholder for future AdSense units */}
     </div>
   );
 };

@@ -54,26 +54,9 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
           </section>
 
           <section>
-            <h4 className="font-bold text-slate-900 mb-2">4. Advertising & Cookies (Ezoic)</h4>
-            <p className="mb-2">
-              This website uses Ezoic Inc. to manage third-party interest-based advertising. 
-            </p>
-            
-            <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-                <p className="text-xs text-slate-500">
-                    We use Ezoic to serve ads. Ezoic may collect data for personalization. 
-                    You can manage your preferences via the link below.
-                </p>
-                <p className="mt-4 text-xs text-slate-400 border-t border-slate-200 pt-2">
-                    Direct Link: <a href="http://g.ezoic.net/privacy/goapply.co.za" target="_blank" rel="noreferrer" className="text-indigo-600 underline">Ezoic Privacy Policy</a>
-                </p>
-            </div>
-          </section>
-
-          <section>
-            <h4 className="font-bold text-slate-900 mb-2">5. Contact</h4>
+            <h4 className="font-bold text-slate-900 mb-2">4. Contact</h4>
             <p>
-              Questions? Contact us at privacy@cvtailor.pro.
+              Questions? Contact us at <a href="mailto:customerservice@goapply.co.za" className="text-indigo-600 hover:underline">customerservice@goapply.co.za</a>.
             </p>
           </section>
 
