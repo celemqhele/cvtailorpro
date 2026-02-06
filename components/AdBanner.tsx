@@ -12,6 +12,16 @@ declare global {
       showAds: (placeholderId: number) => void;
       define: (placeholderId: number) => void;
       hasAd: (placeholderId: number) => boolean;
+      initRewardedAds: () => void;
+    };
+    ezRewardedAds: {
+      cmd: Array<() => void>;
+      ready: boolean;
+      requestWithOverlay: (
+        callback: (result: { status: boolean; reward: boolean; msg?: string }) => void,
+        uiOptions: { header: string; accept: string; cancel: string },
+        rewardOptions: { rewardName: string; rewardOnNoFill: boolean }
+      ) => void;
     };
     PaystackPop: {
       setup: (options: any) => { openIframe: () => void };

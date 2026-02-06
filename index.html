@@ -6,12 +6,17 @@
     <title>GoApply | CV Tailor Pro</title>
     <link rel="canonical" href="https://goapply.co.za" />
     
-    <!-- Ezoic Script -->
+    <!-- Ezoic Script & Rewarded Ads Initialization -->
+    <script src="https://the.gatekeeperconsent.com/cmp.min.js" data-cfasync="false"></script>
+    <script src="https://the.gatekeeperconsent.com/ccpa/v2/standalone.js" async></script>
+    <script async src="//www.ezojs.com/ezoic/sa.min.js"></script>
     <script>
-        var ezstandalone = window.ezstandalone || {};
+        window.ezstandalone = window.ezstandalone || {};
         ezstandalone.cmd = ezstandalone.cmd || [];
+        ezstandalone.cmd.push(function () {
+            ezstandalone.initRewardedAds();
+        });
     </script>
-    <script src="//www.ezojs.com/ezoic/sa.min.js"></script>
     
     <!-- Tailwind with Typography Plugin -->
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>

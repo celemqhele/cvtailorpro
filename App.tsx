@@ -9,6 +9,7 @@ import { PaymentModal } from './components/DonationModal';
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { RewardedAdModal } from './components/RewardedAdModal';
 import { ProPlusPromoModal } from './components/ProPlusPromoModal';
+import { AccessControl } from './components/AccessControl';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from './services/geminiService';
 import { createSubscription, verifySubscription, saveOrder, restoreOrder } from './services/subscriptionService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis } from './types';
@@ -350,9 +351,47 @@ const App: React.FC = () => {
     // If Pro Plus, skip ads directly
     if (subscriptionActive) {
         executeFreeDownload();
-    } else {
-        setShowAdModal(true);
+        return;
+    } 
+
+    // ATTEMPT 1: Ezoic Rewarded Ads
+    if (typeof window.ezRewardedAds !== 'undefined' && window.ezRewardedAds.ready) {
+        try {
+            window.ezRewardedAds.requestWithOverlay(
+                (result: any) => {
+                    if (result.status === true) {
+                        // Success or "Reward on No Fill"
+                        if (result.reward) {
+                            console.log("Ad watched successfully.");
+                            executeFreeDownload();
+                        } else {
+                            console.log("Ad closed or no reward.");
+                        }
+                    } else {
+                        // Error/Fail - Grant reward anyway to avoid frustrating users (Reward on No Fill)
+                        console.warn("Ad system error or no fill, granting download.");
+                        executeFreeDownload();
+                    }
+                },
+                {
+                    header: "Watch Ad to Unlock Free Download",
+                    accept: "Watch Ad",
+                    cancel: "Cancel"
+                },
+                {
+                    rewardName: "Free CV Download",
+                    rewardOnNoFill: true
+                }
+            );
+            return;
+        } catch (e) {
+            console.error("Ezoic Ad trigger failed", e);
+            // Fallthrough to manual modal
+        }
     }
+
+    // ATTEMPT 2: Fallback to Manual Modal (if AdBlocker or script didn't load)
+    setShowAdModal(true);
   };
 
   const executeFreeDownload = async () => {
@@ -457,6 +496,8 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans relative">
+      <AccessControl /> {/* Checks for VPN and AdBlock on mount */}
+      
       <PaymentModal 
         isOpen={showPaymentModal} 
         onClose={() => setShowPaymentModal(false)}
