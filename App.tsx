@@ -25,6 +25,8 @@ const App: React.FC = () => {
   const [manualJobText, setManualJobText] = useState('');
   const [jobSpec, setJobSpec] = useState(''); 
   
+  const [apiKey] = useState('csk-rmv54ykfk8mp439ww3xrrjy98nk3phnh3hentfprjxp2xwv3');
+  
   const [status, setStatus] = useState<Status>(Status.IDLE);
   const [analysis, setAnalysis] = useState<MatchAnalysis | null>(null);
   const [result, setResult] = useState<GeneratorResponse | null>(null);
@@ -121,7 +123,7 @@ const App: React.FC = () => {
           setJobSpec(textToAnalyze);
           setStatus(Status.ANALYZING);
 
-          const analysisResult = await analyzeMatch(file, textToAnalyze);
+          const analysisResult = await analyzeMatch(file, textToAnalyze, apiKey);
           setAnalysis(analysisResult);
           setStatus(Status.ANALYSIS_COMPLETE);
 
@@ -135,7 +137,7 @@ const App: React.FC = () => {
   const handleGenerate = async (forceOverride: boolean = false) => {
     const force = typeof forceOverride === 'boolean' ? forceOverride : false;
 
-    if (!file || !jobSpec.trim()) return;
+    if (!file || !jobSpec.trim() || !apiKey.trim()) return;
 
     setStatus(Status.GENERATING);
     setErrorMsg(null);
@@ -144,7 +146,7 @@ const App: React.FC = () => {
     setOrderId(null);
 
     try {
-      const response = await generateTailoredApplication(file, jobSpec, force);
+      const response = await generateTailoredApplication(file, jobSpec, apiKey, force);
       
       if (response.outcome !== 'REJECT') {
           const newOrderId = 'ORD-' + Math.random().toString(36).substring(2, 8).toUpperCase();

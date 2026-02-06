@@ -127,19 +127,10 @@ export const AdBanner: React.FC<AdBannerProps> = ({ slotId, className = '' }) =>
     );
   }
 
-  // Ezoic Ad Placeholder with Visual Guide
+  // Ezoic Ad Placeholder
   return (
-    <div className={`w-full flex justify-center items-center my-6 ${className}`}>
-        <div className="relative w-full flex justify-center items-center min-h-[90px] bg-slate-50 border-2 border-dashed border-indigo-200 rounded-lg p-2 overflow-hidden">
-             {/* Visual Label for Development/Verification */}
-             <div className="absolute inset-0 flex flex-col items-center justify-center text-indigo-300 pointer-events-none select-none z-0">
-                 <p className="text-[10px] font-bold uppercase tracking-widest">Ad Placement</p>
-                 <p className="text-[9px] font-mono">Slot {slotId}</p>
-             </div>
-             
-             {/* Actual Ezoic Div - Scripts inject content here */}
-             <div id={`ezoic-pub-ad-placeholder-${slotId}`} className="relative z-10 w-full flex justify-center items-center min-h-[90px]"></div>
-        </div>
+    <div className={`w-full flex justify-center items-center my-6 min-h-[90px] ${className}`}>
+        <div id={`ezoic-pub-ad-placeholder-${slotId}`}></div>
     </div>
   );
 };
