@@ -1,4 +1,6 @@
 
+
+
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
 import { SYSTEM_PROMPT, ANALYSIS_PROMPT } from "../constants";
@@ -293,6 +295,16 @@ export const generateTailoredApplication = async (
 
       if (!parsedResponse.coverLetter.content) {
         parsedResponse.coverLetter.content = parsedResponse.coverLetter.body || parsedResponse.coverLetter.text || "";
+      }
+
+      // --- FIX: Enforce Markdown Paragraph Spacing in Cover Letter ---
+      // Markdown requires double newlines for a new paragraph. 
+      // If the model generates single newlines, it renders as one block.
+      // We detect if no double newlines exist but single newlines do, and assume compressed formatting.
+      const clContent = parsedResponse.coverLetter.content;
+      if (clContent && !clContent.includes('\n\n') && clContent.includes('\n')) {
+          // Replace all single newlines with double newlines to ensure proper paragraphs in Markdown
+          parsedResponse.coverLetter.content = clContent.replace(/\n/g, '\n\n');
       }
     }
 

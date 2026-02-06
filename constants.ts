@@ -1,4 +1,5 @@
 
+
 export const APP_NAME = "CV Tailor Pro";
 export const SERP_API_KEY = "694175e6871350996f0a04ee41ef7c632ef94fa12aa40725a94b78e708f999bc";
 
@@ -44,6 +45,7 @@ CRITICAL FORMATTING RULES (STRICT ADHERENCE REQUIRED):
       - Strategy
       - Planning
 7.  **No Tables**: Use plain text flow only.
+8.  **Spacing**: Use double line breaks (\\n\\n) between sections and paragraphs to ensure proper rendering. Single line breaks will be collapsed.
 
 CV STRUCTURE (Markdown):
 
@@ -87,6 +89,7 @@ STYLE & TONE:
 - Professional, confident, and enthusiastic.
 - **AVOID** generic AI phrases like "I am writing to express my keen interest" or "I believe I am a perfect fit".
 - **DO** use strong verbs and specific metrics.
+- **FORMATTING**: Use double line breaks between paragraphs.
 
 COVER LETTER STRUCTURE (Markdown):
 
@@ -103,11 +106,17 @@ COVER LETTER STRUCTURE (Markdown):
 **[The Hook]:** 
 (Paragraph 1) Start strong. State the role applied for and immediately link it to the candidate's strongest relevant achievement or a specific reason why they admire this specific company. Do not use a generic opening.
 
+(Blank Line)
+
 **[The Value Proposition]:** 
 (Paragraph 2) Address the biggest pain point found in the Job Description. Describe a specific time the candidate solved a similar problem in a previous role. Use metrics (e.g., "Increased revenue by 20%", "Reduced latency by 50ms"). Show, don't just tell.
 
+(Blank Line)
+
 **[The Culture/Skill Fit]:** 
 (Paragraph 3) Discuss specific technical skills or soft skills (leadership, adaptability) requested in the Job Spec. Connect this to the candidate's background. Mention why they want to work *here* specifically.
+
+(Blank Line)
 
 **[Call to Action]:** 
 (Paragraph 4) Reiterate enthusiasm. Explicitly request an interview to discuss how they can bring value to the team.

@@ -1,15 +1,14 @@
 import * as docx from "docx";
 import saveAs from "file-saver";
 
-export const generateWordDocument = async (
-  filename: string,
+export const createWordBlob = async (
   textContent: string,
   brandingImageBase64?: string,
   isWatermarked: boolean = false
-) => {
+): Promise<Blob | null> => {
   if (!textContent) {
     console.error("Document content is missing or empty.");
-    return;
+    return null;
   }
 
   const { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, AlignmentType, BorderStyle, Header, Footer } = docx;
@@ -231,7 +230,18 @@ export const generateWordDocument = async (
     ],
   });
 
-  const blob = await Packer.toBlob(doc);
-  const filePrefix = isWatermarked ? 'PREVIEW_' : 'TAILORED_';
-  saveAs(blob, filePrefix + filename.replace('.txt', '.docx').replace('.md', '.docx'));
+  return await Packer.toBlob(doc);
+};
+
+export const generateWordDocument = async (
+  filename: string,
+  textContent: string,
+  brandingImageBase64?: string,
+  isWatermarked: boolean = false
+) => {
+  const blob = await createWordBlob(textContent, brandingImageBase64, isWatermarked);
+  if (blob) {
+      const filePrefix = isWatermarked ? 'PREVIEW_' : 'TAILORED_';
+      saveAs(blob, filePrefix + filename.replace('.txt', '.docx').replace('.md', '.docx'));
+  }
 };

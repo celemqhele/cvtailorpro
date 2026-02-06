@@ -67,3 +67,26 @@ export const generateSelectablePdf = async (elementId: string, filename: string)
         autoPaging: 'text'
     });
 };
+
+export const createPdfBlob = async (elementId: string): Promise<Blob | null> => {
+    const element = document.getElementById(elementId);
+    if (!element) return null;
+
+    return new Promise((resolve) => {
+        const doc = new jsPDF('p', 'pt', 'a4');
+        const margin = 30;
+        const docWidth = 595.28 - (margin * 2);
+
+        doc.html(element, {
+            callback: function(pdf) {
+                const blob = pdf.output('blob');
+                resolve(blob);
+            },
+            x: margin,
+            y: margin,
+            width: docWidth, 
+            windowWidth: 800,
+            autoPaging: 'text'
+        });
+    });
+};

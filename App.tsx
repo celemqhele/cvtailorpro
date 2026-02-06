@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import JSZip from 'jszip';
+import saveAs from 'file-saver';
 import { Button } from './components/Button';
 import { FileUpload } from './components/FileUpload';
 import { AdBanner } from './components/AdBanner';
@@ -11,8 +13,8 @@ import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from './s
 import { createSubscription, verifySubscription, saveOrder, restoreOrder } from './services/subscriptionService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis } from './types';
 import { APP_NAME } from './constants';
-import { generateWordDocument } from './utils/docHelper';
-import { generateSelectablePdf } from './utils/pdfHelper';
+import { generateWordDocument, createWordBlob } from './utils/docHelper';
+import { generateSelectablePdf, createPdfBlob } from './utils/pdfHelper';
 
 const App: React.FC = () => {
   const [file, setFile] = useState<FileData | null>(null);
@@ -44,6 +46,10 @@ const App: React.FC = () => {
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [subscriptionActive, setSubscriptionActive] = useState(false);
   const [subscriptionExpiry, setSubscriptionExpiry] = useState<string | null>(null);
+
+  // UI State for Preview
+  const [previewTab, setPreviewTab] = useState<'cv' | 'cl'>('cv');
+  const [isZipping, setIsZipping] = useState(false);
 
   // Check for stored subscription on load
   useEffect(() => {
@@ -186,8 +192,6 @@ const App: React.FC = () => {
             // Fallback for just ID
             await saveOrder(finalId, finalId);
         }
-
-        if (result?.cv) await generateWordDocument(result.cv.title, result.cv.content, undefined, false);
     }
     setShowPaymentModal(false);
   };
@@ -248,6 +252,24 @@ const App: React.FC = () => {
     }
   };
 
+  const generateAdminKeys = async () => {
+    if (!confirm("Generate test subscription keys for Supabase testing?")) return;
+    
+    // Generate "Pro" (using 30_days plan as proxy)
+    const pro = await createSubscription('30_days', 'ADMIN_TEST_PRO_' + Date.now());
+    
+    // Generate "Pro Plus" (using 1_year plan as proxy)
+    const proPlus = await createSubscription('1_year', 'ADMIN_TEST_PRO_PLUS_' + Date.now());
+    
+    let message = "Admin Test Keys Generated:\n\n";
+    if (pro.success) message += `Pro (30 Days): ${pro.subscriptionId}\n`;
+    if (proPlus.success) message += `Pro Plus (1 Year): ${proPlus.subscriptionId}\n`;
+    
+    if (!pro.success || !proPlus.success) message += "\nError: Could not contact Supabase. Check console.";
+    
+    alert(message);
+  };
+
   // Logic: Unlocked if Single Paid OR Subscription Active
   const isUnlocked = isPaid || subscriptionActive;
 
@@ -258,6 +280,45 @@ const App: React.FC = () => {
           setTimeout(() => {
               setShowPromoModal(true);
           }, 2000);
+      }
+  };
+
+  const handleDownloadAllZip = async () => {
+      if (!isUnlocked || !result) return;
+      
+      setIsZipping(true);
+      try {
+          const zip = new JSZip();
+          
+          // 1. Add CV Word
+          if (result.cv) {
+              const cvBlob = await createWordBlob(result.cv.content);
+              if (cvBlob) zip.file(result.cv.title || 'Tailored_CV.docx', cvBlob);
+          }
+
+          // 2. Add Cover Letter Word
+          if (result.coverLetter) {
+              const clBlob = await createWordBlob(result.coverLetter.content);
+              if (clBlob) zip.file(result.coverLetter.title || 'Cover_Letter.docx', clBlob);
+          }
+          
+          // 3. Add CV PDF
+          const cvPdfBlob = await createPdfBlob('hidden-cv-content');
+          if (cvPdfBlob && result.cv) zip.file((result.cv.title || 'Tailored_CV').replace('.docx', '') + '.pdf', cvPdfBlob);
+          
+          // 4. Add Cover Letter PDF
+          const clPdfBlob = await createPdfBlob('hidden-cl-content');
+          if (clPdfBlob && result.coverLetter) zip.file((result.coverLetter.title || 'Cover_Letter').replace('.docx', '') + '.pdf', clPdfBlob);
+
+          const content = await zip.generateAsync({ type: "blob" });
+          saveAs(content, `Application_Package_${orderId || 'Pro'}.zip`);
+          
+          triggerPromoIfNeeded();
+      } catch (e) {
+          console.error("Zip failed", e);
+          alert("Failed to create zip file. Please try downloading files individually.");
+      } finally {
+          setIsZipping(false);
       }
   };
 
@@ -626,32 +687,16 @@ const App: React.FC = () => {
                                 {isUnlocked ? (
                                     <>
                                         <Button 
-                                            onClick={() => result.cv && downloadWord(result.cv.title, result.cv.content)} 
-                                            className="w-full justify-between bg-blue-600 hover:bg-blue-700"
+                                            onClick={handleDownloadAllZip} 
+                                            className="w-full justify-between bg-indigo-600 hover:bg-indigo-700"
+                                            isLoading={isZipping}
                                         >
                                             <span className="flex items-center gap-2">
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                                Download MS Word
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                                Download All (Zip)
                                             </span>
                                         </Button>
-                                        
-                                        <Button 
-                                            onClick={() => downloadSelectablePdfHandler('cv')} 
-                                            className="w-full justify-between bg-red-600 hover:bg-red-700"
-                                        >
-                                            <span className="flex items-center gap-2">
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                                                Download PDF (Selectable)
-                                            </span>
-                                        </Button>
-
-                                        <div className="pt-2 border-t border-slate-100">
-                                            <p className="text-xs font-semibold text-slate-500 mb-2 uppercase">Cover Letter</p>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <button onClick={() => result.coverLetter && downloadWord(result.coverLetter.title, result.coverLetter.content)} className="text-xs bg-blue-50 text-blue-700 p-2 rounded hover:bg-blue-100 font-medium">Word</button>
-                                                <button onClick={() => downloadSelectablePdfHandler('coverLetter')} className="text-xs bg-red-50 text-red-700 p-2 rounded hover:bg-red-100 font-medium">PDF</button>
-                                            </div>
-                                        </div>
+                                        <p className="text-xs text-center text-slate-400">Includes PDF & DOCX for both CV and Cover Letter</p>
                                     </>
                                 ) : (
                                     <>
@@ -664,9 +709,9 @@ const App: React.FC = () => {
                                         </Button>
                                         
                                         <Button 
+                                            onClick={() => setShowPaymentModal(true)}
                                             variant="secondary"
-                                            disabled
-                                            className="w-full justify-between opacity-60"
+                                            className="w-full justify-between"
                                         >
                                             <span>Cover Letter (Locked)</span>
                                             <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -693,21 +738,45 @@ const App: React.FC = () => {
                    </div>
 
                    <div className="lg:col-span-2">
-                       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative min-h-[600px]">
-                           <div className="bg-slate-100 p-4 border-b border-slate-200 flex justify-between items-center">
-                               <span className="font-bold text-slate-700">Preview: {result.cv?.title}</span>
-                               {!isUnlocked && <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-bold">PREVIEW MODE</span>}
+                       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative min-h-[600px] flex flex-col">
+                           <div className="bg-slate-100 p-0 border-b border-slate-200 flex justify-between items-center">
+                               <div className="flex">
+                                   <button 
+                                     onClick={() => setPreviewTab('cv')}
+                                     className={`px-6 py-4 font-bold text-sm uppercase tracking-wider transition-colors ${previewTab === 'cv' ? 'bg-white text-indigo-600 border-t-2 border-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                   >
+                                     CV Preview
+                                   </button>
+                                   <button 
+                                     onClick={() => setPreviewTab('cl')}
+                                     className={`px-6 py-4 font-bold text-sm uppercase tracking-wider transition-colors ${previewTab === 'cl' ? 'bg-white text-indigo-600 border-t-2 border-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                   >
+                                     Cover Letter
+                                   </button>
+                               </div>
+                               {!isUnlocked && <span className="mr-4 text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-bold">PREVIEW MODE</span>}
                            </div>
-                           <div className="p-8 h-[600px] overflow-y-auto relative bg-white">
+                           
+                           {/* Preview Content Area */}
+                           <div 
+                             className={`p-8 h-[600px] overflow-y-auto relative bg-white ${!isUnlocked ? 'no-select cursor-default' : ''}`}
+                             onContextMenu={(e) => !isUnlocked && e.preventDefault()}
+                           >
                                {!isUnlocked && (
                                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none select-none overflow-hidden">
                                        <div className="transform -rotate-45 text-slate-900/5 text-6xl font-black whitespace-nowrap">CV TAILOR PRO • UNPAID PREVIEW</div>
                                    </div>
                                )}
                                <div className="relative z-0 prose prose-sm max-w-none text-slate-800">
-                                   <ReactMarkdown components={markdownComponents}>
-                                     {result.cv?.content || ''}
-                                   </ReactMarkdown>
+                                   {previewTab === 'cv' ? (
+                                       <ReactMarkdown components={markdownComponents}>
+                                         {result.cv?.content || ''}
+                                       </ReactMarkdown>
+                                   ) : (
+                                       <ReactMarkdown components={markdownComponents}>
+                                         {result.coverLetter?.content || ''}
+                                       </ReactMarkdown>
+                                   )}
                                </div>
                            </div>
                        </div>
@@ -752,6 +821,7 @@ const App: React.FC = () => {
           <div className="flex flex-col items-center gap-2">
             <button onClick={() => setShowPrivacyModal(true)} className="text-slate-400 hover:text-slate-600 underline underline-offset-2 text-xs">Privacy Policy</button>
             <p className="text-xs">Questions? Contact us at <a href="mailto:customerservice@goapply.co.za" className="text-indigo-400 hover:underline">customerservice@goapply.co.za</a></p>
+            <button onClick={generateAdminKeys} className="text-xs text-slate-300 hover:text-slate-500 mt-4">Admin: Generate Test Keys</button>
           </div>
         </footer>
       </div>
