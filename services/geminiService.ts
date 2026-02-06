@@ -1,6 +1,6 @@
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
-import { SYSTEM_PROMPT, ANALYSIS_PROMPT } from "../constants";
+import { SYSTEM_PROMPT, ANALYSIS_PROMPT, SERP_API_KEY } from "../constants";
 import { FileData, GeneratorResponse, MatchAnalysis } from "../types";
 
 // Cerebras API Configuration
@@ -8,31 +8,50 @@ const CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions";
 const MODEL_NAME = "llama3.1-70b"; // Using Llama 3.1 70B as per Cerebras availability
 
 /**
- * Scrapes job content from a URL using Jina.ai (free markdown reader).
+ * Scrapes job content from a URL using SerpApi (Google Jobs Engine).
+ * This searches for the URL/Job via Google and extracts the full description.
  */
 export const scrapeJobFromUrl = async (url: string): Promise<string> => {
-    let targetUrl = url;
-    if (!url.startsWith('http')) {
-        targetUrl = 'https://' + url;
-    }
+    // We use the provided SERP_API_KEY to search for the job URL via Google Jobs
+    const params = new URLSearchParams({
+        engine: "google_jobs",
+        q: url, // Passing the URL as the query often finds the exact job listing in Google's index
+        api_key: SERP_API_KEY
+    });
 
-    const scrapeUrl = `https://r.jina.ai/${targetUrl}`;
+    const scrapeUrl = `https://serpapi.com/search.json?${params.toString()}`;
 
     try {
         const response = await fetch(scrapeUrl);
+
         if (!response.ok) {
-            throw new Error(`Failed to scan job link (${response.status})`);
-        }
-        const text = await response.text();
-        
-        if (!text || text.length < 100) {
-             throw new Error("Scanned content is too short. The link might be protected or invalid.");
+            throw new Error(`SerpApi request failed (${response.status}).`);
         }
         
-        return text;
+        const data = await response.json();
+        
+        // 1. Try to find the full job description in 'jobs_results'
+        if (data.jobs_results && data.jobs_results.length > 0) {
+            // We take the description from the first result
+            const description = data.jobs_results[0].description;
+            if (description && description.length > 50) {
+                return description;
+            }
+        }
+        
+        // 2. Fallback: If 'jobs_results' is empty (Google Jobs didn't index it yet),
+        // check organic results for a snippet, though this is usually too short.
+        if (data.organic_results && data.organic_results.length > 0) {
+             const snippet = data.organic_results[0].snippet;
+             if (snippet && snippet.length > 100) return snippet;
+        }
+        
+        throw new Error("Google Jobs could not extract the full description for this link.");
+        
     } catch (e: any) {
         console.error("Scraping error:", e);
-        throw new Error(e.message || "Failed to scan job link.");
+        // Throw a user-friendly error
+        throw new Error("Could not automatically retrieve the job description via SerpApi. Please copy and paste the text manually.");
     }
 };
 
