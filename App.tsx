@@ -9,7 +9,6 @@ import { PaymentModal } from './components/DonationModal';
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { RewardedAdModal } from './components/RewardedAdModal';
 import { ProPlusPromoModal } from './components/ProPlusPromoModal';
-import { AccessControl } from './components/AccessControl';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from './services/geminiService';
 import { createSubscription, verifySubscription, saveOrder, restoreOrder } from './services/subscriptionService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis } from './types';
@@ -496,7 +495,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans relative">
-      <AccessControl /> {/* Checks for VPN and AdBlock on mount */}
       
       <PaymentModal 
         isOpen={showPaymentModal} 

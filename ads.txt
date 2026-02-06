@@ -1,2 +1,4 @@
-# Redirecting to Ezoic Ads.txt Manager via vercel.json
-# Please do not add entries here manually.
+#Ads.txt goapply.co.za
+
+# 11201
+google.com, pub-6881973057585692, DIRECT
