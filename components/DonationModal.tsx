@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { PLANS, SubscriptionPlan } from '../services/subscriptionService';
 
 interface PaymentModalProps {
@@ -7,7 +7,6 @@ interface PaymentModalProps {
   onSuccess: (orderId: string, isSubscription: boolean) => void;
   documentTitle: string;
   existingOrderId: string | null;
-  initialMode?: 'single' | 'subscription';
 }
 
 declare global {
@@ -18,23 +17,9 @@ declare global {
   }
 }
 
-export const PaymentModal: React.FC<PaymentModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  onSuccess, 
-  documentTitle, 
-  existingOrderId,
-  initialMode = 'single'
-}) => {
+export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, documentTitle, existingOrderId }) => {
   const [mode, setMode] = useState<'single' | 'subscription'>('single');
   const [selectedPlanId, setSelectedPlanId] = useState<string>('30_days');
-
-  // Reset mode when modal opens or initialMode changes
-  useEffect(() => {
-    if (isOpen) {
-      setMode(initialMode);
-    }
-  }, [isOpen, initialMode]);
 
   if (!isOpen) return null;
 

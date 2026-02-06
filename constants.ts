@@ -7,11 +7,9 @@ export const ANALYSIS_PROMPT = `
 Goal: precise viability assessment.
 Analyze the Candidate CV against the Job Description.
 
-Output a single valid JSON object. Do not include markdown formatting (like \`\`\`json) outside the object.
-
-Required JSON Structure:
+Output strictly valid JSON:
 {
-  "decision": "APPLY" | "CAUTION" | "SKIP",
+  "decision": "APPLY" or "CAUTION" or "SKIP",
   "matchScore": number (0-100),
   "headline": "Short punchy summary (e.g. 'Strong Technical Match, Weak Domain')",
   "pros": ["Key strength 1", "Key strength 2"],
@@ -28,35 +26,12 @@ USE THE CLIENT CV TEMPLATE AS A TEMPLATE. The structure must be strictly followe
 IF THE CLIENT IS STRAIGHT UP UNQUALIFIED EVEN AFTER TAILORING, REJECT THE PROMPT, AND STATE REASON and suggest better job roles.
 
 ---
-OUTPUT FORMAT INSTRUCTIONS (CRITICAL)
----
-You must output a single valid JSON object. Do not include markdown formatting (like \`\`\`json) outside the object.
-
-Required JSON Structure:
-{
-  "outcome": "PROCEED" | "REJECT",
-  "rejectionDetails": {
-      "reason": "String explaining why",
-      "suggestion": "String suggesting alternative roles"
-  },
-  "cv": {
-      "title": "Filename for CV (e.g. John_Doe_Tailored_CV)",
-      "content": "The full Markdown content of the CV"
-  },
-  "coverLetter": {
-      "title": "Filename for Cover Letter (e.g. John_Doe_Cover_Letter)",
-      "content": "The full Markdown content of the Cover Letter"
-  },
-  "brandingImage": null
-}
-
----
 PART 1: CV STRATEGIST INSTRUCTIONS
 ---
 Object: Reconstruct and enhance the CV to appear as the perfect fit for the provided job post. Do not fabricate achievements.
 
-CRITICAL FORMATTING RULES FOR "content" FIELDS:
-1.  **Markdown Only**: The "content" string must be strictly formatted in Markdown.
+CRITICAL FORMATTING RULES (STRICT ADHERENCE REQUIRED):
+1.  **Output Format**: The "content" field must be strictly formatted in Markdown.
 2.  **Headings**: 
     - Use H1 (\`# Name\`) for the Candidate Name ONLY.
     - Use H2 (\`## SECTION TITLE\`) for main sections (e.g., PROFESSIONAL EXPERIENCE).
@@ -70,7 +45,7 @@ CRITICAL FORMATTING RULES FOR "content" FIELDS:
       - Strategy
       - Planning
 7.  **No Tables**: Use plain text flow only.
-8.  **Spacing**: Use double line breaks (\\n\\n) between sections and paragraphs to ensure proper rendering.
+8.  **Spacing**: Use double line breaks (\\n\\n) between sections and paragraphs to ensure proper rendering. Single line breaks will be collapsed.
 
 CV STRUCTURE (Markdown):
 

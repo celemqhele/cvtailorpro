@@ -16,19 +16,6 @@ import { APP_NAME } from './constants';
 import { generateWordDocument, createWordBlob } from './utils/docHelper';
 import { generateSelectablePdf, createPdfBlob } from './utils/pdfHelper';
 
-declare global {
-  interface Window {
-    ezRewardedAds?: {
-      ready: boolean;
-      requestWithOverlay: (
-        callback: (result: any) => void,
-        options: { header: string; accept: string; cancel: string },
-        config: { rewardName: string; rewardOnNoFill: boolean }
-      ) => void;
-    };
-  }
-}
-
 const App: React.FC = () => {
   const [file, setFile] = useState<FileData | null>(null);
   
@@ -45,7 +32,6 @@ const App: React.FC = () => {
   
   // Payment, Ads, Restore & Subscription State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentInitialMode, setPaymentInitialMode] = useState<'single' | 'subscription'>('single');
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showAdModal, setShowAdModal] = useState(false); 
   const [showPromoModal, setShowPromoModal] = useState(false); // New Promo Modal
@@ -62,20 +48,6 @@ const App: React.FC = () => {
   // UI State for Preview
   const [previewTab, setPreviewTab] = useState<'cv' | 'cl'>('cv');
   const [isZipping, setIsZipping] = useState(false);
-
-  // Listen for Ad Banner clicks requesting payment modal
-  useEffect(() => {
-    const handleTriggerPayment = (e: Event) => {
-        const customEvent = e as CustomEvent;
-        // Set the modal mode based on what the ad banner fallback requested (subscription vs single)
-        if (customEvent.detail?.mode) {
-             setPaymentInitialMode(customEvent.detail.mode);
-        }
-        setShowPaymentModal(true);
-    };
-    window.addEventListener('TRIGGER_PAYMENT_MODAL', handleTriggerPayment);
-    return () => window.removeEventListener('TRIGGER_PAYMENT_MODAL', handleTriggerPayment);
-  }, []);
 
   // Check for stored subscription on load
   useEffect(() => {
@@ -350,7 +322,6 @@ const App: React.FC = () => {
 
   const downloadWord = async (filename: string, content: string) => {
      if (!isUnlocked) {
-         setPaymentInitialMode('single');
          setShowPaymentModal(true);
          return;
      }
@@ -360,7 +331,6 @@ const App: React.FC = () => {
 
   const downloadSelectablePdfHandler = async (type: 'cv' | 'coverLetter') => {
       if (!isUnlocked) {
-          setPaymentInitialMode('single');
           setShowPaymentModal(true);
           return;
       }
@@ -530,7 +500,6 @@ const App: React.FC = () => {
         onSuccess={handlePaymentSuccess}
         documentTitle={result?.cv?.title || "Tailored Application"}
         existingOrderId={orderId} 
-        initialMode={paymentInitialMode}
       />
       <PrivacyPolicyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
       
@@ -540,7 +509,6 @@ const App: React.FC = () => {
         onClose={() => setShowPromoModal(false)}
         onUpgrade={() => {
             setShowPromoModal(false);
-            setPaymentInitialMode('subscription');
             setShowPaymentModal(true);
         }}
       />
@@ -577,10 +545,9 @@ const App: React.FC = () => {
           </div>
 
           {/* AD PLACEMENT 1: HEADER (115) - Only show if NO subscription */}
-          {/* Fallback to 'subscription' upsell as this is the general header */}
           {!subscriptionActive && (
               <div className="hidden lg:block absolute left-1/2 transform -translate-x-1/2 -top-4">
-                  <AdBanner slotId={115} className="my-0 scale-90" fallbackType="subscription" />
+                  <AdBanner slotId={115} className="my-0 scale-90" />
               </div>
           )}
 
@@ -595,10 +562,7 @@ const App: React.FC = () => {
                  </div>
              ) : (
                 <button 
-                    onClick={() => {
-                        setPaymentInitialMode('subscription');
-                        setShowPaymentModal(true);
-                    }} 
+                    onClick={() => setShowPaymentModal(true)} 
                     className="text-xs text-indigo-600 font-bold hover:underline"
                 >
                     Upgrade to Pro Plus
@@ -624,8 +588,7 @@ const App: React.FC = () => {
         </header>
 
         {/* AD PLACEMENT 2: MAIN FLOW (114) */}
-        {/* Pre-generation upsell, so fallback to 'subscription' */}
-        {!subscriptionActive && <AdBanner slotId={114} className="md:flex" fallbackType="subscription" />}
+        {!subscriptionActive && <AdBanner slotId={114} className="md:flex" />}
 
         <main className="grid grid-cols-1 gap-8">
           
@@ -782,10 +745,7 @@ const App: React.FC = () => {
                                 ) : (
                                     <>
                                         <Button 
-                                            onClick={() => {
-                                                setPaymentInitialMode('single');
-                                                setShowPaymentModal(true);
-                                            }} 
+                                            onClick={() => setShowPaymentModal(true)} 
                                             className="w-full justify-between bg-indigo-600 hover:bg-indigo-700"
                                         >
                                             <span>Unlock Full Bundle</span>
@@ -793,10 +753,7 @@ const App: React.FC = () => {
                                         </Button>
                                         
                                         <Button 
-                                            onClick={() => {
-                                                setPaymentInitialMode('single');
-                                                setShowPaymentModal(true);
-                                            }}
+                                            onClick={() => setShowPaymentModal(true)}
                                             variant="secondary"
                                             className="w-full justify-between"
                                         >
@@ -805,8 +762,7 @@ const App: React.FC = () => {
                                         </Button>
 
                                         {/* AD PLACEMENT 3: IN SIDEBAR (112) - Only show if locked */}
-                                        {/* Post-generation upsell, so fallback to 'single' (R100) */}
-                                        <AdBanner slotId={112} className="my-2" fallbackType="single" />
+                                        <AdBanner slotId={112} className="my-2" />
 
                                         <div className="pt-4 border-t border-slate-100">
                                             <button 
@@ -905,7 +861,7 @@ const App: React.FC = () => {
         </main>
         
         {/* AD PLACEMENT 4: FOOTER (113) - Only show if NO subscription */}
-        {!subscriptionActive && <AdBanner slotId={113} fallbackType="subscription" />}
+        {!subscriptionActive && <AdBanner slotId={113} />}
         
         <footer className="text-center text-slate-400 text-sm py-8 space-y-2 border-t border-slate-200 mt-12">
           <p>&copy; {new Date().getFullYear()} CV Tailor Pro.</p>
