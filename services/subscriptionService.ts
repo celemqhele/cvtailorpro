@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { GeneratorResponse } from '../types';
 
 export interface SubscriptionPlan {
   id: '30_days' | '3_months' | '1_year';
@@ -77,17 +78,30 @@ export const verifySubscription = async (subscriptionId: string): Promise<{ acti
 
 // --- Single Order Functions ---
 
-export const saveOrder = async (orderId: string, paymentRef: string) => {
+export const saveOrder = async (orderId: string, paymentRef: string, data?: GeneratorResponse) => {
   try {
+    const payload: any = {
+      id: orderId,
+      payment_ref: paymentRef,
+      created_at: new Date().toISOString()
+    };
+
+    // If content data is provided, save it so it can be restored later
+    if (data) {
+        if (data.cv) {
+            payload.cv_title = data.cv.title;
+            payload.cv_content = data.cv.content;
+        }
+        if (data.coverLetter) {
+            payload.cl_title = data.coverLetter.title;
+            payload.cl_content = data.coverLetter.content;
+        }
+    }
+
     const { error } = await supabase
       .from('orders')
-      .insert([
-        {
-          id: orderId,
-          payment_ref: paymentRef,
-          created_at: new Date().toISOString()
-        }
-      ]);
+      .insert([payload]);
+
     return { success: !error, error };
   } catch (e: any) {
     console.error("Order save failed", e);
@@ -95,16 +109,40 @@ export const saveOrder = async (orderId: string, paymentRef: string) => {
   }
 };
 
-export const verifyOrder = async (orderId: string) => {
+export const restoreOrder = async (orderId: string) => {
   try {
     const { data, error } = await supabase
       .from('orders')
-      .select('id')
+      .select('*')
       .eq('id', orderId)
       .single();
     
-    return { valid: !!data && !error };
+    if (error || !data) return { found: false };
+
+    // Reconstruct GeneratorResponse if content exists in DB
+    let restoredResult: GeneratorResponse | null = null;
+    
+    if (data.cv_content) {
+        restoredResult = {
+            outcome: 'PROCEED',
+            cv: {
+                title: data.cv_title || 'Restored_CV.docx',
+                content: data.cv_content
+            },
+            coverLetter: data.cl_content ? {
+                title: data.cl_title || 'Restored_Cover_Letter.docx',
+                content: data.cl_content
+            } : undefined
+        };
+    }
+
+    return { found: true, result: restoredResult };
   } catch (e) {
-    return { valid: false };
+    return { found: false };
   }
+};
+
+export const verifyOrder = async (orderId: string) => {
+  const { found } = await restoreOrder(orderId);
+  return { valid: found };
 };

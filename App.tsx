@@ -8,7 +8,7 @@ import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { RewardedAdModal } from './components/RewardedAdModal';
 import { ProPlusPromoModal } from './components/ProPlusPromoModal';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from './services/geminiService';
-import { createSubscription, verifySubscription, saveOrder, verifyOrder } from './services/subscriptionService';
+import { createSubscription, verifySubscription, saveOrder, restoreOrder } from './services/subscriptionService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis } from './types';
 import { APP_NAME } from './constants';
 import { generateWordDocument } from './utils/docHelper';
@@ -61,7 +61,16 @@ const App: React.FC = () => {
           if (!silent) alert(`Pro Plus Mode Activated!\nID: ${subId}`);
       } else {
           localStorage.removeItem('cv_subscription_id'); // Clear invalid
-          if (!silent) alert("Invalid or Expired Pro Plus ID.");
+          
+          if (!silent) {
+              // Specific expiration check
+              if (expiresAt) {
+                  const expiryDate = new Date(expiresAt).toLocaleDateString();
+                  alert(`This Pro Plus ID expired on ${expiryDate}.\nPlease renew your subscription to continue using Pro features.`);
+              } else {
+                  alert("Invalid ID. Please check your Pro Plus ID or CV Order ID.");
+              }
+          }
       }
       
       if (!silent) setStatus(Status.IDLE);
@@ -151,12 +160,15 @@ const App: React.FC = () => {
         setIsPaid(true);
         setOrderId(finalId);
         
-        // Save to Supabase for record keeping
-        await saveOrder(finalId, finalId);
-
+        // Save to Supabase for record keeping AND save content for restoration
         if (result) {
+            await saveOrder(finalId, finalId, result);
             saveOrderToStorage(finalId, result, true);
+        } else {
+            // Fallback for just ID
+            await saveOrder(finalId, finalId);
         }
+
         if (result?.cv) await generateWordDocument(result.cv.title, result.cv.content, undefined, false);
     }
     setShowPaymentModal(false);
@@ -171,32 +183,49 @@ const App: React.FC = () => {
         await checkSubscription(cleanId);
         setRestoreIdInput('');
     } else {
-        // Fallback for restoring Single Orders via the same box
+        // Check local storage first
+        const saved = localStorage.getItem(`cv_order_${cleanId}`);
+        if (saved) {
+             const parsed = JSON.parse(saved);
+             setResult(parsed.result);
+             setIsPaid(parsed.isPaid === true);
+             setOrderId(cleanId);
+             setStatus(Status.SUCCESS);
+             setRestoreIdInput('');
+             alert(`CV ID ${cleanId} restored from local history!`);
+             return;
+        }
+
+        // Check Supabase Cloud Restoration
+        setStatus(Status.SCANNING); // UI Feedback while fetching
+        
         try {
-            const saved = localStorage.getItem(`cv_order_${cleanId}`);
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                setResult(parsed.result);
-                const wasPaid = parsed.isPaid === true;
-                setIsPaid(wasPaid);
-                setOrderId(cleanId);
-                setStatus(Status.SUCCESS);
-                setRestoreIdInput('');
-                alert(`Order ${cleanId} restored!`);
+            const { found, result: restoredResult } = await restoreOrder(cleanId);
+            
+            if (found) {
+                 setOrderId(cleanId);
+                 setIsPaid(true);
+                 setRestoreIdInput('');
+                 
+                 if (restoredResult) {
+                     // Full content restoration
+                     setResult(restoredResult);
+                     setStatus(Status.SUCCESS);
+                     saveOrderToStorage(cleanId, restoredResult, true); // Cache locally again
+                     alert(`Order ${cleanId} restored successfully! Your document is ready.`);
+                 } else {
+                     // Old order before we started saving content
+                     setStatus(Status.IDLE);
+                     alert("Order Verified. However, this is an older order where we did not store the content on our servers for privacy. The payment is valid, but you may need to regenerate the CV.");
+                 }
             } else {
-                // Check Supabase
-                const { valid } = await verifyOrder(cleanId);
-                if (valid) {
-                     setOrderId(cleanId);
-                     setIsPaid(true);
-                     setRestoreIdInput('');
-                     alert("Order Verified. Note: We do not store CV content on our servers to protect your privacy, so content cannot be restored, but your payment is verified.");
-                } else {
-                     alert("ID not found (Check if it is a Pro Plus ID 'SUB-' or Order ID 'ORD-')");
-                }
+                 setStatus(Status.IDLE);
+                 alert("ID not found. Please check if it is a Pro ID (SUB-...) or CV ID (ORD-...).");
             }
         } catch (e) {
-            alert("Failed to restore ID.");
+            console.error(e);
+            setStatus(Status.IDLE);
+            alert("Failed to restore ID due to connection error.");
         }
     }
   };
@@ -419,16 +448,16 @@ const App: React.FC = () => {
              <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-2">
                  <input 
                     type="text" 
-                    placeholder="Enter Pro Plus ID"
+                    placeholder="Enter CV ID or Pro ID"
                     value={restoreIdInput}
                     onChange={(e) => setRestoreIdInput(e.target.value)}
-                    className="px-3 py-2 border-0 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full sm:w-48 bg-transparent"
+                    className="px-3 py-2 border-0 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full sm:w-56 bg-transparent"
                  />
                  <button 
                     onClick={handleActivateProPlus}
                     className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors whitespace-nowrap"
                  >
-                    Activate
+                    Restore
                  </button>
              </div>
           </div>
@@ -533,7 +562,7 @@ const App: React.FC = () => {
                                <p className="font-bold">{isUnlocked ? 'Unlocked & Ready' : 'Document Generated Successfully'}</p>
                                <p className="text-sm">
                                    ID: <strong className="font-mono bg-white px-2 py-0.5 rounded border border-slate-200 select-all">{subscriptionActive ? subscriptionId : orderId}</strong>
-                                   {!isUnlocked && <span className="ml-2 opacity-75">(Save this)</span>}
+                                   {!isUnlocked && <span className="ml-2 opacity-75">(Save this to come back later)</span>}
                                </p>
                            </div>
                        </div>

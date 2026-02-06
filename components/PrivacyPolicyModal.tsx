@@ -39,13 +39,16 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
           </section>
 
           <section>
-            <h4 className="font-bold text-slate-900 mb-2">2. Data Retention & Database Storage</h4>
+            <h4 className="font-bold text-slate-900 mb-2">2. Data Retention & Cloud Storage</h4>
             <ul className="list-disc pl-5 space-y-2">
               <li>
-                <strong>Transaction IDs:</strong> We store <strong>Pro Plus IDs</strong> (Subscriptions) and <strong>Order IDs</strong> (Single Downloads) in our secure database (Supabase). This is strictly to verify your purchase status, manage subscription validity, and allow you to restore access on different devices.
+                <strong>Transaction IDs:</strong> We store <strong>Pro Plus IDs</strong> (Subscriptions) and <strong>Order IDs</strong> (Single Downloads) in our secure database to verify your purchase status and manage subscription validity.
               </li>
               <li>
-                <strong>No Content Storage:</strong> We <strong>DO NOT</strong> store the actual content of your uploaded CVs, generated CVs, or Cover Letters in our database. These documents are generated in-memory and may be temporarily saved to your browser's local storage for your convenience, but they are never uploaded to our servers for permanent storage.
+                <strong>Generated Content:</strong> For paid orders (identified by an Order ID), we securely store the generated CV and Cover Letter text in our database. This allows you to <strong>restore your document</strong> from any device using your Order ID.
+              </li>
+              <li>
+                <strong>Uploaded Files:</strong> The original files you upload are processed in-memory and are <strong>NOT</strong> permanently stored on our servers.
               </li>
             </ul>
           </section>
