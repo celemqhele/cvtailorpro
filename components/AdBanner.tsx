@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 interface AdBannerProps {
   slotId: number;
   className?: string;
+  fallbackVariant?: 'pro_plus' | 'single_unlock'; // Controls what fallback to show
 }
 
 declare global {
@@ -14,123 +15,128 @@ declare global {
       hasAd: (placeholderId: number) => boolean;
       initRewardedAds: () => void;
     };
-    ezRewardedAds: {
-      cmd: Array<() => void>;
-      ready: boolean;
-      requestWithOverlay: (
-        callback: (result: { status: boolean; reward: boolean; msg?: string }) => void,
-        uiOptions: { header: string; accept: string; cancel: string },
-        rewardOptions: { rewardName: string; rewardOnNoFill: boolean }
-      ) => void;
-    };
-    PaystackPop: {
-      setup: (options: any) => { openIframe: () => void };
-    };
+    // Custom event for internal communication without prop drilling
+    dispatchEvent: (event: Event) => boolean;
   }
 }
 
-export const AdBanner: React.FC<AdBannerProps> = ({ slotId, className = '' }) => {
-  const [showFallback, setShowFallback] = useState(false);
-  const [isPaid, setIsPaid] = useState(false);
+export const AdBanner: React.FC<AdBannerProps> = ({ slotId, className = '', fallbackVariant = 'pro_plus' }) => {
+  const [adStatus, setAdStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const adRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 1. Check if Ezoic is blocked immediately
-    if (typeof window.ezstandalone === 'undefined') {
-       // We wait a moment in case script loads slowly
-       setTimeout(() => {
-         if (typeof window.ezstandalone === 'undefined') {
-           setShowFallback(true);
-         }
-       }, 2000);
-    }
-
-    // 2. Initialize Ezoic Ad
-    if (window.ezstandalone) {
+    let checkInterval: number | undefined;
+    
+    // 1. Initialize Ezoic Ad
+    if (typeof window.ezstandalone !== 'undefined') {
       try {
         window.ezstandalone.cmd.push(function() {
-          // Define and Show the ad
           window.ezstandalone.define(slotId);
           window.ezstandalone.showAds(slotId);
         });
       } catch (e) {
-        console.error("Ezoic Ad Error:", e);
+        console.error("Ezoic define error:", e);
+        setAdStatus('error');
       }
+    } else {
+        // If script isn't loaded after a short delay (e.g. strict blocker), fail
+        setTimeout(() => {
+            if (typeof window.ezstandalone === 'undefined') {
+                setAdStatus('error');
+            }
+        }, 3000);
     }
+
+    // 2. Poll for Ad Render Success
+    const startTime = Date.now();
+    checkInterval = window.setInterval(() => {
+        const placeholder = document.getElementById(`ezoic-pub-ad-placeholder-${slotId}`);
+        
+        if (placeholder && (placeholder.clientHeight > 15 || placeholder.innerText.length > 0)) {
+            setAdStatus('loaded');
+            if (checkInterval) clearInterval(checkInterval);
+        }
+
+        // Timeout: If not loaded after 4 seconds, show fallback
+        if (Date.now() - startTime > 4000) {
+            if (adStatus !== 'loaded') {
+                setAdStatus('error');
+            }
+            if (checkInterval) clearInterval(checkInterval);
+        }
+    }, 500);
+
+    return () => {
+        if (checkInterval) clearInterval(checkInterval);
+    };
   }, [slotId]);
 
-  const handleDonate = (amount: number) => {
-    const PUBLIC_KEY = 'pk_live_9989ae457450be7da1256d8a2c2c0b181d0a2d30'; 
-    const ref = 'DON-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-
-    const paystack = window.PaystackPop.setup({
-      key: PUBLIC_KEY,
-      email: 'customerservice@goapply.co.za',
-      amount: amount * 100, // ZAR to Cents
-      currency: 'ZAR',
-      ref: ref,
-      metadata: {
-        custom_fields: [
-          {
-            display_name: "Donation Type",
-            variable_name: "donation_type",
-            value: "Ad Fallback"
-          }
-        ]
-      },
-      callback: (response: any) => {
-        setIsPaid(true);
-        alert("Thank you for your support!");
-      },
-      onClose: () => {
-        // do nothing
-      }
-    });
-    
-    paystack.openIframe();
+  const triggerUpgrade = () => {
+      window.dispatchEvent(new CustomEvent('TRIGGER_PAYMENT_MODAL'));
   };
 
-  if (isPaid) {
-     return null; // Hide banner area if they donated this session
-  }
+  // Fallback / Self-Promo View (Shown when ads fail/timeout/block)
+  if (adStatus === 'error') {
+    
+    if (fallbackVariant === 'single_unlock') {
+        // Post-Generation Fallback: Promote R100 Unlock
+        return (
+            <div className={`w-full flex justify-center items-center my-4 ${className}`}>
+              <div 
+                  onClick={triggerUpgrade}
+                  className="group cursor-pointer relative w-full max-w-lg bg-gradient-to-r from-green-800 to-emerald-900 rounded-xl overflow-hidden shadow-lg border border-green-500/30 p-6 flex flex-col items-center text-center transition-transform hover:scale-[1.02]"
+              >
+                  <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
+                  <div className="relative z-10 space-y-2">
+                      <div className="bg-amber-400 text-black text-[10px] font-bold px-2 py-0.5 rounded-full inline-block uppercase tracking-wider mb-1">
+                          Ready to Download?
+                      </div>
+                      <h3 className="text-xl font-bold text-white">Unlock This Document Now</h3>
+                      <p className="text-emerald-100 text-sm max-w-xs mx-auto">
+                          Get the editable Word file & Cover Letter immediately.
+                      </p>
+                      <div className="pt-3">
+                          <span className="inline-block bg-white text-emerald-900 font-bold px-4 py-2 rounded-lg text-sm group-hover:bg-emerald-50 transition-colors">
+                              Unlock for R100
+                          </span>
+                      </div>
+                  </div>
+              </div>
+            </div>
+        );
+    }
 
-  // Fallback View (Donation - Shows if AdBlocker is detected)
-  if (showFallback) {
+    // Default / Pre-Generation Fallback: Promote Pro Plus (Subscription)
     return (
-      <div className={`w-full flex justify-center items-center my-6 ${className}`}>
-        <div className="bg-white/90 backdrop-blur border border-slate-200 p-4 rounded-xl shadow-sm text-center max-w-lg w-full">
-            <p className="text-sm font-semibold text-slate-700 mb-3">
-               We notice you're using an AdBlocker. <br/>
-               <span className="font-normal text-slate-500">Please consider a small donation to keep this tool free.</span>
-            </p>
-            <div className="flex justify-center gap-3">
-                <button 
-                  onClick={() => handleDonate(5)}
-                  className="px-4 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-bold rounded-lg transition-colors border border-indigo-200"
-                >
-                  R5
-                </button>
-                <button 
-                  onClick={() => handleDonate(10)}
-                  className="px-4 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-bold rounded-lg transition-colors border border-indigo-200"
-                >
-                  R10
-                </button>
-                <button 
-                  onClick={() => handleDonate(20)}
-                  className="px-4 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-bold rounded-lg transition-colors border border-indigo-200"
-                >
-                  R20
-                </button>
+      <div className={`w-full flex justify-center items-center my-4 ${className}`}>
+        <div 
+            onClick={triggerUpgrade}
+            className="group cursor-pointer relative w-full max-w-lg bg-gradient-to-r from-slate-900 to-indigo-900 rounded-xl overflow-hidden shadow-lg border border-indigo-500/30 p-6 flex flex-col items-center text-center transition-transform hover:scale-[1.02]"
+        >
+            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
+            <div className="relative z-10 space-y-2">
+                <div className="bg-amber-400 text-black text-[10px] font-bold px-2 py-0.5 rounded-full inline-block uppercase tracking-wider mb-1">
+                    Ad Loading Failed?
+                </div>
+                <h3 className="text-xl font-bold text-white">Get Pro Plus Access</h3>
+                <p className="text-indigo-100 text-sm max-w-xs mx-auto">
+                    Unlimited generations, unlimited downloads. Beat the ATS bots.
+                </p>
+                <div className="pt-3">
+                    <span className="inline-block bg-white text-indigo-900 font-bold px-4 py-2 rounded-lg text-sm group-hover:bg-indigo-50 transition-colors">
+                        Go Pro (30 Days+)
+                    </span>
+                </div>
             </div>
         </div>
       </div>
     );
   }
 
-  // Ezoic Ad Placeholder
+  // Ezoic Container
   return (
-    <div className={`w-full flex justify-center items-center my-6 min-h-[90px] ${className}`}>
-        <div id={`ezoic-pub-ad-placeholder-${slotId}`}></div>
+    <div ref={adRef} className={`w-full flex justify-center items-center my-6 min-h-[90px] ${className}`}>
+         <div id={`ezoic-pub-ad-placeholder-${slotId}`} className="w-full flex justify-center items-center"></div>
     </div>
   );
 };

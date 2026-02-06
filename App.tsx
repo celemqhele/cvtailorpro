@@ -16,6 +16,19 @@ import { APP_NAME } from './constants';
 import { generateWordDocument, createWordBlob } from './utils/docHelper';
 import { generateSelectablePdf, createPdfBlob } from './utils/pdfHelper';
 
+declare global {
+  interface Window {
+    ezRewardedAds?: {
+      ready: boolean;
+      requestWithOverlay: (
+        callback: (result: any) => void,
+        options: { header: string; accept: string; cancel: string },
+        config: { rewardName: string; rewardOnNoFill: boolean }
+      ) => void;
+    };
+  }
+}
+
 const App: React.FC = () => {
   const [file, setFile] = useState<FileData | null>(null);
   
@@ -24,8 +37,6 @@ const App: React.FC = () => {
   const [jobLink, setJobLink] = useState('');
   const [manualJobText, setManualJobText] = useState('');
   const [jobSpec, setJobSpec] = useState(''); 
-  
-  const [apiKey] = useState('csk-rmv54ykfk8mp439ww3xrrjy98nk3phnh3hentfprjxp2xwv3');
   
   const [status, setStatus] = useState<Status>(Status.IDLE);
   const [analysis, setAnalysis] = useState<MatchAnalysis | null>(null);
@@ -50,6 +61,17 @@ const App: React.FC = () => {
   // UI State for Preview
   const [previewTab, setPreviewTab] = useState<'cv' | 'cl'>('cv');
   const [isZipping, setIsZipping] = useState(false);
+
+  // Determine which fallback ad to show: Pro Plus (Subscription) or Single Unlock
+  // Rule: Before generation = Pro Plus. After generation = Single R100.
+  const adFallbackType = result ? 'single_unlock' : 'pro_plus';
+
+  // Listen for Ad Banner clicks requesting payment modal
+  useEffect(() => {
+    const handleTriggerPayment = () => setShowPaymentModal(true);
+    window.addEventListener('TRIGGER_PAYMENT_MODAL', handleTriggerPayment);
+    return () => window.removeEventListener('TRIGGER_PAYMENT_MODAL', handleTriggerPayment);
+  }, []);
 
   // Check for stored subscription on load
   useEffect(() => {
@@ -123,7 +145,7 @@ const App: React.FC = () => {
           setJobSpec(textToAnalyze);
           setStatus(Status.ANALYZING);
 
-          const analysisResult = await analyzeMatch(file, textToAnalyze, apiKey);
+          const analysisResult = await analyzeMatch(file, textToAnalyze);
           setAnalysis(analysisResult);
           setStatus(Status.ANALYSIS_COMPLETE);
 
@@ -137,7 +159,7 @@ const App: React.FC = () => {
   const handleGenerate = async (forceOverride: boolean = false) => {
     const force = typeof forceOverride === 'boolean' ? forceOverride : false;
 
-    if (!file || !jobSpec.trim() || !apiKey.trim()) return;
+    if (!file || !jobSpec.trim()) return;
 
     setStatus(Status.GENERATING);
     setErrorMsg(null);
@@ -146,7 +168,7 @@ const App: React.FC = () => {
     setOrderId(null);
 
     try {
-      const response = await generateTailoredApplication(file, jobSpec, apiKey, force);
+      const response = await generateTailoredApplication(file, jobSpec, force);
       
       if (response.outcome !== 'REJECT') {
           const newOrderId = 'ORD-' + Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -549,7 +571,7 @@ const App: React.FC = () => {
           {/* AD PLACEMENT 1: HEADER (115) - Only show if NO subscription */}
           {!subscriptionActive && (
               <div className="hidden lg:block absolute left-1/2 transform -translate-x-1/2 -top-4">
-                  <AdBanner slotId={115} className="my-0 scale-90" />
+                  <AdBanner slotId={115} className="my-0 scale-90" fallbackVariant={adFallbackType} />
               </div>
           )}
 
@@ -590,7 +612,7 @@ const App: React.FC = () => {
         </header>
 
         {/* AD PLACEMENT 2: MAIN FLOW (114) */}
-        {!subscriptionActive && <AdBanner slotId={114} className="md:flex" />}
+        {!subscriptionActive && <AdBanner slotId={114} className="md:flex" fallbackVariant={adFallbackType} />}
 
         <main className="grid grid-cols-1 gap-8">
           
@@ -764,7 +786,7 @@ const App: React.FC = () => {
                                         </Button>
 
                                         {/* AD PLACEMENT 3: IN SIDEBAR (112) - Only show if locked */}
-                                        <AdBanner slotId={112} className="my-2" />
+                                        <AdBanner slotId={112} className="my-2" fallbackVariant={adFallbackType} />
 
                                         <div className="pt-4 border-t border-slate-100">
                                             <button 
@@ -863,7 +885,7 @@ const App: React.FC = () => {
         </main>
         
         {/* AD PLACEMENT 4: FOOTER (113) - Only show if NO subscription */}
-        {!subscriptionActive && <AdBanner slotId={113} />}
+        {!subscriptionActive && <AdBanner slotId={113} fallbackVariant={adFallbackType} />}
         
         <footer className="text-center text-slate-400 text-sm py-8 space-y-2 border-t border-slate-200 mt-12">
           <p>&copy; {new Date().getFullYear()} CV Tailor Pro.</p>
