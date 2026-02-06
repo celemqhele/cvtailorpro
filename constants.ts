@@ -1,4 +1,3 @@
-
 export const APP_NAME = "CV Tailor Pro";
 export const SERP_API_KEY = "694175e6871350996f0a04ee41ef7c632ef94fa12aa40725a94b78e708f999bc";
 
