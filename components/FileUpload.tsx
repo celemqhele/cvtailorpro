@@ -57,7 +57,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, selectedFi
         ref={inputRef}
         type="file" 
         className="hidden" 
-        accept=".doc,.docx,.txt"
+        accept=".doc,.docx,.txt,.pdf"
         onChange={handleChange}
       />
       
@@ -74,7 +74,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, selectedFi
         ) : (
           <div className="space-y-1">
             <p className="text-lg font-medium text-slate-700">Upload your CV</p>
-            <p className="text-sm text-slate-500">Word (.docx) or Text (.txt)</p>
+            <p className="text-sm text-slate-500">PDF (.pdf), Word (.docx) or Text (.txt)</p>
           </div>
         )}
       </div>

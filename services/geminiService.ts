@@ -1,4 +1,5 @@
 import * as mammoth from "mammoth";
+import * as pdfjsLib from 'pdfjs-dist';
 import { SYSTEM_PROMPT } from "../constants";
 import { FileData, GeneratorResponse } from "../types";
 
@@ -28,9 +29,35 @@ async function extractTextFromFile(file: FileData): Promise<string> {
       throw new Error("Failed to read Word document. Please try a text file.");
     }
   } 
-  // Handle PDF - Placeholder
+  // Handle PDF
   else if (file.mimeType === "application/pdf" || file.name.endsWith(".pdf")) {
-    throw new Error("PDF parsing is not supported with this text-only model configuration. Please convert your CV to .docx or .txt.");
+    try {
+      // Set worker source to CDN to avoid bundler issues
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+      }
+
+      const loadingTask = pdfjsLib.getDocument({ data: byteArray });
+      const pdf = await loadingTask.promise;
+      let fullText = "";
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        
+        // Extract strings from text items
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+          
+        fullText += pageText + "\n\n";
+      }
+      
+      return fullText;
+    } catch (e) {
+      console.error("PDF extraction failed", e);
+      throw new Error("Failed to read PDF. Please ensure it is a text-based PDF, not a scanned image.");
+    }
   }
   // Handle Text
   else {
