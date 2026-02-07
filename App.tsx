@@ -44,6 +44,7 @@ const App: React.FC = () => {
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [restoreIdInput, setRestoreIdInput] = useState('');
   const [paymentTriggerPlan, setPaymentTriggerPlan] = useState<string | null>(null);
+  const [pendingPaymentAction, setPendingPaymentAction] = useState<'zip' | 'cv_word' | 'cl_word' | null>(null);
 
   // UI State for Preview
   const [previewTab, setPreviewTab] = useState<'cv' | 'cl'>('cv');
@@ -87,6 +88,56 @@ const App: React.FC = () => {
       }
   };
 
+  const executeZipDownload = async () => {
+      if (!result) return;
+      
+      setIsZipping(true);
+
+      try {
+          const zip = new JSZip();
+          
+          if (result.cv) {
+              const cvBlob = await createWordBlob(result.cv.content);
+              if (cvBlob) zip.file(result.cv.title || 'Tailored_CV.docx', cvBlob);
+          }
+
+          if (result.coverLetter) {
+              const clBlob = await createWordBlob(result.coverLetter.content);
+              if (clBlob) zip.file(result.coverLetter.title || 'Cover_Letter.docx', clBlob);
+          }
+          
+          const cvPdfBlob = await createPdfBlob('hidden-cv-content');
+          if (cvPdfBlob && result.cv) zip.file((result.cv.title || 'Tailored_CV').replace('.docx', '') + '.pdf', cvPdfBlob);
+          
+          const clPdfBlob = await createPdfBlob('hidden-cl-content');
+          if (clPdfBlob && result.coverLetter) zip.file((result.coverLetter.title || 'Cover_Letter').replace('.docx', '') + '.pdf', clPdfBlob);
+
+          const content = await zip.generateAsync({ type: "blob" });
+          saveAs(content, `Application_Package.zip`);
+          
+      } catch (e) {
+          console.error("Zip failed", e);
+          alert("Failed to create zip file.");
+      } finally {
+          setIsZipping(false);
+      }
+  };
+
+  const executeWordDownload = async (type: 'cv' | 'cl') => {
+     if (!result) return;
+     
+     if (type === 'cv') setIsDownloadingCv(true);
+     else setIsDownloadingCl(true);
+
+     const doc = type === 'cv' ? result.cv : result.coverLetter;
+     if (doc) {
+        await generateWordDocument(doc.title || `Tailored_${type.toUpperCase()}.docx`, doc.content, undefined, false);
+     }
+
+     if (type === 'cv') setIsDownloadingCv(false);
+     else setIsDownloadingCl(false);
+  };
+
   const handlePaymentSuccess = async (planId: string, isSubscription: boolean) => {
     const ref = 'PAY-' + Date.now();
     const subResult = await createSubscription(planId, ref);
@@ -103,7 +154,16 @@ const App: React.FC = () => {
             setIsProOneTime(true);
             alert(`Pro Plus Activated! Ads Removed.\nYour ID is: ${subResult.subscriptionId}`);
         }
+
+        if (pendingPaymentAction === 'zip') {
+             await executeZipDownload();
+        } else if (pendingPaymentAction === 'cv_word') {
+             await executeWordDownload('cv');
+        } else if (pendingPaymentAction === 'cl_word') {
+             await executeWordDownload('cl');
+        }
     }
+    setPendingPaymentAction(null);
     setPaymentTriggerPlan(null);
     setShowPaymentModal(false);
   };
@@ -225,62 +285,20 @@ const App: React.FC = () => {
 
   const handleDownloadWord = async (type: 'cv' | 'cl') => {
      if (!isProOneTime && !isProPlus) {
+         setPendingPaymentAction(type === 'cv' ? 'cv_word' : 'cl_word');
          setShowPaymentModal(true);
          return;
      }
-
-     if (!result) return;
-     
-     if (type === 'cv') setIsDownloadingCv(true);
-     else setIsDownloadingCl(true);
-
-     const doc = type === 'cv' ? result.cv : result.coverLetter;
-     if (doc) {
-        await generateWordDocument(doc.title || `Tailored_${type.toUpperCase()}.docx`, doc.content, undefined, false);
-     }
-
-     if (type === 'cv') setIsDownloadingCv(false);
-     else setIsDownloadingCl(false);
+     await executeWordDownload(type);
   };
 
   const handleDownloadAllZip = async () => {
       if (!isProOneTime && !isProPlus) {
+          setPendingPaymentAction('zip');
           setShowPaymentModal(true);
           return;
       }
-
-      if (!result) return;
-      
-      setIsZipping(true);
-
-      try {
-          const zip = new JSZip();
-          
-          if (result.cv) {
-              const cvBlob = await createWordBlob(result.cv.content);
-              if (cvBlob) zip.file(result.cv.title || 'Tailored_CV.docx', cvBlob);
-          }
-
-          if (result.coverLetter) {
-              const clBlob = await createWordBlob(result.coverLetter.content);
-              if (clBlob) zip.file(result.coverLetter.title || 'Cover_Letter.docx', clBlob);
-          }
-          
-          const cvPdfBlob = await createPdfBlob('hidden-cv-content');
-          if (cvPdfBlob && result.cv) zip.file((result.cv.title || 'Tailored_CV').replace('.docx', '') + '.pdf', cvPdfBlob);
-          
-          const clPdfBlob = await createPdfBlob('hidden-cl-content');
-          if (clPdfBlob && result.coverLetter) zip.file((result.coverLetter.title || 'Cover_Letter').replace('.docx', '') + '.pdf', clPdfBlob);
-
-          const content = await zip.generateAsync({ type: "blob" });
-          saveAs(content, `Application_Package.zip`);
-          
-      } catch (e) {
-          console.error("Zip failed", e);
-          alert("Failed to create zip file.");
-      } finally {
-          setIsZipping(false);
-      }
+      await executeZipDownload();
   };
 
   const reset = () => {
