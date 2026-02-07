@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import JSZip from 'jszip';
-import saveAs from 'file-saver';
+import { saveAs } from 'file-saver';
 import { Button } from '../components/Button';
 import { FileUpload } from '../components/FileUpload';
 import { AdBanner } from '../components/AdBanner';
@@ -24,6 +24,7 @@ export const Dashboard: React.FC = () => {
   const [manualJobText, setManualJobText] = useState('');
   const [jobSpec, setJobSpec] = useState(''); 
   
+  // Hardcoded key for demo/preview purposes
   const [apiKey] = useState('csk-rmv54ykfk8mp439ww3xrrjy98nk3phnh3hentfprjxp2xwv3');
   
   const [status, setStatus] = useState<Status>(Status.IDLE);
