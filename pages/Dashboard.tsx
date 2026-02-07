@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
+import saveAs from 'file-saver';
 import { Button } from '../components/Button';
 import { FileUpload } from '../components/FileUpload';
 import { AdBanner } from '../components/AdBanner';
