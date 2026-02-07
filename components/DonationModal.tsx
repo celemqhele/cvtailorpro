@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PLANS } from '../services/subscriptionService';
 
 interface PaymentModalProps {
@@ -7,6 +7,7 @@ interface PaymentModalProps {
   onSuccess: (orderId: string, isSubscription: boolean) => void;
   documentTitle: string;
   existingOrderId: string | null;
+  triggerPlanId?: string | null;
 }
 
 declare global {
@@ -17,10 +18,25 @@ declare global {
   }
 }
 
-export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess }) => {
+export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, triggerPlanId }) => {
   const [view, setView] = useState<'options' | 'one_time' | 'pro_plus'>('options');
   const [selectedPlanId, setSelectedPlanId] = useState<string>('30_days');
   const PUBLIC_KEY = 'pk_live_9989ae457450be7da1256d8a2c2c0b181d0a2d30'; 
+
+  // Reset view when opened/closed or allow triggering
+  useEffect(() => {
+    if (isOpen) {
+        if (triggerPlanId) {
+             // Delay slightly to ensure modal is rendered
+             const timer = setTimeout(() => {
+                 handlePayment(triggerPlanId);
+             }, 300);
+             return () => clearTimeout(timer);
+        } else {
+             setView('options');
+        }
+    }
+  }, [isOpen, triggerPlanId]);
 
   if (!isOpen) return null;
 
@@ -49,7 +65,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         // User closed modal
       },
       callback: (response: any) => {
-          onSuccess(planId, true); // Treating all as "subscription" flow for service simplicity
+          onSuccess(planId, true); 
       }
     });
     

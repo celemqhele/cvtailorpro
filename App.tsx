@@ -8,6 +8,7 @@ import { AdBanner } from './components/AdBanner';
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { PaymentModal } from './components/DonationModal';
 import { RewardedAdModal } from './components/RewardedAdModal';
+import { SupportModal } from './components/SupportModal';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from './services/geminiService';
 import { createSubscription, verifySubscription } from './services/subscriptionService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis } from './types';
@@ -34,6 +35,7 @@ const App: React.FC = () => {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showRewardedModal, setShowRewardedModal] = useState(false);
+  const [showSupportModal, setShowSupportModal] = useState(false);
 
   // Subscription State
   const [isProPlus, setIsProPlus] = useState(false); // No ads, unlimited downloads
@@ -41,6 +43,7 @@ const App: React.FC = () => {
   
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [restoreIdInput, setRestoreIdInput] = useState('');
+  const [paymentTriggerPlan, setPaymentTriggerPlan] = useState<string | null>(null);
 
   // UI State for Preview
   const [previewTab, setPreviewTab] = useState<'cv' | 'cl'>('cv');
@@ -101,6 +104,7 @@ const App: React.FC = () => {
             alert(`Pro Plus Activated! Ads Removed.\nYour ID is: ${subResult.subscriptionId}`);
         }
     }
+    setPaymentTriggerPlan(null);
     setShowPaymentModal(false);
   };
 
@@ -177,7 +181,23 @@ const App: React.FC = () => {
   // --- Download Handlers ---
 
   const initiateFreePdfDownload = (type: 'cv' | 'cl') => {
+      // If user is already paying, skip the nags
+      if (isProPlus || isProOneTime) {
+          executePdfDownload(type);
+          return;
+      }
       setPendingPdfType(type);
+      setShowSupportModal(true);
+  };
+
+  const handleSupportConfirm = () => {
+      setShowSupportModal(false);
+      setPaymentTriggerPlan('one_time');
+      setShowPaymentModal(true);
+  };
+
+  const handleSupportDecline = () => {
+      setShowSupportModal(false);
       setShowRewardedModal(true);
   };
 
@@ -354,12 +374,20 @@ const App: React.FC = () => {
       
       <PrivacyPolicyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
       
+      <SupportModal 
+        isOpen={showSupportModal} 
+        onClose={() => setShowSupportModal(false)}
+        onConfirmSupport={handleSupportConfirm}
+        onContinueFree={handleSupportDecline}
+      />
+
       <PaymentModal 
         isOpen={showPaymentModal} 
-        onClose={() => setShowPaymentModal(false)}
+        onClose={() => { setShowPaymentModal(false); setPaymentTriggerPlan(null); }}
         onSuccess={handlePaymentSuccess}
         documentTitle={result?.cv?.title || "Tailored Application"}
         existingOrderId={null}
+        triggerPlanId={paymentTriggerPlan}
       />
 
       <RewardedAdModal 
