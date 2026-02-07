@@ -26,6 +26,8 @@ export const AdBanner: React.FC<AdBannerProps> = ({ className = '', suffix = '',
         body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background-color: transparent; font-family: sans-serif; }
         #container-05a32a6fdab36952196ec714771c7fa8 { text-align: center; }
       </style>
+      <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6881973057585692"
+     crossorigin="anonymous"></script>
     </head>
     <body>
       <div id="container-05a32a6fdab36952196ec714771c7fa8"></div>
