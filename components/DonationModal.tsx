@@ -68,7 +68,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
             <div className="border-2 border-slate-200 rounded-xl p-6 hover:border-indigo-400 cursor-pointer transition-all bg-white" onClick={() => handlePayment('one_time')}>
                 <div className="flex justify-between items-start mb-4">
                     <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold uppercase">Pro (Single)</span>
-                    <span className="text-2xl font-bold text-slate-900">R99</span>
+                    <span className="text-2xl font-bold text-slate-900">R20</span>
                 </div>
                 <ul className="space-y-2 text-sm text-slate-600 mb-6">
                     <li className="flex items-center gap-2"><svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Download DOCX (Editable)</li>
@@ -85,7 +85,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                   </div>
                 <div className="flex justify-between items-start mb-4">
                     <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold uppercase">Pro Plus</span>
-                    <span className="text-2xl font-bold text-indigo-700">R399+</span>
+                    <span className="text-2xl font-bold text-indigo-700">R99+</span>
                 </div>
                 <ul className="space-y-2 text-sm text-slate-700 mb-6">
                     <li className="flex items-center gap-2"><svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> <strong>Unlimited</strong> Downloads</li>

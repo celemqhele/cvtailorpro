@@ -10,8 +10,8 @@ export interface SubscriptionPlan {
 }
 
 export const PLANS: SubscriptionPlan[] = [
-  { id: 'one_time', name: 'Single Unlock', price: 99.99, durationDays: 0, type: 'one_time' },
-  { id: '30_days', name: '30 Days Pro+', price: 399.99, durationDays: 30, type: 'subscription' },
+  { id: 'one_time', name: 'Single Unlock', price: 20.00, durationDays: 0, type: 'one_time' },
+  { id: '30_days', name: '30 Days Pro+', price: 99.00, durationDays: 30, type: 'subscription' },
   { id: '3_months', name: '3 Months Pro+', price: 999.99, durationDays: 90, type: 'subscription' },
   { id: '1_year', name: '1 Year Pro+', price: 2999.99, durationDays: 365, type: 'subscription' },
 ];
