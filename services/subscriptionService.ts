@@ -2,16 +2,18 @@ import { supabase } from './supabaseClient';
 import { GeneratorResponse } from '../types';
 
 export interface SubscriptionPlan {
-  id: '30_days' | '3_months' | '1_year';
+  id: 'one_time' | '30_days' | '3_months' | '1_year';
   name: string;
   price: number;
   durationDays: number;
+  type: 'subscription' | 'one_time';
 }
 
 export const PLANS: SubscriptionPlan[] = [
-  { id: '30_days', name: '30 Days Pro', price: 399.99, durationDays: 30 },
-  { id: '3_months', name: '3 Months Pro', price: 999.99, durationDays: 90 },
-  { id: '1_year', name: '1 Year Pro', price: 2999.99, durationDays: 365 },
+  { id: 'one_time', name: 'Single Unlock', price: 99.99, durationDays: 0, type: 'one_time' },
+  { id: '30_days', name: '30 Days Pro+', price: 399.99, durationDays: 30, type: 'subscription' },
+  { id: '3_months', name: '3 Months Pro+', price: 999.99, durationDays: 90, type: 'subscription' },
+  { id: '1_year', name: '1 Year Pro+', price: 2999.99, durationDays: 365, type: 'subscription' },
 ];
 
 export const createSubscription = async (
@@ -22,16 +24,24 @@ export const createSubscription = async (
   const plan = PLANS.find(p => p.id === planId);
   if (!plan) return { success: false, error: "Invalid plan" };
 
-  const subscriptionId = 'SUB-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+  // Generate ID
+  const prefix = plan.type === 'one_time' ? 'ORD-' : 'SUB-';
+  const id = prefix + Math.random().toString(36).substring(2, 10).toUpperCase();
+
   const now = new Date();
-  const expiresAt = new Date(now.setDate(now.getDate() + plan.durationDays));
+  
+  // For subscriptions, calculate expiry. For one-time, it doesn't expire in the same way (it's per session/order), 
+  // but we store it for record keeping.
+  const expiresAt = plan.durationDays > 0 
+    ? new Date(now.setDate(now.getDate() + plan.durationDays)) 
+    : new Date(now.setDate(now.getDate() + 3650)); // 10 years for one-time record
 
   try {
     const { error } = await supabase
       .from('subscriptions')
       .insert([
         {
-          id: subscriptionId,
+          id: id,
           plan_type: planId,
           payment_ref: paymentRef,
           created_at: new Date().toISOString(),
@@ -42,14 +52,14 @@ export const createSubscription = async (
 
     if (error) throw error;
 
-    return { success: true, subscriptionId };
+    return { success: true, subscriptionId: id };
   } catch (e: any) {
-    console.error("Subscription creation failed", e);
+    console.error("Transaction creation failed", e);
     return { success: false, error: e.message };
   }
 };
 
-export const verifySubscription = async (subscriptionId: string): Promise<{ active: boolean; expiresAt?: string; plan?: string }> => {
+export const verifySubscription = async (subscriptionId: string): Promise<{ active: boolean; isProPlus: boolean }> => {
   try {
     const { data, error } = await supabase
       .from('subscriptions')
@@ -57,22 +67,22 @@ export const verifySubscription = async (subscriptionId: string): Promise<{ acti
       .eq('id', subscriptionId)
       .single();
 
-    if (error || !data) return { active: false };
+    if (error || !data) return { active: false, isProPlus: false };
 
     const expiresAt = new Date(data.expires_at);
     const now = new Date();
+    const isActive = data.is_active && expiresAt > now;
     
-    // Check if active flag is true AND date hasn't passed
-    const isValid = data.is_active && expiresAt > now;
+    // Check if it's a subscription plan (Pro Plus)
+    const isProPlus = isActive && ['30_days', '3_months', '1_year'].includes(data.plan_type);
 
     return { 
-      active: isValid, 
-      expiresAt: data.expires_at,
-      plan: data.plan_type
+      active: isActive, 
+      isProPlus: isProPlus
     };
   } catch (e) {
     console.error("Verification failed", e);
-    return { active: false };
+    return { active: false, isProPlus: false };
   }
 };
 
@@ -86,7 +96,6 @@ export const saveOrder = async (orderId: string, paymentRef: string, data?: Gene
       created_at: new Date().toISOString()
     };
 
-    // If content data is provided, save it so it can be restored later
     if (data) {
         if (data.cv) {
             payload.cv_title = data.cv.title;
@@ -119,7 +128,6 @@ export const restoreOrder = async (orderId: string) => {
     
     if (error || !data) return { found: false };
 
-    // Reconstruct GeneratorResponse if content exists in DB
     let restoredResult: GeneratorResponse | null = null;
     
     if (data.cv_content) {
@@ -140,9 +148,4 @@ export const restoreOrder = async (orderId: string) => {
   } catch (e) {
     return { found: false };
   }
-};
-
-export const verifyOrder = async (orderId: string) => {
-  const { found } = await restoreOrder(orderId);
-  return { valid: found };
 };

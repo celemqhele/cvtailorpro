@@ -5,16 +5,15 @@ import saveAs from 'file-saver';
 import { Button } from './components/Button';
 import { FileUpload } from './components/FileUpload';
 import { AdBanner } from './components/AdBanner';
-import { PaymentModal } from './components/DonationModal'; 
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
+import { PaymentModal } from './components/DonationModal';
 import { RewardedAdModal } from './components/RewardedAdModal';
-import { ProPlusPromoModal } from './components/ProPlusPromoModal';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from './services/geminiService';
-import { createSubscription, verifySubscription, saveOrder, restoreOrder } from './services/subscriptionService';
+import { createSubscription, verifySubscription } from './services/subscriptionService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis } from './types';
 import { APP_NAME } from './constants';
 import { generateWordDocument, createWordBlob } from './utils/docHelper';
-import { generateSelectablePdf, createPdfBlob } from './utils/pdfHelper';
+import { createPdfBlob } from './utils/pdfHelper';
 
 const App: React.FC = () => {
   const [file, setFile] = useState<FileData | null>(null);
@@ -32,24 +31,27 @@ const App: React.FC = () => {
   const [result, setResult] = useState<GeneratorResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-  // Payment, Ads, Restore & Subscription State
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-  const [showAdModal, setShowAdModal] = useState(false); 
-  const [showPromoModal, setShowPromoModal] = useState(false); // New Promo Modal
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showRewardedModal, setShowRewardedModal] = useState(false);
+
+  // Subscription State
+  const [isProPlus, setIsProPlus] = useState(false); // No ads, unlimited downloads
+  const [isProOneTime, setIsProOneTime] = useState(false); // Has ads, can download DOCX/Zip for current session
   
-  const [isPaid, setIsPaid] = useState(false);
-  const [orderId, setOrderId] = useState<string | null>(null);
-  const [restoreIdInput, setRestoreIdInput] = useState('');
-  
-  // New Subscription State
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
-  const [subscriptionActive, setSubscriptionActive] = useState(false);
-  const [subscriptionExpiry, setSubscriptionExpiry] = useState<string | null>(null);
+  const [restoreIdInput, setRestoreIdInput] = useState('');
 
   // UI State for Preview
   const [previewTab, setPreviewTab] = useState<'cv' | 'cl'>('cv');
+  
+  // Loading states
   const [isZipping, setIsZipping] = useState(false);
+  const [isDownloadingCv, setIsDownloadingCv] = useState(false);
+  const [isDownloadingCl, setIsDownloadingCl] = useState(false);
+  
+  // Temp state to trigger PDF download after ad
+  const [pendingPdfType, setPendingPdfType] = useState<'cv' | 'cl' | null>(null);
 
   // Check for stored subscription on load
   useEffect(() => {
@@ -60,41 +62,52 @@ const App: React.FC = () => {
   }, []);
 
   const checkSubscription = async (subId: string, silent: boolean = false) => {
-      if (!silent) setStatus(Status.SCANNING); // Temporary UI feedback
-      
-      const { active, expiresAt } = await verifySubscription(subId);
+      const { active, isProPlus: isProPlusActive } = await verifySubscription(subId);
       
       if (active) {
           setSubscriptionId(subId);
-          setSubscriptionActive(true);
-          setSubscriptionExpiry(expiresAt || null);
           localStorage.setItem('cv_subscription_id', subId);
-          if (!silent) alert(`Pro Plus Mode Activated!\nID: ${subId}`);
-      } else {
-          localStorage.removeItem('cv_subscription_id'); // Clear invalid
           
-          if (!silent) {
-              // Specific expiration check
-              if (expiresAt) {
-                  const expiryDate = new Date(expiresAt).toLocaleDateString();
-                  alert(`This Pro Plus ID expired on ${expiryDate}.\nPlease renew your subscription to continue using Pro features.`);
-              } else {
-                  alert("Invalid ID. Please check your Pro Plus ID or CV Order ID.");
-              }
+          if (isProPlusActive) {
+              setIsProPlus(true);
+              setIsProOneTime(true); // Pro Plus includes Pro features
+              if (!silent) alert(`Pro Plus Active: Ads Removed!\nID: ${subId}`);
+          } else {
+              // It's a valid one-time code (ORD-...) or non-Pro+ sub
+              setIsProOneTime(true);
+              setIsProPlus(false);
+              if (!silent) alert(`Pro Access Active (Single Session).\nID: ${subId}`);
           }
+      } else {
+          localStorage.removeItem('cv_subscription_id');
+          if (!silent) alert("Invalid or Expired ID.");
       }
-      
-      if (!silent) setStatus(Status.IDLE);
   };
 
-  // Helper to save current state to local storage
-  const saveOrderToStorage = (id: string, data: GeneratorResponse, paid: boolean) => {
-    const savedData = {
-        result: data,
-        date: new Date().toISOString(),
-        isPaid: paid
-    };
-    localStorage.setItem(`cv_order_${id}`, JSON.stringify(savedData));
+  const handlePaymentSuccess = async (planId: string, isSubscription: boolean) => {
+    const ref = 'PAY-' + Date.now();
+    const subResult = await createSubscription(planId, ref);
+    
+    if (subResult.success && subResult.subscriptionId) {
+        setSubscriptionId(subResult.subscriptionId);
+        localStorage.setItem('cv_subscription_id', subResult.subscriptionId);
+        
+        if (planId === 'one_time') {
+            setIsProOneTime(true);
+            alert(`Downloads Unlocked! Your ID is: ${subResult.subscriptionId}`);
+        } else {
+            setIsProPlus(true);
+            setIsProOneTime(true);
+            alert(`Pro Plus Activated! Ads Removed.\nYour ID is: ${subResult.subscriptionId}`);
+        }
+    }
+    setShowPaymentModal(false);
+  };
+
+  const handleRestoreId = () => {
+      if (restoreIdInput.trim()) {
+          checkSubscription(restoreIdInput.trim());
+      }
   };
 
   const handleScanAndAnalyze = async () => {
@@ -142,17 +155,12 @@ const App: React.FC = () => {
     setStatus(Status.GENERATING);
     setErrorMsg(null);
     setResult(null);
-    setIsPaid(false);
-    setOrderId(null);
 
     try {
       const response = await generateTailoredApplication(file, jobSpec, apiKey, force);
       
       if (response.outcome !== 'REJECT') {
-          const newOrderId = 'ORD-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-          setOrderId(newOrderId);
           setResult(response);
-          saveOrderToStorage(newOrderId, response, false);
           setStatus(Status.SUCCESS);
       } else {
           setResult(response);
@@ -166,241 +174,93 @@ const App: React.FC = () => {
     }
   };
 
-  const handlePaymentSuccess = async (data: string, isSubscription: boolean) => {
-    if (isSubscription) {
-        // Data is the plan ID, we need to generate subscription
-        const ref = 'PAY-' + Date.now();
-        const subResult = await createSubscription(data, ref);
-        
-        if (subResult.success && subResult.subscriptionId) {
-            setSubscriptionId(subResult.subscriptionId);
-            setSubscriptionActive(true);
-            localStorage.setItem('cv_subscription_id', subResult.subscriptionId);
-            alert(`Pro Plus Activated! Your ID is: ${subResult.subscriptionId}. Keep this safe!`);
-        }
-    } else {
-        // Single Order
-        const finalId = orderId || data;
-        setIsPaid(true);
-        setOrderId(finalId);
-        
-        // Save to Supabase for record keeping AND save content for restoration
-        if (result) {
-            await saveOrder(finalId, finalId, result);
-            saveOrderToStorage(finalId, result, true);
-        } else {
-            // Fallback for just ID
-            await saveOrder(finalId, finalId);
-        }
-    }
-    setShowPaymentModal(false);
+  // --- Download Handlers ---
+
+  const initiateFreePdfDownload = (type: 'cv' | 'cl') => {
+      setPendingPdfType(type);
+      setShowRewardedModal(true);
   };
 
-  const handleActivateProPlus = async () => {
-    if (!restoreIdInput.trim()) return;
-    const cleanId = restoreIdInput.trim().toUpperCase();
-    
-    // Check if it's a Subscription ID
-    if (cleanId.startsWith('SUB-')) {
-        await checkSubscription(cleanId);
-        setRestoreIdInput('');
-    } else {
-        // Check local storage first
-        const saved = localStorage.getItem(`cv_order_${cleanId}`);
-        if (saved) {
-             const parsed = JSON.parse(saved);
-             setResult(parsed.result);
-             setIsPaid(parsed.isPaid === true);
-             setOrderId(cleanId);
-             setStatus(Status.SUCCESS);
-             setRestoreIdInput('');
-             alert(`CV ID ${cleanId} restored from local history!`);
-             return;
-        }
-
-        // Check Supabase Cloud Restoration
-        setStatus(Status.SCANNING); // UI Feedback while fetching
-        
-        try {
-            const { found, result: restoredResult } = await restoreOrder(cleanId);
-            
-            if (found) {
-                 setOrderId(cleanId);
-                 setIsPaid(true);
-                 setRestoreIdInput('');
-                 
-                 if (restoredResult) {
-                     // Full content restoration
-                     setResult(restoredResult);
-                     setStatus(Status.SUCCESS);
-                     saveOrderToStorage(cleanId, restoredResult, true); // Cache locally again
-                     alert(`Order ${cleanId} restored successfully! Your document is ready.`);
-                 } else {
-                     // Old order before we started saving content
-                     setStatus(Status.IDLE);
-                     alert("Order Verified. However, this is an older order where we did not store the content on our servers for privacy. The payment is valid, but you may need to regenerate the CV.");
-                 }
-            } else {
-                 setStatus(Status.IDLE);
-                 alert("ID not found. Please check if it is a Pro ID (SUB-...) or CV ID (ORD-...).");
-            }
-        } catch (e) {
-            console.error(e);
-            setStatus(Status.IDLE);
-            alert("Failed to restore ID due to connection error.");
-        }
-    }
-  };
-
-  const generateAdminKeys = async () => {
-    if (!confirm("Generate test subscription keys for Supabase testing?")) return;
-    
-    // Generate "Pro" (using 30_days plan as proxy)
-    const pro = await createSubscription('30_days', 'ADMIN_TEST_PRO_' + Date.now());
-    
-    // Generate "Pro Plus" (using 1_year plan as proxy)
-    const proPlus = await createSubscription('1_year', 'ADMIN_TEST_PRO_PLUS_' + Date.now());
-    
-    let message = "Admin Test Keys Generated:\n\n";
-    if (pro.success) message += `Pro (30 Days): ${pro.subscriptionId}\n`;
-    if (proPlus.success) message += `Pro Plus (1 Year): ${proPlus.subscriptionId}\n`;
-    
-    if (!pro.success || !proPlus.success) message += "\nError: Could not contact Supabase. Check console.";
-    
-    alert(message);
-  };
-
-  // Logic: Unlocked if Single Paid OR Subscription Active
-  const isUnlocked = isPaid || subscriptionActive;
-
-  // Trigger Promo only if user is NOT a Pro Plus member
-  const triggerPromoIfNeeded = () => {
-      if (!subscriptionActive) {
-          // Small delay to let download start
-          setTimeout(() => {
-              setShowPromoModal(true);
-          }, 2000);
+  const completeFreePdfDownload = async () => {
+      setShowRewardedModal(false);
+      if (pendingPdfType) {
+          await executePdfDownload(pendingPdfType);
+          setPendingPdfType(null);
       }
   };
 
+  const executePdfDownload = async (type: 'cv' | 'cl') => {
+      if (!result) return;
+      
+      const elementId = type === 'cv' ? 'hidden-cv-content' : 'hidden-cl-content';
+      const doc = type === 'cv' ? result.cv : result.coverLetter;
+      
+      if (doc) {
+          const blob = await createPdfBlob(elementId);
+          if (blob) {
+              saveAs(blob, (doc.title || `Tailored_${type.toUpperCase()}`).replace('.docx', '') + '.pdf');
+          }
+      }
+  };
+
+  const handleDownloadWord = async (type: 'cv' | 'cl') => {
+     if (!isProOneTime && !isProPlus) {
+         setShowPaymentModal(true);
+         return;
+     }
+
+     if (!result) return;
+     
+     if (type === 'cv') setIsDownloadingCv(true);
+     else setIsDownloadingCl(true);
+
+     const doc = type === 'cv' ? result.cv : result.coverLetter;
+     if (doc) {
+        await generateWordDocument(doc.title || `Tailored_${type.toUpperCase()}.docx`, doc.content, undefined, false);
+     }
+
+     if (type === 'cv') setIsDownloadingCv(false);
+     else setIsDownloadingCl(false);
+  };
+
   const handleDownloadAllZip = async () => {
-      if (!isUnlocked || !result) return;
+      if (!isProOneTime && !isProPlus) {
+          setShowPaymentModal(true);
+          return;
+      }
+
+      if (!result) return;
       
       setIsZipping(true);
+
       try {
           const zip = new JSZip();
           
-          // 1. Add CV Word
           if (result.cv) {
               const cvBlob = await createWordBlob(result.cv.content);
               if (cvBlob) zip.file(result.cv.title || 'Tailored_CV.docx', cvBlob);
           }
 
-          // 2. Add Cover Letter Word
           if (result.coverLetter) {
               const clBlob = await createWordBlob(result.coverLetter.content);
               if (clBlob) zip.file(result.coverLetter.title || 'Cover_Letter.docx', clBlob);
           }
           
-          // 3. Add CV PDF
           const cvPdfBlob = await createPdfBlob('hidden-cv-content');
           if (cvPdfBlob && result.cv) zip.file((result.cv.title || 'Tailored_CV').replace('.docx', '') + '.pdf', cvPdfBlob);
           
-          // 4. Add Cover Letter PDF
           const clPdfBlob = await createPdfBlob('hidden-cl-content');
           if (clPdfBlob && result.coverLetter) zip.file((result.coverLetter.title || 'Cover_Letter').replace('.docx', '') + '.pdf', clPdfBlob);
 
           const content = await zip.generateAsync({ type: "blob" });
-          saveAs(content, `Application_Package_${orderId || 'Pro'}.zip`);
+          saveAs(content, `Application_Package.zip`);
           
-          triggerPromoIfNeeded();
       } catch (e) {
           console.error("Zip failed", e);
-          alert("Failed to create zip file. Please try downloading files individually.");
+          alert("Failed to create zip file.");
       } finally {
           setIsZipping(false);
       }
-  };
-
-  const downloadWord = async (filename: string, content: string) => {
-     if (!isUnlocked) {
-         setShowPaymentModal(true);
-         return;
-     }
-     await generateWordDocument(filename, content, undefined, false);
-     triggerPromoIfNeeded();
-  };
-
-  const downloadSelectablePdfHandler = async (type: 'cv' | 'coverLetter') => {
-      if (!isUnlocked) {
-          setShowPaymentModal(true);
-          return;
-      }
-      
-      const elementId = type === 'cv' ? 'hidden-cv-content' : 'hidden-cl-content';
-      const filename = type === 'cv' ? result?.cv?.title : result?.coverLetter?.title;
-      
-      if (filename) {
-          await generateSelectablePdf(elementId, filename);
-          triggerPromoIfNeeded();
-      }
-  };
-
-  const initiateFreeDownload = () => {
-    // If Pro Plus, skip ads directly
-    if (subscriptionActive) {
-        executeFreeDownload();
-        return;
-    } 
-
-    // ATTEMPT 1: Ezoic Rewarded Ads
-    if (typeof window.ezRewardedAds !== 'undefined' && window.ezRewardedAds.ready) {
-        try {
-            window.ezRewardedAds.requestWithOverlay(
-                (result: any) => {
-                    if (result.status === true) {
-                        // Success or "Reward on No Fill"
-                        if (result.reward) {
-                            console.log("Ad watched successfully.");
-                            executeFreeDownload();
-                        } else {
-                            console.log("Ad closed or no reward.");
-                        }
-                    } else {
-                        // Error/Fail - Grant reward anyway to avoid frustrating users (Reward on No Fill)
-                        console.warn("Ad system error or no fill, granting download.");
-                        executeFreeDownload();
-                    }
-                },
-                {
-                    header: "Watch Ad to Unlock Free Download",
-                    accept: "Watch Ad",
-                    cancel: "Cancel"
-                },
-                {
-                    rewardName: "Free CV Download",
-                    rewardOnNoFill: true
-                }
-            );
-            return;
-        } catch (e) {
-            console.error("Ezoic Ad trigger failed", e);
-            // Fallthrough to manual modal
-        }
-    }
-
-    // ATTEMPT 2: Fallback to Manual Modal (if AdBlocker or script didn't load)
-    setShowAdModal(true);
-  };
-
-  const executeFreeDownload = async () => {
-    setShowAdModal(false);
-    if (result?.cv) {
-        // Use generateSelectablePdf for better quality (text vs image)
-        await generateSelectablePdf('hidden-cv-content', result.cv.title);
-    }
-    // Note: Free download NO LONGER includes Cover Letter
-    triggerPromoIfNeeded();
   };
 
   const reset = () => {
@@ -412,11 +272,9 @@ const App: React.FC = () => {
     setStatus(Status.IDLE);
     setResult(null);
     setAnalysis(null);
-    setIsPaid(false);
-    setOrderId(null);
   };
 
-  // Components for Screen Preview (Larger, Web Optimized)
+  // Components for Screen Preview
   const markdownComponents = {
       h1: ({node, ...props}: any) => <h1 className="text-4xl font-extrabold text-[#2E74B5] text-center border-b-2 border-[#2E74B5] pb-4 mb-8 mt-2 tracking-tight" {...props} />,
       h2: ({node, ...props}: any) => <h2 className="text-xl font-bold text-[#2E74B5] uppercase border-b border-gray-300 pb-2 mb-4 mt-8 tracking-wide" {...props} />,
@@ -427,8 +285,6 @@ const App: React.FC = () => {
       strong: ({node, ...props}: any) => <strong className="font-bold text-[#2E74B5]" {...props} />,
   };
 
-  // Components for PDF Generation (Compact, Print Optimized)
-  // Text is smaller (xs), margins are tighter
   const pdfMarkdownComponents = {
       h1: ({node, ...props}: any) => <h1 className="text-2xl font-extrabold text-[#2E74B5] text-center border-b-2 border-[#2E74B5] pb-2 mb-4 mt-0 tracking-tight" {...props} />,
       h2: ({node, ...props}: any) => <h2 className="text-base font-bold text-[#2E74B5] uppercase border-b border-gray-300 pb-1 mb-2 mt-4 tracking-wide" {...props} />,
@@ -496,29 +352,20 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans relative">
       
+      <PrivacyPolicyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
+      
       <PaymentModal 
         isOpen={showPaymentModal} 
         onClose={() => setShowPaymentModal(false)}
         onSuccess={handlePaymentSuccess}
         documentTitle={result?.cv?.title || "Tailored Application"}
-        existingOrderId={orderId} 
-      />
-      <PrivacyPolicyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
-      
-      {/* Promo Modal shows after download if user is NOT Pro Plus */}
-      <ProPlusPromoModal 
-        isOpen={showPromoModal}
-        onClose={() => setShowPromoModal(false)}
-        onUpgrade={() => {
-            setShowPromoModal(false);
-            setShowPaymentModal(true);
-        }}
+        existingOrderId={null}
       />
 
       <RewardedAdModal 
-        isOpen={showAdModal} 
-        onClose={() => setShowAdModal(false)} 
-        onComplete={executeFreeDownload} 
+        isOpen={showRewardedModal}
+        onClose={() => setShowRewardedModal(false)}
+        onComplete={completeFreePdfDownload}
       />
 
       {/* Hidden Render Container for PDF */}
@@ -546,56 +393,62 @@ const App: React.FC = () => {
             <p className="text-slate-600 text-sm">Tailor your CV to beat ATS bots and land interviews.</p>
           </div>
 
-          {/* AD PLACEMENT 1: HEADER (115) - Only show if NO subscription */}
-          {!subscriptionActive && (
-              <div className="hidden lg:block absolute left-1/2 transform -translate-x-1/2 -top-4">
-                  <AdBanner slotId={115} className="my-0 scale-90" />
-              </div>
-          )}
-
           <div className="w-full md:w-auto flex flex-col items-end gap-2">
-             {subscriptionActive ? (
-                 <div className="bg-gradient-to-r from-indigo-900 to-indigo-700 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-                     <svg className="w-5 h-5 text-amber-300" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+             {isProPlus ? (
+                 <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                      <div>
                          <p className="font-bold text-sm">Pro Plus Active</p>
-                         <p className="text-[10px] text-indigo-200">ID: {subscriptionId}</p>
+                         <p className="text-[10px] opacity-80">Ad-Free Experience</p>
                      </div>
                  </div>
+             ) : isProOneTime ? (
+                <div className="flex flex-col items-end gap-2">
+                    <div className="bg-gradient-to-r from-slate-700 to-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold">
+                        Single Order Unlocked
+                    </div>
+                     <button 
+                        onClick={() => setShowPaymentModal(true)} 
+                        className="text-indigo-600 font-bold text-xs hover:underline"
+                    >
+                        Upgrade to Remove Ads
+                    </button>
+                </div>
              ) : (
-                <button 
-                    onClick={() => setShowPaymentModal(true)} 
-                    className="text-xs text-indigo-600 font-bold hover:underline"
-                >
-                    Upgrade to Pro Plus
-                </button>
+                <div className="flex flex-col items-end gap-2">
+                    <button 
+                        onClick={() => setShowPaymentModal(true)} 
+                        className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold hover:bg-amber-200 transition-colors flex items-center gap-1"
+                    >
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" /></svg>
+                        Remove Ads
+                    </button>
+                    <div className="bg-white p-1 rounded-lg border border-slate-200 flex gap-2">
+                        <input 
+                            type="text" 
+                            placeholder="Restore ID"
+                            value={restoreIdInput}
+                            onChange={(e) => setRestoreIdInput(e.target.value)}
+                            className="px-2 py-1 text-xs outline-none bg-transparent w-32"
+                        />
+                        <button onClick={handleRestoreId} className="text-xs font-bold text-indigo-600 hover:text-indigo-800">
+                            Apply
+                        </button>
+                    </div>
+                </div>
              )}
-
-             <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-2">
-                 <input 
-                    type="text" 
-                    placeholder="Enter CV ID or Pro ID"
-                    value={restoreIdInput}
-                    onChange={(e) => setRestoreIdInput(e.target.value)}
-                    className="px-3 py-2 border-0 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full sm:w-56 bg-transparent"
-                 />
-                 <button 
-                    onClick={handleActivateProPlus}
-                    className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors whitespace-nowrap"
-                 >
-                    Restore
-                 </button>
-             </div>
           </div>
         </header>
-
-        {/* AD PLACEMENT 2: MAIN FLOW (114) */}
-        {!subscriptionActive && <AdBanner slotId={114} className="md:flex" />}
 
         <main className="grid grid-cols-1 gap-8">
           
           {(status === Status.IDLE || status === Status.ERROR) && (
             <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 space-y-8 animate-fade-in">
+              
+              {!isProPlus && (
+                  <AdBanner suffix="top" format="horizontal" />
+              )}
+
               <div className="space-y-4">
                 <label className="block text-sm font-semibold text-slate-700 uppercase tracking-wider">
                   1. Upload your Current CV
@@ -647,6 +500,11 @@ const App: React.FC = () => {
                 )}
               </div>
 
+              {/* Ad Banner moved here between Job Details and Scan Button */}
+              {!isProPlus && (
+                  <AdBanner suffix="middle" format="horizontal" />
+              )}
+
               {errorMsg && (
                 <div className="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200">
                   <strong>Error:</strong> {errorMsg}
@@ -662,7 +520,7 @@ const App: React.FC = () => {
                   {inputMode === 'url' ? 'Scan Link & Analyze Match' : 'Analyze Job Match'}
                 </Button>
                 <p className="text-xs text-center text-slate-400 mt-4">
-                  Powered by Llama 3.3 70B via Cerebras
+                  Free Tool • Powered by Llama 3.3 70B via Cerebras
                 </p>
               </div>
             </div>
@@ -681,11 +539,15 @@ const App: React.FC = () => {
                          {status === Status.GENERATING && 'Tailoring your CV...'}
                      </h3>
                      <p className="text-slate-500 mt-2">
-                         {status === Status.SCANNING && (inputMode === 'url' ? 'Extracting details from the provided URL.' : 'Reading provided job text.')}
-                         {status === Status.ANALYZING && 'Comparing your profile against the requirements.'}
-                         {status === Status.GENERATING && 'Optimizing keywords and achievements.'}
+                         Please wait while our AI models work their magic.
                      </p>
                  </div>
+                 
+                 {!isProPlus && (
+                     <div className="w-full flex justify-center mt-8">
+                         <AdBanner suffix="loading" format="rectangle" />
+                     </div>
+                 )}
              </div>
           )}
 
@@ -701,87 +563,83 @@ const App: React.FC = () => {
 
           {status === Status.SUCCESS && result && (
             <div className="animate-fade-in space-y-6">
-               
-               {(orderId || subscriptionId) && (
-                   <div className={`border p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 ${isUnlocked ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
-                       <div className="flex items-center gap-3">
-                           <div className="bg-white p-2 rounded-full shadow-sm">
-                               {isUnlocked ? (
-                                   <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                               ) : (
-                                   <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                               )}
-                           </div>
-                           <div>
-                               <p className="font-bold">{isUnlocked ? 'Unlocked & Ready' : 'Document Generated Successfully'}</p>
-                               <p className="text-sm">
-                                   ID: <strong className="font-mono bg-white px-2 py-0.5 rounded border border-slate-200 select-all">{subscriptionActive ? subscriptionId : orderId}</strong>
-                                   {!isUnlocked && <span className="ml-2 opacity-75">(Save this to come back later)</span>}
-                               </p>
-                           </div>
-                       </div>
-                       <Button onClick={reset} variant="secondary" className="text-sm h-10">Create New</Button>
+               <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl flex items-center gap-3">
+                   <div className="bg-white p-2 rounded-full shadow-sm">
+                       <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                    </div>
-               )}
+                   <div>
+                       <p className="font-bold">Document Generated Successfully</p>
+                   </div>
+                   <Button onClick={reset} variant="secondary" className="text-sm h-10 ml-auto">Create New</Button>
+               </div>
 
                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                    <div className="lg:col-span-1 space-y-6">
                         <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100">
                             <h3 className="text-xl font-bold text-slate-900 mb-4">Downloads</h3>
+                            
+                            {/* Download screen ad: Rectangle format fits better in sidebar */}
+                            {!isProPlus && <AdBanner className="mb-6" suffix="download" format="rectangle" />}
+
                             <div className="space-y-3">
+                                {/* Zip Download (Paid) */}
+                                <Button 
+                                    onClick={handleDownloadAllZip} 
+                                    className="w-full justify-between bg-indigo-600 hover:bg-indigo-700"
+                                    isLoading={isZipping}
+                                >
+                                    <span className="flex items-center gap-2">
+                                        {(isProOneTime || isProPlus) ? (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                        ) : (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                        )}
+                                        Download All (Zip)
+                                    </span>
+                                </Button>
                                 
-                                {isUnlocked ? (
-                                    <>
-                                        <Button 
-                                            onClick={handleDownloadAllZip} 
-                                            className="w-full justify-between bg-indigo-600 hover:bg-indigo-700"
-                                            isLoading={isZipping}
-                                        >
-                                            <span className="flex items-center gap-2">
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                                Download All (Zip)
-                                            </span>
-                                        </Button>
-                                        <p className="text-xs text-center text-slate-400">Includes PDF & DOCX for both CV and Cover Letter</p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Button 
-                                            onClick={() => setShowPaymentModal(true)} 
-                                            className="w-full justify-between bg-indigo-600 hover:bg-indigo-700"
-                                        >
-                                            <span>Unlock Full Bundle</span>
-                                            <span className="bg-indigo-800 text-xs py-1 px-2 rounded">R100</span>
-                                        </Button>
-                                        
-                                        <Button 
-                                            onClick={() => setShowPaymentModal(true)}
-                                            variant="secondary"
-                                            className="w-full justify-between"
-                                        >
-                                            <span>Cover Letter (Locked)</span>
-                                            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                                        </Button>
+                                {/* Word Download (Paid) */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Button 
+                                        onClick={() => handleDownloadWord('cv')}
+                                        variant="secondary"
+                                        className="w-full text-xs px-2"
+                                        isLoading={isDownloadingCv}
+                                    >
+                                        {(isProOneTime || isProPlus) ? 'CV (Word)' : 'Unlock DOCX'}
+                                    </Button>
 
-                                        {/* AD PLACEMENT 3: IN SIDEBAR (112) - Only show if locked */}
-                                        <AdBanner slotId={112} className="my-2" />
-
-                                        <div className="pt-4 border-t border-slate-100">
-                                            <button 
-                                                onClick={initiateFreeDownload}
-                                                className="w-full text-sm text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                                {subscriptionActive ? 'Download PDF' : 'Download Free CV (PDF)'}
-                                            </button>
-                                            {!subscriptionActive && (
-                                                <p className="text-[10px] text-center text-slate-400 mt-2">
-                                                    (Cover Letter included in Pro version)
-                                                </p>
-                                            )}
-                                        </div>
-                                    </>
-                                )}
+                                    <Button 
+                                        onClick={() => handleDownloadWord('cl')}
+                                        variant="secondary"
+                                        className="w-full text-xs px-2"
+                                        isLoading={isDownloadingCl}
+                                    >
+                                        {(isProOneTime || isProPlus) ? 'Letter (Word)' : 'Unlock DOCX'}
+                                    </Button>
+                                </div>
+                                
+                                {/* PDF Download (Free with Ads) */}
+                                <div className="border-t border-slate-100 pt-3 mt-1">
+                                    <p className="text-xs text-slate-500 mb-2 font-semibold">Free Downloads (PDF Only):</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button 
+                                            onClick={() => initiateFreePdfDownload('cv')}
+                                            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                            CV (PDF)
+                                        </button>
+                                        <button 
+                                            onClick={() => initiateFreePdfDownload('cl')}
+                                            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                            Letter (PDF)
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 mt-2 text-center italic">Watch a short ad to download PDF</p>
+                                </div>
                             </div>
                         </div>
                    </div>
@@ -803,19 +661,10 @@ const App: React.FC = () => {
                                      Cover Letter
                                    </button>
                                </div>
-                               {!isUnlocked && <span className="mr-4 text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-bold">PREVIEW MODE</span>}
                            </div>
                            
                            {/* Preview Content Area */}
-                           <div 
-                             className={`p-8 h-[600px] overflow-y-auto relative bg-white ${!isUnlocked ? 'no-select cursor-default' : ''}`}
-                             onContextMenu={(e) => !isUnlocked && e.preventDefault()}
-                           >
-                               {!isUnlocked && (
-                                   <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none select-none overflow-hidden">
-                                       <div className="transform -rotate-45 text-slate-900/5 text-6xl font-black whitespace-nowrap">CV TAILOR PRO • UNPAID PREVIEW</div>
-                                   </div>
-                               )}
+                           <div className="p-8 h-[600px] overflow-y-auto relative bg-white">
                                <div className="relative z-0 prose prose-sm max-w-none text-slate-800">
                                    {previewTab === 'cv' ? (
                                        <ReactMarkdown components={markdownComponents}>
@@ -853,6 +702,9 @@ const App: React.FC = () => {
                     </div>
                  </div>
               </div>
+              
+              {!isProPlus && <AdBanner suffix="reject" format="horizontal" />}
+
               <div className="pt-4 flex flex-col md:flex-row items-center justify-center gap-4">
                  <Button variant="secondary" onClick={reset} className="w-full md:w-auto">Try a Different Role</Button>
                  <Button variant="primary" onClick={() => handleGenerate(true)} className="w-full md:w-auto bg-slate-800 hover:bg-slate-900">Force Generation</Button>
@@ -862,15 +714,11 @@ const App: React.FC = () => {
 
         </main>
         
-        {/* AD PLACEMENT 4: FOOTER (113) - Only show if NO subscription */}
-        {!subscriptionActive && <AdBanner slotId={113} />}
-        
         <footer className="text-center text-slate-400 text-sm py-8 space-y-2 border-t border-slate-200 mt-12">
           <p>&copy; {new Date().getFullYear()} CV Tailor Pro.</p>
           <div className="flex flex-col items-center gap-2">
             <button onClick={() => setShowPrivacyModal(true)} className="text-slate-400 hover:text-slate-600 underline underline-offset-2 text-xs">Privacy Policy</button>
             <p className="text-xs">Questions? Contact us at <a href="mailto:customerservice@goapply.co.za" className="text-indigo-400 hover:underline">customerservice@goapply.co.za</a></p>
-            <button onClick={generateAdminKeys} className="text-xs text-slate-300 hover:text-slate-500 mt-4">Admin: Generate Test Keys</button>
           </div>
         </footer>
       </div>

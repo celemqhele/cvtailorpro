@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PLANS, SubscriptionPlan } from '../services/subscriptionService';
+import { PLANS } from '../services/subscriptionService';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -17,42 +17,31 @@ declare global {
   }
 }
 
-export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, documentTitle, existingOrderId }) => {
-  const [mode, setMode] = useState<'single' | 'subscription'>('single');
+export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess }) => {
+  const [view, setView] = useState<'options' | 'one_time' | 'pro_plus'>('options');
   const [selectedPlanId, setSelectedPlanId] = useState<string>('30_days');
+  const PUBLIC_KEY = 'pk_live_9989ae457450be7da1256d8a2c2c0b181d0a2d30'; 
 
   if (!isOpen) return null;
 
-  const PUBLIC_KEY = 'pk_live_9989ae457450be7da1256d8a2c2c0b181d0a2d30'; 
-  const SINGLE_PRICE = 100;
-
-  const handlePayment = () => {
-    let amount = 0;
-    let ref = '';
-    let metadata = {};
-
-    if (mode === 'single') {
-      amount = SINGLE_PRICE;
-      // Use existing Order ID if available to allow resuming/upgrading, otherwise create new
-      ref = existingOrderId || ('ORD-' + Math.random().toString(36).substring(2, 8).toUpperCase());
-    } else {
-      const plan = PLANS.find(p => p.id === selectedPlanId);
-      if (!plan) return;
-      amount = plan.price;
-      // Subscription refs are generated after payment usually, but we need a transaction ref
-      ref = 'TXN-' + Math.random().toString(36).substring(2, 12).toUpperCase();
-      metadata = {
+  const handlePayment = (specificPlanId?: string) => {
+    const planId = specificPlanId || selectedPlanId;
+    const plan = PLANS.find(p => p.id === planId);
+    if (!plan) return;
+    
+    // Subscription refs
+    const ref = 'TXN-' + Math.random().toString(36).substring(2, 12).toUpperCase();
+    const metadata = {
         custom_fields: [
           { display_name: "Plan Type", variable_name: "plan_type", value: plan.name },
           { display_name: "Plan ID", variable_name: "plan_id", value: plan.id }
         ]
-      };
-    }
+    };
     
     const paystack = window.PaystackPop.setup({
       key: PUBLIC_KEY,
       email: 'customerservice@goapply.co.za', 
-      amount: Math.round(amount * 100), // In cents (kobo)
+      amount: Math.round(plan.price * 100), // In cents
       currency: 'ZAR',
       ref: ref,
       metadata: metadata,
@@ -60,136 +49,99 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         // User closed modal
       },
       callback: (response: any) => {
-        // Pass the Plan ID if subscription, or the Ref if single
-        if (mode === 'subscription') {
-            onSuccess(selectedPlanId, true); // We pass plan ID, the App.tsx will handle creation with last transaction ref
-        } else {
-            onSuccess(ref, false);
-        }
+          onSuccess(planId, true); // Treating all as "subscription" flow for service simplicity
       }
     });
     
     paystack.openIframe();
   };
 
+  const renderOptions = () => (
+    <div className="space-y-6">
+        <div className="text-center">
+            <h3 className="text-2xl font-bold text-slate-900">Unlock Downloads</h3>
+            <p className="text-slate-500 text-sm mt-2">Choose how you want to access your documents.</p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+            {/* Option 1: One Time */}
+            <div className="border-2 border-slate-200 rounded-xl p-6 hover:border-indigo-400 cursor-pointer transition-all bg-white" onClick={() => handlePayment('one_time')}>
+                <div className="flex justify-between items-start mb-4">
+                    <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold uppercase">Pro (Single)</span>
+                    <span className="text-2xl font-bold text-slate-900">R99</span>
+                </div>
+                <ul className="space-y-2 text-sm text-slate-600 mb-6">
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Download DOCX (Editable)</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Download Cover Letter</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg> Includes Ads</li>
+                </ul>
+                <button className="w-full py-2 bg-slate-800 text-white rounded-lg font-bold text-sm">Unlock Now</button>
+            </div>
+
+            {/* Option 2: Pro Plus */}
+            <div className="border-2 border-indigo-500 rounded-xl p-6 relative bg-indigo-50 cursor-pointer transform hover:scale-[1.02] transition-all shadow-xl" onClick={() => setView('pro_plus')}>
+                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-amber-500 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase shadow-sm">
+                      Recommended
+                  </div>
+                <div className="flex justify-between items-start mb-4">
+                    <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold uppercase">Pro Plus</span>
+                    <span className="text-2xl font-bold text-indigo-700">R399+</span>
+                </div>
+                <ul className="space-y-2 text-sm text-slate-700 mb-6">
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> <strong>Unlimited</strong> Downloads</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> <strong>No Ads</strong> (Ad-Free)</li>
+                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Priority Processing</li>
+                </ul>
+                <button className="w-full py-2 bg-indigo-600 text-white rounded-lg font-bold text-sm shadow-md">View Plans</button>
+            </div>
+        </div>
+    </div>
+  );
+
+  const renderProPlus = () => (
+      <div className="space-y-6">
+           <div className="flex items-center gap-2 cursor-pointer text-slate-500 hover:text-slate-800" onClick={() => setView('options')}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+              <span className="text-sm font-bold">Back</span>
+           </div>
+           
+           <div className="text-center">
+              <h3 className="text-2xl font-bold text-slate-900"><span className="text-indigo-600">Pro Plus</span> Access</h3>
+              <p className="text-slate-500">Remove all ads and download unlimited CVs.</p>
+           </div>
+
+           <div className="grid md:grid-cols-3 gap-3">
+              {PLANS.filter(p => p.type === 'subscription').map((plan) => (
+                  <div 
+                    key={plan.id}
+                    onClick={() => setSelectedPlanId(plan.id)}
+                    className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${selectedPlanId === plan.id ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                  >
+                      <div className="text-center space-y-1">
+                          <h4 className="font-bold text-slate-700 text-sm">{plan.name}</h4>
+                          <div className="text-lg font-bold text-indigo-700">R{plan.price}</div>
+                      </div>
+                  </div>
+              ))}
+           </div>
+
+           <button 
+              onClick={() => handlePayment()}
+              className={`w-full py-4 px-4 font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700`}
+            >
+              Subscribe Now
+            </button>
+      </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh]">
-        
-        {/* Header Tabs */}
-        <div className="flex bg-slate-100 border-b border-slate-200">
-            <button 
-                onClick={() => setMode('single')}
-                className={`flex-1 py-4 text-center font-bold text-sm uppercase tracking-wider transition-colors ${mode === 'single' ? 'bg-white text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                Single Document
-            </button>
-            <button 
-                onClick={() => setMode('subscription')}
-                className={`flex-1 py-4 text-center font-bold text-sm uppercase tracking-wider transition-colors ${mode === 'subscription' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-700 bg-slate-50'}`}
-            >
-                Pro Plus (Unlimited)
-            </button>
-        </div>
-
         <div className="p-6 md:p-8 overflow-y-auto">
-          
-          {mode === 'single' ? (
-              // SINGLE PAYMENT MODE
-              <div className="text-center space-y-6 max-w-sm mx-auto">
-                 <h3 className="text-2xl font-bold text-slate-800">One-Time Unlock</h3>
-                 
-                 <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                    <p className="text-slate-500 text-xs uppercase font-bold tracking-wider mb-1">Includes</p>
-                    <p className="text-slate-900 font-medium">{documentTitle}</p>
-                    <p className="text-slate-900 font-medium">+ Cover Letter</p>
-                 </div>
-
-                 <div className="text-5xl font-bold text-slate-900">R{SINGLE_PRICE}</div>
-                 
-                 <ul className="text-left text-sm text-slate-600 space-y-3 bg-indigo-50/50 p-5 rounded-lg">
-                    <li className="flex items-center gap-2">
-                        <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                        Editable Word (.docx)
-                    </li>
-                    <li className="flex items-center gap-2">
-                        <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                        Includes Professional Cover Letter
-                    </li>
-                    <li className="flex items-center gap-2">
-                        <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                        No Ads & No Watermarks
-                    </li>
-                 </ul>
-              </div>
-          ) : (
-              // SUBSCRIPTION MODE
-              <div className="space-y-6">
-                  <div className="text-center mb-6">
-                      <h3 className="text-2xl font-bold text-slate-800">CV Tailor <span className="text-indigo-600">Pro Plus</span></h3>
-                      <p className="text-slate-500">Create & Download unlimited CVs for any job.</p>
-                  </div>
-
-                  <div className="grid md:grid-cols-3 gap-4">
-                      {PLANS.map((plan) => (
-                          <div 
-                            key={plan.id}
-                            onClick={() => setSelectedPlanId(plan.id)}
-                            className={`relative cursor-pointer rounded-xl border-2 p-4 transition-all ${selectedPlanId === plan.id ? 'border-indigo-600 bg-indigo-50 shadow-lg scale-105 z-10' : 'border-slate-200 bg-white hover:border-slate-300'}`}
-                          >
-                              {plan.id === '3_months' && (
-                                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
-                                      Most Popular
-                                  </div>
-                              )}
-                              <div className="text-center space-y-2">
-                                  <h4 className="font-bold text-slate-700">{plan.name}</h4>
-                                  <div className="text-xl font-bold text-indigo-700">R{plan.price}</div>
-                                  <p className="text-xs text-slate-400">One-time payment</p>
-                              </div>
-                          </div>
-                      ))}
-                  </div>
-
-                  <div className="bg-slate-900 text-white p-5 rounded-xl space-y-3">
-                      <div className="font-bold text-center border-b border-slate-700 pb-2 mb-2">Pro Plus Benefits</div>
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div className="flex items-center gap-2">
-                             <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                             Unlimited Generations
-                          </div>
-                          <div className="flex items-center gap-2">
-                             <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                             Unlimited Word Downloads
-                          </div>
-                          <div className="flex items-center gap-2">
-                             <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                             Includes Cover Letters
-                          </div>
-                          <div className="flex items-center gap-2">
-                             <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                             Priority Processing
-                          </div>
-                      </div>
-                  </div>
-              </div>
-          )}
-
-          <div className="mt-8 pt-4 border-t border-slate-100 flex flex-col gap-3">
-            <button 
-              onClick={handlePayment}
-              className={`w-full py-4 px-4 font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 ${mode === 'subscription' ? 'bg-indigo-900 text-white hover:bg-black' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-              {mode === 'single' ? `Pay R${SINGLE_PRICE} to Unlock` : `Upgrade for R${PLANS.find(p => p.id === selectedPlanId)?.price}`}
-            </button>
-            <button 
-              onClick={onClose}
-              className="text-slate-400 hover:text-slate-600 text-sm font-medium text-center"
-            >
-              Cancel
-            </button>
-          </div>
+            {view === 'options' ? renderOptions() : renderProPlus()}
+            <div className="mt-6 text-center">
+                 <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm">Cancel</button>
+            </div>
         </div>
       </div>
     </div>
