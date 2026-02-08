@@ -1,15 +1,50 @@
 
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
-import { SYSTEM_PROMPT, ANALYSIS_PROMPT } from "../constants";
+import { SYSTEM_PROMPT, ANALYSIS_PROMPT, SERP_API_KEY } from "../constants";
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData } from "../types";
 
 const CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions";
 
 /**
- * Scrapes job content from a URL using Jina.ai (free markdown reader).
+ * Scrapes job content.
+ * Priority 1: SerpApi (Google Jobs) - Uses Google's index to bypass anti-bot on LinkedIn/Indeed.
+ * Priority 2: Jina.ai - Direct markdown reader fallback.
  */
 export const scrapeJobFromUrl = async (url: string): Promise<string> => {
+    
+    // 1. Try SerpApi (Google Jobs)
+    if (SERP_API_KEY) {
+        try {
+            // We use the specific job URL as the query. Google Jobs is effective at matching these.
+            const serpUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(url)}&api_key=${SERP_API_KEY}&hl=en`;
+            
+            const response = await fetch(serpUrl);
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Check if we have results
+                if (data.jobs_results && data.jobs_results.length > 0) {
+                    const job = data.jobs_results[0];
+                    
+                    if (job.description && job.description.length > 100) {
+                        return `
+JOB TITLE: ${job.title}
+COMPANY: ${job.company_name}
+LOCATION: ${job.location}
+
+DESCRIPTION:
+${job.description}
+                        `.trim();
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn("SerpApi scrape attempt failed, falling back to Jina.", error);
+        }
+    }
+
+    // 2. Fallback to Jina.ai
     let targetUrl = url;
     if (!url.startsWith('http')) {
         targetUrl = 'https://' + url;
@@ -20,12 +55,19 @@ export const scrapeJobFromUrl = async (url: string): Promise<string> => {
     try {
         const response = await fetch(scrapeUrl);
         if (!response.ok) {
+            if (response.status === 451) {
+                throw new Error("This job board blocks automated scanning (Error 451). Please copy and paste the job description text manually.");
+            }
+            if (response.status === 403) {
+                throw new Error("Access denied by the job board (Error 403). Please copy and paste the job description text manually.");
+            }
             throw new Error(`Failed to scan job link (${response.status})`);
         }
         const text = await response.text();
         
-        if (!text || text.length < 100) {
-             throw new Error("Scanned content is too short. The link might be protected or invalid.");
+        // Basic validation of returned content
+        if (!text || text.length < 100 || text.includes("Please enable cookies") || text.includes("Access Denied")) {
+             throw new Error("Scanned content appears to be blocked or invalid. Please try pasting the text manually.");
         }
         
         return text;

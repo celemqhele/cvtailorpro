@@ -284,7 +284,17 @@ const App: React.FC = () => {
       } catch (e: any) {
           console.error(e);
           setStatus(Status.ERROR);
-          setErrorMsg(e.message || "Failed to scan or analyze job.");
+          
+          // Improved Error Handling for Scraper Blocking
+          const errorMessage = e.message || "";
+          const isBlockingError = errorMessage.includes("blocks automated scanning") || errorMessage.includes("Access denied");
+          
+          if (isBlockingError) {
+              setErrorMsg(`${errorMessage} We've switched you to Text mode so you can paste the description directly.`);
+              setTargetMode('text');
+          } else {
+              setErrorMsg(errorMessage || "Failed to scan or analyze job.");
+          }
       }
   };
 
