@@ -1,4 +1,5 @@
 
+
 export enum Status {
   IDLE = 'IDLE',
   SCANNING = 'SCANNING',
@@ -13,6 +14,7 @@ export enum Status {
 export interface UserProfile {
   id: string;
   email: string;
+  full_name?: string;
   is_pro_plus: boolean;
   subscription_end_date?: string;
 }

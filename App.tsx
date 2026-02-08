@@ -12,6 +12,7 @@ import { RewardedAdModal } from './components/RewardedAdModal';
 import { SupportModal } from './components/SupportModal';
 import { AuthModal } from './components/AuthModal';
 import { HistoryModal } from './components/HistoryModal';
+import { AccountSettingsModal } from './components/AccountSettingsModal';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from './services/geminiService';
 import { createSubscription, updateUserSubscription } from './services/subscriptionService';
 import { authService } from './services/authService';
@@ -26,6 +27,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   // Input Modes
   const [cvInputMode, setCvInputMode] = useState<'upload' | 'scratch'>('upload');
@@ -48,6 +50,9 @@ const App: React.FC = () => {
   const [result, setResult] = useState<GeneratorResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
+  // Save State Tracking
+  const [hasSavedCurrentResult, setHasSavedCurrentResult] = useState(false);
+
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showRewardedModal, setShowRewardedModal] = useState(false);
@@ -82,6 +87,13 @@ const App: React.FC = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // 2. Retroactive Save: If user logs in after generating, save the result
+  useEffect(() => {
+    if (user && result && !hasSavedCurrentResult && status === Status.SUCCESS) {
+        saveCurrentResultToHistory();
+    }
+  }, [user, result, hasSavedCurrentResult, status]);
 
   const checkUserSession = async () => {
     const profile = await authService.getCurrentProfile();
@@ -228,6 +240,7 @@ const App: React.FC = () => {
       setErrorMsg(null);
       setAnalysis(null);
       setJobSpec('');
+      setHasSavedCurrentResult(false); // Reset save state on new analysis
 
       try {
           let textToAnalyze = '';
@@ -268,6 +281,26 @@ const App: React.FC = () => {
       }
   };
 
+  const saveCurrentResultToHistory = async () => {
+      if (!result || !result.cv) return;
+      
+      try {
+        const title = targetMode === 'title' ? jobTitle : (analysis?.headline || "Application");
+        const company = targetMode === 'title' ? "General Application" : "Job Application";
+        
+        await authService.saveApplication(
+            title,
+            company,
+            result.cv.content,
+            result.coverLetter?.content || '',
+            analysis?.matchScore || 0
+        );
+        setHasSavedCurrentResult(true);
+      } catch (e) {
+          console.error("Failed to auto-save to history:", e);
+      }
+  };
+
   const handleGenerate = async (forceOverride: boolean = false, isDirectTitleMode: boolean = false) => {
     const force = typeof forceOverride === 'boolean' ? forceOverride : false;
 
@@ -279,6 +312,7 @@ const App: React.FC = () => {
     setStatus(Status.GENERATING);
     setErrorMsg(null);
     setResult(null);
+    setHasSavedCurrentResult(false);
 
     try {
       const response = await generateTailoredApplication(
@@ -295,16 +329,8 @@ const App: React.FC = () => {
           setStatus(Status.SUCCESS);
           
           // Auto-save to history if logged in
-          if (user && response.cv) {
-             const title = targetMode === 'title' ? jobTitle : (analysis?.headline || "Application");
-             const company = targetMode === 'title' ? "General Application" : "Job Application";
-             authService.saveApplication(
-                 title,
-                 company,
-                 response.cv.content,
-                 response.coverLetter?.content || '',
-                 analysis?.matchScore || 0
-             );
+          if (user) {
+             await saveCurrentResultToHistory();
           }
       } else {
           setResult(response);
@@ -333,6 +359,7 @@ const App: React.FC = () => {
           reasoning: "Restored from history"
       });
       setStatus(Status.SUCCESS);
+      setHasSavedCurrentResult(true); // Loaded from history, so implicitly saved
   };
 
   // --- Download Handlers ---
@@ -407,6 +434,7 @@ const App: React.FC = () => {
     setStatus(Status.IDLE);
     setResult(null);
     setAnalysis(null);
+    setHasSavedCurrentResult(false);
   };
 
   // Components for Screen Preview
@@ -489,6 +517,7 @@ const App: React.FC = () => {
       
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={checkUserSession} />
       <HistoryModal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} onLoadApplication={handleLoadHistory} />
+      <AccountSettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} user={user} onProfileUpdate={checkUserSession} />
 
       <PrivacyPolicyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
       
@@ -543,7 +572,7 @@ const App: React.FC = () => {
              {user ? (
                 <div className="flex items-center gap-4">
                   <div className="flex flex-col items-end">
-                      <span className="text-sm font-bold text-slate-900">{user.email}</span>
+                      <span className="text-sm font-bold text-slate-900">{user.full_name || user.email}</span>
                       {isProPlus ? (
                         <span className="text-xs text-green-600 font-bold uppercase">
                             Pro Active ({getDaysRemaining()} days left)
@@ -565,6 +594,12 @@ const App: React.FC = () => {
                         className="px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-medium"
                       >
                         History
+                      </button>
+                      <button 
+                        onClick={() => setShowSettingsModal(true)}
+                        className="px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-medium"
+                      >
+                        Settings
                       </button>
                       <button 
                         onClick={handleLogout}
@@ -781,7 +816,7 @@ const App: React.FC = () => {
           {status === Status.ANALYSIS_COMPLETE && analysis && (
               <div className="space-y-6">
                   <div className="flex items-center gap-2 text-slate-500 mb-2 cursor-pointer hover:text-indigo-600" onClick={reset}>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7 7-7m-7 7h18" /></svg>
                       Back to Inputs
                   </div>
                   <AnalysisDashboard />
@@ -800,6 +835,9 @@ const App: React.FC = () => {
                          <p className="text-xs text-green-700 mt-1 cursor-pointer underline" onClick={() => setShowAuthModal(true)}>
                             Sign in to save this to your history.
                          </p>
+                       )}
+                       {user && hasSavedCurrentResult && (
+                           <p className="text-xs text-green-700 mt-1">Saved to your history.</p>
                        )}
                    </div>
                    <Button onClick={reset} variant="secondary" className="text-sm h-10 ml-auto">Create New</Button>

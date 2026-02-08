@@ -1,4 +1,5 @@
 
+
 import { supabase } from './supabaseClient';
 import { UserProfile, SavedApplication } from '../types';
 
@@ -38,6 +39,28 @@ export const authService = {
 
     if (error) return null;
     return data as UserProfile;
+  },
+
+  async updateProfileName(fullName: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("No user logged in");
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ full_name: fullName })
+      .eq('id', user.id);
+
+    if (error) throw error;
+  },
+
+  async updateEmail(newEmail: string) {
+    const { error } = await supabase.auth.updateUser({ email: newEmail });
+    if (error) throw error;
+  },
+
+  async updatePassword(newPassword: string) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
   },
 
   async saveApplication(
