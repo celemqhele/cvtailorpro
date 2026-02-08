@@ -12,7 +12,7 @@ export interface SubscriptionPlan {
 }
 
 export const PLANS: SubscriptionPlan[] = [
-  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 5, jobSearchLimit: 0, description: '5 CVs + 0 Searches / Day' },
+  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 0, jobSearchLimit: 0, description: 'Watch Ad for CVs + 0 Searches' },
   { id: 'tier_1', name: 'Starter', price: 19.99, durationDays: 30, dailyLimit: 20, jobSearchLimit: 1, description: '20 CVs + 1 Search / Day' },
   { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 50, jobSearchLimit: 1, description: '50 CVs + 1 Search / Day' },
   { id: 'tier_3', name: 'Pro', price: 99.99, durationDays: 30, dailyLimit: 100, jobSearchLimit: 1, description: '100 CVs + 1 Search / Day' },

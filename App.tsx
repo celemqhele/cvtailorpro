@@ -78,8 +78,8 @@ export const App: React.FC = () => {
 
   // Subscription State
   const [isPaidUser, setIsPaidUser] = useState(false); 
-  const [dailyLimit, setDailyLimit] = useState(5);
-  const [jobSearchLimit, setJobSearchLimit] = useState(3);
+  const [dailyLimit, setDailyLimit] = useState(0); // Default 0 for Free
+  const [jobSearchLimit, setJobSearchLimit] = useState(0); // Default 0 for Free
   const [currentPlanName, setCurrentPlanName] = useState('Free');
   const [isMaxPlan, setIsMaxPlan] = useState(false);
 
@@ -133,7 +133,7 @@ export const App: React.FC = () => {
     setUser(profile);
     
     // Default Free
-    let planLimit = 5;
+    let planLimit = 0; // Updated Free Limit
     let searchLimit = 0; // Updated Free limit
     let planName = 'Free';
     let isPaid = false;
@@ -187,7 +187,7 @@ export const App: React.FC = () => {
       setUser(null);
       setIsPaidUser(false);
       setIsMaxPlan(false);
-      setDailyLimit(5);
+      setDailyLimit(0);
       reset();
   };
 
@@ -667,7 +667,6 @@ export const App: React.FC = () => {
               </div>
 
               <div className="pt-2 flex gap-4">
-                  {/* IMPORTANT: We call handleGenerate(false) here, which triggers the checkUsageLimit in handleGenerate */}
                   <Button onClick={() => handleGenerate(false)} className="w-full bg-indigo-600 hover:bg-indigo-700">Generate Tailored CV</Button>
                   {!isPositive && <Button onClick={reset} variant="secondary" className="w-1/3">Cancel</Button>}
               </div>
@@ -916,7 +915,6 @@ export const App: React.FC = () => {
                     )}
                     
                     <div className="pt-4">
-                        {/* We use handleScanAndAnalyze to pre-check limits before moving to dashboard */}
                         <Button onClick={() => handleScanAndAnalyze()} disabled={!validateInputs()} className="w-full text-lg py-4 bg-slate-800 hover:bg-slate-900">
                         {targetMode === 'title' ? 'Generate General CV (Skip Analysis)' : (targetMode === 'url' ? 'Scan Link & Analyze Match' : 'Analyze Job Match')}
                         </Button>
