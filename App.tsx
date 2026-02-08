@@ -13,6 +13,7 @@ import { SupportModal } from './components/SupportModal';
 import { AuthModal } from './components/AuthModal';
 import { HistoryModal } from './components/HistoryModal';
 import { AccountSettingsModal } from './components/AccountSettingsModal';
+import { ProPlusFeatureCard } from './components/ProPlusFeatureCard';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from './services/geminiService';
 import { createSubscription, updateUserSubscription } from './services/subscriptionService';
 import { authService } from './services/authService';
@@ -123,6 +124,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
+      setShowSettingsModal(false);
       await authService.signOut();
       setUser(null);
       setIsProPlus(false);
@@ -143,6 +145,11 @@ const App: React.FC = () => {
           setPendingPaymentAction(action);
           setShowPaymentModal(true);
       }
+  };
+
+  const handleSettingsUpgrade = () => {
+      setShowSettingsModal(false);
+      setTimeout(() => initiatePayment('subscribe'), 200);
   };
 
   const executeZipDownload = async () => {
@@ -517,7 +524,7 @@ const App: React.FC = () => {
       
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={checkUserSession} />
       <HistoryModal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} onLoadApplication={handleLoadHistory} />
-      <AccountSettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} user={user} onProfileUpdate={checkUserSession} />
+      <AccountSettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} user={user} onProfileUpdate={checkUserSession} onUpgradeClick={handleSettingsUpgrade} />
 
       <PrivacyPolicyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
       
@@ -785,6 +792,13 @@ const App: React.FC = () => {
                   Free Tool • Powered by Llama 3.3 70B via Cerebras
                 </p>
               </div>
+
+              {/* Pro Plus Promo - Idle State */}
+              {!isProPlus && (
+                 <div className="pt-4 border-t border-slate-100">
+                    <ProPlusFeatureCard onUpgrade={() => initiatePayment('subscribe')} minimal={true} />
+                 </div>
+              )}
             </div>
           )}
 
@@ -912,6 +926,11 @@ const App: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Pro Plus Feature Card - Sidebar */}
+                        {!isProPlus && (
+                            <ProPlusFeatureCard onUpgrade={() => initiatePayment('subscribe')} />
+                        )}
                    </div>
 
                    <div className="lg:col-span-2">

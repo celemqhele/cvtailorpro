@@ -9,11 +9,12 @@ interface AccountSettingsModalProps {
   onClose: () => void;
   user: UserProfile | null;
   onProfileUpdate: () => void;
+  onUpgradeClick: () => void;
 }
 
 type Tab = 'profile' | 'security' | 'subscription';
 
-export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onClose, user, onProfileUpdate }) => {
+export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onClose, user, onProfileUpdate, onUpgradeClick }) => {
   const [activeTab, setActiveTab] = useState<Tab>('profile');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -215,16 +216,38 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOp
                   </div>
                   
                   {user.is_pro_plus ? (
-                     <div className="space-y-2">
-                        <p className="text-sm text-slate-700">Your subscription is active.</p>
-                        <p className="text-sm font-bold text-green-700">Days Remaining: {getDaysRemaining()}</p>
-                        <p className="text-xs text-slate-500 mt-2">
-                           Note: Subscriptions do not auto-renew. You simply top up when your time runs out.
-                        </p>
+                     <div className="space-y-4">
+                        <div className="space-y-2">
+                            <p className="text-sm text-slate-700">Your subscription is active and gives you unlimited downloads and ad-free access.</p>
+                            <p className="text-sm font-bold text-green-700">Days Remaining: {getDaysRemaining()}</p>
+                            <p className="text-xs text-slate-500">
+                            Note: Subscriptions do not auto-renew.
+                            </p>
+                        </div>
+                        <Button onClick={onUpgradeClick} variant="primary" className="w-full bg-indigo-600 hover:bg-indigo-700">
+                           Extend Subscription
+                        </Button>
                      </div>
                   ) : (
                      <div className="space-y-4">
                         <p className="text-sm text-slate-600">You are currently on the free tier. Upgrade to remove ads and unlock unlimited downloads.</p>
+                        <ul className="space-y-2 text-sm text-slate-700">
+                            <li className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                Unlimited Word (.docx) Downloads
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                Ad-Free Experience
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                Priority Processing
+                            </li>
+                        </ul>
+                        <Button onClick={onUpgradeClick} className="w-full bg-indigo-600 hover:bg-indigo-700 shadow-md">
+                           Upgrade to Pro Plus
+                        </Button>
                      </div>
                   )}
                </div>
