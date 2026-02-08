@@ -5,17 +5,20 @@ export enum Status {
   ANALYZING = 'ANALYZING',
   ANALYSIS_COMPLETE = 'ANALYSIS_COMPLETE',
   GENERATING = 'GENERATING',
+  SEARCHING_JOBS = 'SEARCHING_JOBS', // New status
   SUCCESS = 'SUCCESS',
   ERROR = 'ERROR',
   REJECTED = 'REJECTED'
 }
 
+export type AppMode = 'tailor' | 'finder';
+
 export interface UserProfile {
   id: string;
   email: string;
   full_name?: string;
-  is_pro_plus: boolean; // Kept for backwards compatibility logic
-  plan_id: string; // 'free', 'tier_1', 'tier_2', etc.
+  is_pro_plus: boolean; 
+  plan_id: string; 
   subscription_end_date?: string;
 }
 
@@ -23,15 +26,28 @@ export interface SavedApplication {
   id: string;
   job_title: string;
   company_name: string;
-  cv_content: string; // Storing the JSON stringified now
+  cv_content: string; 
   cl_content: string;
   match_score?: number;
   created_at: string;
 }
 
+export interface JobSearchResult {
+  id?: string; // Optional (if saved to DB)
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  datePosted: string; // "2 days ago", "Just now"
+  descriptionSnippet: string;
+  matchScore: number;
+  analysis: string;
+  rankScore: number; // Internal score for sorting
+}
+
 export interface TailoredDocument {
   title: string;
-  content: string; // Markdown content (Used for Cover Letter)
+  content: string; 
 }
 
 export interface RejectionDetails {
@@ -74,8 +90,8 @@ export interface CVData {
 export interface GeneratorResponse {
   outcome: 'PROCEED' | 'REJECT';
   rejectionDetails?: RejectionDetails;
-  cvData?: CVData; // The structured data for the CV
-  coverLetter?: TailoredDocument; // Cover letter remains Markdown for simplicity
+  cvData?: CVData; 
+  coverLetter?: TailoredDocument; 
   brandingImage?: string; 
 }
 

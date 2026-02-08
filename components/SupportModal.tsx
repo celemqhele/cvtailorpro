@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface SupportModalProps {
@@ -27,20 +28,22 @@ export const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose, onC
         </div>
 
         <div className="p-6 text-center space-y-4">
-            <h3 className="text-2xl font-bold text-slate-800">Support This Site?</h3>
+            <h3 className="text-2xl font-bold text-slate-800">Before you download...</h3>
             
             <p className="text-slate-600 text-sm leading-relaxed">
-                We keep this tool free by running ads, but you can support us by purchasing the <strong>Editable Word (.docx)</strong> version for just <strong>R20</strong>.
+                We keep this tool free by running ads, but you can support us by upgrading. 
+                <br/>
+                <strong>Upgrading removes ads and increases your daily limits.</strong>
             </p>
 
             <div className="bg-slate-50 p-4 rounded-xl text-left space-y-2 border border-slate-100 shadow-inner">
                  <div className="flex items-center gap-3 text-sm text-slate-700 font-medium">
                     <div className="bg-green-100 p-1 rounded-full"><svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></div>
-                    <span>Download Editable Word Format</span>
+                    <span>Download Bundle (PDF + Word)</span>
                  </div>
                  <div className="flex items-center gap-3 text-sm text-slate-700 font-medium">
                     <div className="bg-green-100 p-1 rounded-full"><svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></div>
-                    <span>Skip the Video Ad</span>
+                    <span>Instant Access (Skip the Ad)</span>
                  </div>
                  <div className="flex items-center gap-3 text-sm text-slate-700 font-medium">
                     <div className="bg-green-100 p-1 rounded-full"><svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></div>
@@ -53,14 +56,14 @@ export const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose, onC
                     onClick={onConfirmSupport}
                     className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 transform active:scale-95"
                 >
-                    Yes, I'll Support (R20)
+                    Yes, I'll Support the App
                 </button>
                 
                 <button 
                     onClick={onContinueFree}
                     className="w-full py-3 bg-white border border-slate-200 text-slate-500 font-medium rounded-xl hover:bg-slate-50 hover:text-slate-700 transition-all text-sm"
                 >
-                    No thanks, show me the Ad
+                    Nah, I'll watch the Ad
                 </button>
             </div>
         </div>

@@ -14,18 +14,22 @@ import { AuthModal } from './components/AuthModal';
 import { HistoryModal } from './components/HistoryModal';
 import { AccountSettingsModal } from './components/AccountSettingsModal';
 import { ProPlusFeatureCard } from './components/ProPlusFeatureCard';
+import { LimitReachedModal } from './components/LimitReachedModal';
 import CVTemplate from './components/CVTemplate'; 
-import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from './services/geminiService';
+import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, findJobsMatchingCV } from './services/geminiService';
 import { updateUserSubscription, PLANS, getPlanDetails } from './services/subscriptionService';
 import { authService } from './services/authService';
 import { checkUsageLimit, incrementUsage, getUsageCount } from './services/usageService';
-import { FileData, GeneratorResponse, Status, MatchAnalysis, UserProfile, SavedApplication, ManualCVData } from './types';
+import { FileData, GeneratorResponse, Status, MatchAnalysis, UserProfile, SavedApplication, ManualCVData, JobSearchResult, AppMode } from './types';
 import { APP_NAME, GEMINI_KEY_1 } from './constants';
 import { generateWordDocument, createWordBlob } from './utils/docHelper';
 import { createPdfBlob, generatePdfFromApi } from './utils/pdfHelper';
 import { supabase } from './services/supabaseClient';
 
 export const App: React.FC = () => {
+  // App Mode State
+  const [appMode, setAppMode] = useState<AppMode>('tailor'); // 'tailor' or 'finder'
+
   // User & Auth State
   const [user, setUser] = useState<UserProfile | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -40,12 +44,16 @@ export const App: React.FC = () => {
     fullName: '', contactInfo: '', summary: '', experience: '', education: '', skills: ''
   });
   
-  // Job Target Modes
+  // Job Target Modes (Tailor Pro)
   const [targetMode, setTargetMode] = useState<'url' | 'text' | 'title'>('text');
   const [jobLink, setJobLink] = useState('');
   const [manualJobText, setManualJobText] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [jobSpec, setJobSpec] = useState(''); 
+  
+  // Job Finder State
+  const [locationOverride, setLocationOverride] = useState('');
+  const [foundJobs, setFoundJobs] = useState<JobSearchResult[]>([]);
   
   const [apiKey] = useState(GEMINI_KEY_1);
   
@@ -61,23 +69,31 @@ export const App: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showRewardedModal, setShowRewardedModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
+  
+  // Limit Modal State
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitModalType, setLimitModalType] = useState<'cv' | 'search'>('cv');
+  const [pendingLimitAction, setPendingLimitAction] = useState<(() => void) | null>(null);
+  const [adContext, setAdContext] = useState<'download' | 'limit_reward'>('download');
 
   // Subscription State
   const [isPaidUser, setIsPaidUser] = useState(false); 
   const [dailyLimit, setDailyLimit] = useState(5);
+  const [jobSearchLimit, setJobSearchLimit] = useState(3);
   const [currentPlanName, setCurrentPlanName] = useState('Free');
+  const [isMaxPlan, setIsMaxPlan] = useState(false);
 
   const [paymentTriggerPlan, setPaymentTriggerPlan] = useState<string | null>(null);
+  const [pendingPayment, setPendingPayment] = useState(false);
   
   // Usage Limit State
-  const [dailyCount, setDailyCount] = useState<number>(0);
+  const [dailyCvCount, setDailyCvCount] = useState<number>(0);
+  const [dailySearchCount, setDailySearchCount] = useState<number>(0);
 
   // UI State for Preview
   const [previewTab, setPreviewTab] = useState<'cv' | 'cl'>('cv');
-  
-  // Loading states
   const [isZipping, setIsZipping] = useState(false);
-  
+
   // 1. Check Auth Status on Load
   useEffect(() => {
     checkUserSession();
@@ -90,11 +106,20 @@ export const App: React.FC = () => {
   // Update Usage Count
   useEffect(() => {
      const fetchCount = async () => {
-         const count = await getUsageCount(user?.id);
-         setDailyCount(count);
+         const { cv, search } = await getUsageCount(user?.id);
+         setDailyCvCount(cv);
+         setDailySearchCount(search);
      };
      fetchCount();
   }, [user]);
+
+  // Handle Pending Payment after Login
+  useEffect(() => {
+      if (user && pendingPayment) {
+          setPendingPayment(false);
+          setShowPaymentModal(true);
+      }
+  }, [user, pendingPayment]);
 
   // 2. Retroactive Save
   useEffect(() => {
@@ -109,15 +134,19 @@ export const App: React.FC = () => {
     
     // Default Free
     let planLimit = 5;
+    let searchLimit = 0; // Updated Free limit
     let planName = 'Free';
     let isPaid = false;
+    let maxPlan = false;
 
     if (profile) {
         // --- ADMIN / TESTER OVERRIDE ---
         if (profile.email === 'mqhele03@gmail.com') {
             planLimit = 10000;
+            searchLimit = 1000;
             planName = 'Admin Unlimited';
             isPaid = true;
+            maxPlan = true;
         } else {
             // Normal Logic
             const isExpired = profile.subscription_end_date && new Date(profile.subscription_end_date) < new Date();
@@ -126,16 +155,20 @@ export const App: React.FC = () => {
                 const planDetails = getPlanDetails(profile.plan_id);
                 if (planDetails.id !== 'free') {
                     planLimit = planDetails.dailyLimit;
+                    searchLimit = planDetails.jobSearchLimit;
                     planName = planDetails.name;
                     isPaid = true;
+                    if (planDetails.id === 'tier_4') maxPlan = true;
                 }
             }
         }
     }
     
     setDailyLimit(planLimit);
+    setJobSearchLimit(searchLimit);
     setCurrentPlanName(planName);
     setIsPaidUser(isPaid);
+    setIsMaxPlan(maxPlan);
   };
 
   const getDaysRemaining = () => {
@@ -153,21 +186,53 @@ export const App: React.FC = () => {
       await authService.signOut();
       setUser(null);
       setIsPaidUser(false);
+      setIsMaxPlan(false);
       setDailyLimit(5);
       reset();
   };
 
   const initiatePayment = (action: 'subscribe') => {
       if (!user) {
+          setPendingPayment(true);
           setShowAuthModal(true);
           return;
       }
       setShowPaymentModal(true);
   };
 
+  const scrollToPlans = () => {
+      const plansSection = document.getElementById('plans');
+      if (plansSection) {
+        plansSection.scrollIntoView({ behavior: 'smooth' });
+      }
+  };
+
   const handleSettingsUpgrade = () => {
       setShowSettingsModal(false);
-      setTimeout(() => initiatePayment('subscribe'), 200);
+      setTimeout(() => scrollToPlans(), 200);
+  };
+
+  const handleLimitAdWatch = () => {
+      setShowLimitModal(false);
+      setAdContext('limit_reward');
+      setShowRewardedModal(true);
+  };
+
+  const handleLimitUpgrade = () => {
+      setShowLimitModal(false);
+      scrollToPlans();
+  };
+
+  const handleAdComplete = () => {
+      setShowRewardedModal(false);
+      if (adContext === 'download') {
+          executeZipDownload();
+      } else if (adContext === 'limit_reward') {
+          if (pendingLimitAction) {
+              pendingLimitAction();
+              setPendingLimitAction(null);
+          }
+      }
   };
 
   // --- FILENAME GENERATION HELPERS ---
@@ -267,15 +332,77 @@ export const App: React.FC = () => {
       if (cvInputMode === 'upload' && !file) return false;
       if (cvInputMode === 'scratch' && (!manualData.fullName || !manualData.experience)) return false;
       
-      if (targetMode === 'url' && !jobLink) return false;
-      if (targetMode === 'text' && !manualJobText.trim()) return false;
-      if (targetMode === 'title' && !jobTitle.trim()) return false;
+      if (appMode === 'tailor') {
+          if (targetMode === 'url' && !jobLink) return false;
+          if (targetMode === 'text' && !manualJobText.trim()) return false;
+          if (targetMode === 'title' && !jobTitle.trim()) return false;
+      }
       
       return true;
   };
 
-  const handleScanAndAnalyze = async () => {
+  // --- JOB FINDER HANDLER ---
+  const handleJobSearch = async (bypassLimit: boolean = false) => {
       if (!validateInputs()) return;
+      
+      const canProceed = bypassLimit || await checkUsageLimit(user?.id, jobSearchLimit, 'search');
+      const isAdmin = user?.email === 'mqhele03@gmail.com';
+      
+      if (!canProceed && !isAdmin) {
+          setLimitModalType('search');
+          setPendingLimitAction(() => () => handleJobSearch(true));
+          setShowLimitModal(true);
+          return;
+      }
+
+      setStatus(Status.SEARCHING_JOBS);
+      setFoundJobs([]);
+      setErrorMsg(null);
+
+      try {
+          const jobs = await findJobsMatchingCV(
+              cvInputMode === 'upload' ? file : null,
+              cvInputMode === 'scratch' ? manualData : null,
+              locationOverride
+          );
+          
+          setFoundJobs(jobs);
+          setStatus(Status.IDLE); // Go back to idle to show list
+          
+          // Increment Usage only if not admin (admin always bypasses)
+          if (!isAdmin) {
+             await incrementUsage(user?.id, 'search');
+             setDailySearchCount(prev => prev + 1);
+          }
+
+          // Save history
+          if (user) {
+              await authService.saveFoundJobs(jobs);
+          }
+
+      } catch (e: any) {
+          console.error(e);
+          setStatus(Status.ERROR);
+          setErrorMsg(e.message || "Failed to find jobs.");
+      }
+  };
+
+  // --- TAILOR HANDLER ---
+  const handleScanAndAnalyze = async (bypassLimit: boolean = false) => {
+      if (!validateInputs()) return;
+
+      // New: Check limit BEFORE scanning to prevent "Analysis complete -> Blocked at Generation" flow
+      // This improves UX by stopping them earlier.
+      // We check 'cv' limit because that's the end goal.
+      const canProceed = bypassLimit || await checkUsageLimit(user?.id, dailyLimit, 'cv');
+      const isAdmin = user?.email === 'mqhele03@gmail.com';
+
+      if (!canProceed && !isAdmin) {
+          setLimitModalType('cv');
+          setPendingLimitAction(() => () => handleScanAndAnalyze(true));
+          setShowLimitModal(true);
+          return;
+      }
       
       setStatus(Status.SCANNING);
       setErrorMsg(null);
@@ -288,7 +415,8 @@ export const App: React.FC = () => {
 
           if (targetMode === 'title') {
               setJobSpec(jobTitle);
-              handleGenerate(false, true);
+              // We pass true for bypassLimit because we already checked it above
+              handleGenerate(false, true, true); 
               return;
           } else if (targetMode === 'url') {
               textToAnalyze = await scrapeJobFromUrl(jobLink);
@@ -347,21 +475,15 @@ export const App: React.FC = () => {
       }
   };
 
-  const handleGenerate = async (forceOverride: boolean = false, isDirectTitleMode: boolean = false) => {
-    // Check usage limits
-    const canProceed = await checkUsageLimit(user?.id, dailyLimit);
-    
-    // Explicit Admin Bypass
+  const handleGenerate = async (forceOverride: boolean = false, isDirectTitleMode: boolean = false, bypassLimit: boolean = false) => {
+    // 1. Check Usage Limit
+    const canProceed = bypassLimit || await checkUsageLimit(user?.id, dailyLimit, 'cv');
     const isAdmin = user?.email === 'mqhele03@gmail.com';
 
     if (!canProceed && !isAdmin) {
-        const message = user 
-            ? `Daily limit of ${dailyLimit} CVs reached on your ${currentPlanName} plan. Upgrade to a higher tier for more.`
-            : `Daily free limit of ${dailyLimit} CVs reached. Create a free account or upgrade for more.`;
-        
-        alert(message);
-        if (!user) setShowAuthModal(true);
-        else initiatePayment('subscribe');
+        setLimitModalType('cv');
+        setPendingLimitAction(() => () => handleGenerate(forceOverride, isDirectTitleMode, true));
+        setShowLimitModal(true);
         return;
     }
 
@@ -390,9 +512,11 @@ export const App: React.FC = () => {
           setResult(response);
           setStatus(Status.SUCCESS);
           
-          // Increment usage
-          await incrementUsage(user?.id);
-          setDailyCount(prev => prev + 1);
+          // Increment usage if not admin
+          if (!isAdmin) {
+             await incrementUsage(user?.id, 'cv');
+             setDailyCvCount(prev => prev + 1);
+          }
 
           if (user) {
              await saveCurrentResultToHistory();
@@ -424,26 +548,45 @@ export const App: React.FC = () => {
             pros: [],
             cons: [],
             reasoning: "Restored from history",
-            // Assuming history apps didn't save these initially, but new ones will have logic to save
             jobTitle: app.job_title,
             company: app.company_name
         });
         setStatus(Status.SUCCESS);
         setHasSavedCurrentResult(true);
+        setAppMode('tailor');
       } catch (e) {
           console.error("Failed to load history item", e);
           alert("Could not load this application. The data format might be outdated.");
       }
   };
 
+  const generateFromFinder = async (job: JobSearchResult, bypassLimit: boolean = false) => {
+      // 1. Check Usage Limit for CV Generation first
+      const canProceed = bypassLimit || await checkUsageLimit(user?.id, dailyLimit, 'cv');
+      const isAdmin = user?.email === 'mqhele03@gmail.com';
+
+      if (!canProceed && !isAdmin) {
+          setLimitModalType('cv');
+          setPendingLimitAction(() => () => generateFromFinder(job, true));
+          setShowLimitModal(true);
+          return;
+      }
+
+      // 2. If Limit OK, Proceed
+      setAppMode('tailor');
+      setTargetMode('text');
+      setManualJobText(`JOB TITLE: ${job.title}\nCOMPANY: ${job.company}\n\n${job.descriptionSnippet}`);
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const initiateDownloadBundle = () => {
-      // If paid user, download immediately
       if (isPaidUser) {
           executeZipDownload();
           return;
       }
-      // If free user, show ad
-      setShowRewardedModal(true);
+      // Trigger the Support vs Watch Ad Modal for free users
+      setShowSupportModal(true);
   };
 
   const reset = () => {
@@ -457,6 +600,7 @@ export const App: React.FC = () => {
     setResult(null);
     setAnalysis(null);
     setHasSavedCurrentResult(false);
+    setFoundJobs([]);
   };
 
   const markdownComponents = {
@@ -523,6 +667,7 @@ export const App: React.FC = () => {
               </div>
 
               <div className="pt-2 flex gap-4">
+                  {/* IMPORTANT: We call handleGenerate(false) here, which triggers the checkUsageLimit in handleGenerate */}
                   <Button onClick={() => handleGenerate(false)} className="w-full bg-indigo-600 hover:bg-indigo-700">Generate Tailored CV</Button>
                   {!isPositive && <Button onClick={reset} variant="secondary" className="w-1/3">Cancel</Button>}
               </div>
@@ -530,10 +675,55 @@ export const App: React.FC = () => {
       );
   };
 
+  const PlansSection = () => (
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 mt-12 mb-12 animate-fade-in no-print" id="plans">
+          <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-slate-900">Choose Your Plan</h2>
+              <p className="text-slate-500 mt-2">Unlock the full potential of CV Tailor & Job Finder Pro</p>
+          </div>
+          {/* Changed grid to support 5 items (including free) responsively */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+              {PLANS.map((plan) => {
+                  const isFree = plan.price === 0;
+                  return (
+                    <div key={plan.id} className="border border-slate-200 rounded-xl p-6 flex flex-col relative hover:shadow-lg transition-shadow bg-white">
+                        {plan.id === 'tier_2' && <div className="absolute top-0 right-0 bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl">POPULAR</div>}
+                        <h3 className="text-xl font-bold text-slate-800">{plan.name}</h3>
+                        <div className="text-2xl font-bold text-indigo-600 my-4">
+                            {isFree ? 'Free' : `R${plan.price}`}
+                            {!isFree && <span className="text-xs text-slate-400 font-normal ml-1">/30 days</span>}
+                        </div>
+                        <p className="text-xs text-slate-500 mb-6 flex-1">{plan.description}</p>
+                        <ul className="space-y-3 text-xs text-slate-600 mb-6">
+                            <li className="flex items-center gap-2">
+                                <span className={plan.dailyLimit > 5 ? "text-green-600 font-bold" : ""}>{plan.dailyLimit} CV Gens / Day</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <span className={plan.jobSearchLimit > 1 ? "text-green-600 font-bold" : ""}>{plan.jobSearchLimit} Job Searches / Day</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                                {isFree ? 'Ads Enabled' : <span className="text-green-600 font-bold">Ad-Free Experience</span>}
+                            </li>
+                        </ul>
+                        {isFree ? (
+                             <Button disabled variant="secondary" className="w-full text-xs opacity-50 cursor-not-allowed">
+                                 Default Plan
+                             </Button>
+                        ) : (
+                             <Button onClick={() => initiatePayment('subscribe')} variant="secondary" className="w-full text-xs">
+                                 Upgrade
+                             </Button>
+                        )}
+                    </div>
+                  );
+              })}
+          </div>
+      </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans relative">
       
-      {/* Top Disclaimer for Guests */}
       {!user && (
           <div className="bg-indigo-900 text-indigo-100 text-[10px] sm:text-xs py-1.5 px-4 text-center border-b border-indigo-800 relative z-20 no-print">
               By using this service, you agree to our <span className="underline cursor-pointer hover:text-white" onClick={() => setShowPrivacyModal(true)}>Terms and Conditions & Privacy Policy</span>.
@@ -544,14 +734,22 @@ export const App: React.FC = () => {
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={checkUserSession} />
       <HistoryModal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} onLoadApplication={handleLoadHistory} />
       <AccountSettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} user={user} onProfileUpdate={checkUserSession} onUpgradeClick={handleSettingsUpgrade} />
-
       <PrivacyPolicyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
       
       <SupportModal 
         isOpen={showSupportModal} 
         onClose={() => setShowSupportModal(false)}
         onConfirmSupport={() => { setShowSupportModal(false); initiatePayment('subscribe'); }}
-        onContinueFree={() => { setShowSupportModal(false); setShowRewardedModal(true); }}
+        onContinueFree={() => { setShowSupportModal(false); setAdContext('download'); setShowRewardedModal(true); }}
+      />
+
+      <LimitReachedModal 
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        type={limitModalType}
+        onWatchAd={handleLimitAdWatch}
+        onUpgrade={handleLimitUpgrade}
+        isMaxPlan={isMaxPlan}
       />
 
       <PaymentModal 
@@ -566,29 +764,18 @@ export const App: React.FC = () => {
       <RewardedAdModal 
         isOpen={showRewardedModal}
         onClose={() => setShowRewardedModal(false)}
-        onComplete={executeZipDownload}
+        onComplete={handleAdComplete}
       />
 
       {/* Hidden Render Container for PDF */}
       {result && (
         <div className="fixed left-[-9999px] top-0 no-print">
-            {/* CV: Using the Absolute Pixel Component */}
             <div id="hidden-cv-content">
                 {result.cvData && <CVTemplate data={result.cvData} />}
             </div>
-            {/* Cover Letter */}
             <div 
                 id="hidden-cl-content" 
-                style={{ 
-                     width: '816px', 
-                     padding: '72px', 
-                     backgroundColor: 'white',
-                     fontFamily: 'Calibri, Arial, sans-serif',
-                     color: '#1a1a1a',
-                     fontSize: '11px',
-                     lineHeight: '1.4',
-                     boxSizing: 'border-box'
-                }}
+                style={{ width: '816px', padding: '72px', backgroundColor: 'white', fontFamily: 'Calibri, Arial, sans-serif', color: '#1a1a1a', fontSize: '11px', lineHeight: '1.4', boxSizing: 'border-box' }}
             >
                 <ReactMarkdown components={pdfMarkdownComponents}>{result.coverLetter?.content || ''}</ReactMarkdown>
             </div>
@@ -605,7 +792,7 @@ export const App: React.FC = () => {
                 </div>
                 <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{APP_NAME}</h1>
             </div>
-            <p className="text-slate-600 text-sm">Tailor your CV to beat ATS bots and land interviews.</p>
+            <p className="text-slate-600 text-sm">Tailor your CV or Find the perfect Job.</p>
           </div>
 
           <div className="w-full md:w-auto flex flex-col items-end gap-2">
@@ -620,10 +807,12 @@ export const App: React.FC = () => {
                       ) : (
                         <div className="flex flex-col items-end gap-0.5">
                             <span className="text-xs text-slate-500">Free Account</span>
-                             <span className="text-[10px] text-slate-400">
-                               Daily Usage: <span className={`${dailyCount >= dailyLimit ? 'text-red-500 font-bold' : 'text-slate-600'}`}>{dailyCount}</span>/{dailyLimit}
-                             </span>
-                             <button onClick={() => initiatePayment('subscribe')} className="text-[10px] text-indigo-600 hover:underline">Upgrade Limit</button>
+                             <div className="flex gap-2 text-[10px] text-slate-400">
+                                <span>CVs: <span className={`${dailyCvCount >= dailyLimit ? 'text-red-500 font-bold' : 'text-slate-600'}`}>{dailyCvCount}</span>/{dailyLimit}</span>
+                                <span>|</span>
+                                <span>Search: <span className={`${dailySearchCount >= jobSearchLimit ? 'text-red-500 font-bold' : 'text-slate-600'}`}>{dailySearchCount}</span>/{jobSearchLimit}</span>
+                             </div>
+                             <button onClick={scrollToPlans} className="text-[10px] text-indigo-600 hover:underline">Upgrade Limit</button>
                         </div>
                       )}
                   </div>
@@ -636,21 +825,41 @@ export const App: React.FC = () => {
              ) : (
                 <div className="flex flex-col items-end gap-2">
                    <button onClick={() => setShowAuthModal(true)} className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">Login / Sign Up</button>
-                   <span className="text-[10px] text-slate-400">
-                       Guest Usage: <span className={`${dailyCount >= dailyLimit ? 'text-red-500 font-bold' : 'text-slate-600'}`}>{dailyCount}</span>/{dailyLimit}
-                   </span>
+                   <div className="flex gap-2 text-[10px] text-slate-400">
+                        <span>CVs: <span className={`${dailyCvCount >= dailyLimit ? 'text-red-500 font-bold' : 'text-slate-600'}`}>{dailyCvCount}</span>/{dailyLimit}</span>
+                        <span>|</span>
+                        <span>Search: <span className={`${dailySearchCount >= jobSearchLimit ? 'text-red-500 font-bold' : 'text-slate-600'}`}>{dailySearchCount}</span>/{jobSearchLimit}</span>
+                   </div>
                 </div>
              )}
           </div>
         </header>
 
+        {/* Mode Switcher */}
+        <div className="flex justify-center mb-8 no-print">
+            <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 inline-flex">
+                <button 
+                    onClick={() => { setAppMode('tailor'); setStatus(Status.IDLE); setFoundJobs([]); }}
+                    className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${appMode === 'tailor' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    CV Tailor Pro
+                </button>
+                <button 
+                    onClick={() => { setAppMode('finder'); setStatus(Status.IDLE); setResult(null); }}
+                    className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${appMode === 'finder' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    Job Finder Pro
+                </button>
+            </div>
+        </div>
+
         <main className="grid grid-cols-1 gap-8">
           
-          {(status === Status.IDLE || status === Status.ERROR) && (
+          {(status === Status.IDLE || status === Status.ERROR) && foundJobs.length === 0 && (
             <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 space-y-8 animate-fade-in no-print">
               {!isPaidUser && <AdBanner suffix="top" format="horizontal" />}
               
-              {/* INPUTS */}
+              {/* COMMON INPUT: CV Upload */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                     <label className="block text-sm font-semibold text-slate-700 uppercase tracking-wider">1. Candidate Information</label>
@@ -660,10 +869,7 @@ export const App: React.FC = () => {
                     </div>
                 </div>
                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                       <svg className="h-5 w-5 text-indigo-500" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
-                    </div>
-                    <input type="url" placeholder="Paste your LinkedIn Profile URL (Optional - Replaces existing link)" className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} />
+                    <input type="url" placeholder="Paste your LinkedIn Profile URL (Optional)" className="w-full pl-4 pr-4 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} />
                 </div>
                 {cvInputMode === 'upload' ? (
                      <FileUpload onFileSelect={setFile} selectedFileName={file?.name} />
@@ -680,54 +886,82 @@ export const App: React.FC = () => {
                 )}
               </div>
 
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-2 gap-2">
-                    <label className="block text-sm font-semibold text-slate-700 uppercase tracking-wider">2. Target Job</label>
-                    <div className="flex bg-slate-100 p-1 rounded-lg">
-                        <button onClick={() => setTargetMode('text')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'text' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Text</button>
-                        <button onClick={() => setTargetMode('url')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'url' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Link</button>
-                        <button onClick={() => setTargetMode('title')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'title' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Title Only</button>
+              {appMode === 'tailor' ? (
+                /* --- CV TAILOR MODE --- */
+                <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-2 gap-2">
+                        <label className="block text-sm font-semibold text-slate-700 uppercase tracking-wider">2. Target Job</label>
+                        <div className="flex bg-slate-100 p-1 rounded-lg">
+                            <button onClick={() => setTargetMode('text')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'text' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Text</button>
+                            <button onClick={() => setTargetMode('url')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'url' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Link</button>
+                            <button onClick={() => setTargetMode('title')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'title' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Title Only</button>
+                        </div>
+                    </div>
+                    {targetMode === 'url' && (
+                            <>
+                                <div className="flex gap-2">
+                                    <input type="url" value={jobLink} onChange={(e) => setJobLink(e.target.value)} placeholder="https://linkedin.com/jobs/..." className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700" />
+                                </div>
+                                <p className="text-xs text-slate-400">Supported: LinkedIn, Indeed, Glassdoor, Company Pages.</p>
+                            </>
+                    )}
+                    {targetMode === 'text' && (
+                        <textarea value={manualJobText} onChange={(e) => setManualJobText(e.target.value)} placeholder="Paste job description..." className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 h-32 text-sm resize-none" />
+                    )}
+                    {targetMode === 'title' && (
+                        <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                            <p className="text-xs text-indigo-700 mb-2 font-semibold">General Optimization Mode</p>
+                            <input type="text" placeholder="Enter Job Title (e.g. Project Manager)" className="w-full px-4 py-3 rounded-xl border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 font-bold" value={jobTitle} onChange={e => setJobTitle(e.target.value)} />
+                        </div>
+                    )}
+                    
+                    <div className="pt-4">
+                        {/* We use handleScanAndAnalyze to pre-check limits before moving to dashboard */}
+                        <Button onClick={() => handleScanAndAnalyze()} disabled={!validateInputs()} className="w-full text-lg py-4 bg-slate-800 hover:bg-slate-900">
+                        {targetMode === 'title' ? 'Generate General CV (Skip Analysis)' : (targetMode === 'url' ? 'Scan Link & Analyze Match' : 'Analyze Job Match')}
+                        </Button>
                     </div>
                 </div>
-                {targetMode === 'url' && (
-                        <>
-                            <div className="flex gap-2">
-                                <input type="url" value={jobLink} onChange={(e) => setJobLink(e.target.value)} placeholder="https://linkedin.com/jobs/..." className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700" />
-                            </div>
-                            <p className="text-xs text-slate-400">Supported: LinkedIn, Indeed, Glassdoor, Company Pages.</p>
-                        </>
-                )}
-                {targetMode === 'text' && (
-                     <textarea value={manualJobText} onChange={(e) => setManualJobText(e.target.value)} placeholder="Paste job description..." className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 h-32 text-sm resize-none" />
-                )}
-                {targetMode === 'title' && (
-                     <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                        <p className="text-xs text-indigo-700 mb-2 font-semibold">General Optimization Mode</p>
-                        <input type="text" placeholder="Enter Job Title (e.g. Project Manager)" className="w-full px-4 py-3 rounded-xl border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 font-bold" value={jobTitle} onChange={e => setJobTitle(e.target.value)} />
+              ) : (
+                /* --- JOB FINDER MODE --- */
+                <div className="space-y-4">
+                     <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                        <label className="block text-sm font-semibold text-slate-700 uppercase tracking-wider">2. Search Preferences</label>
                      </div>
-                )}
-              </div>
+                     <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100">
+                         <p className="text-sm text-indigo-800 mb-4 font-medium">We'll analyze your CV to automatically find the best roles. Optionally, override the location below.</p>
+                         <input 
+                            type="text" 
+                            placeholder="Location (e.g. London, Remote, New York) - Leave empty to auto-detect from CV" 
+                            className="w-full px-4 py-3 rounded-xl border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700"
+                            value={locationOverride}
+                            onChange={(e) => setLocationOverride(e.target.value)}
+                        />
+                     </div>
+                     <div className="pt-4">
+                        <Button onClick={() => handleJobSearch()} disabled={!validateInputs()} className="w-full text-lg py-4 bg-indigo-600 hover:bg-indigo-700">
+                            Find Matching Jobs
+                        </Button>
+                     </div>
+                </div>
+              )}
 
               {!isPaidUser && <AdBanner suffix="middle" format="horizontal" />}
 
               {errorMsg && <div className="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200"><strong>Error:</strong> {errorMsg}</div>}
-
-              <div className="pt-4">
-                <Button onClick={handleScanAndAnalyze} disabled={!validateInputs()} className="w-full text-lg py-4 bg-slate-800 hover:bg-slate-900">
-                  {targetMode === 'title' ? 'Generate General CV (Skip Analysis)' : (targetMode === 'url' ? 'Scan Link & Analyze Match' : 'Analyze Job Match')}
-                </Button>
-                <p className="text-xs text-center text-slate-400 mt-4">Free Tool • Powered by Cerebras AI</p>
-              </div>
+              
+              <p className="text-xs text-center text-slate-400 mt-4">Free Tool • Powered by Cerebras AI</p>
 
               {!isPaidUser && (
                  <div className="pt-4 border-t border-slate-100">
-                    <ProPlusFeatureCard onUpgrade={() => initiatePayment('subscribe')} minimal={true} />
+                    <ProPlusFeatureCard onUpgrade={scrollToPlans} minimal={true} />
                  </div>
               )}
             </div>
           )}
 
-          {(status === Status.SCANNING || status === Status.ANALYZING || status === Status.GENERATING) && (
+          {/* LOADING STATE */}
+          {(status === Status.SCANNING || status === Status.ANALYZING || status === Status.GENERATING || status === Status.SEARCHING_JOBS) && (
              <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-12 flex flex-col items-center justify-center text-center space-y-6 animate-fade-in no-print">
                  <div className="relative w-20 h-20">
                      <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
@@ -738,8 +972,13 @@ export const App: React.FC = () => {
                          {status === Status.SCANNING && 'Processing Job Details...'}
                          {status === Status.ANALYZING && 'Analyzing Match Viability...'}
                          {status === Status.GENERATING && 'Tailoring your CV...'}
+                         {status === Status.SEARCHING_JOBS && 'Scouring the web for your perfect role...'}
                      </h3>
-                     <p className="text-slate-500 mt-2">Please wait while our AI models work their magic.</p>
+                     <p className="text-slate-500 mt-2">
+                        {status === Status.SEARCHING_JOBS 
+                            ? "Analyzing CV keywords, searching top boards, and ranking by relevance." 
+                            : "Please wait while our AI models work their magic."}
+                     </p>
                  </div>
                  {!isPaidUser && (
                      <div className="w-full flex justify-center mt-8">
@@ -749,7 +988,52 @@ export const App: React.FC = () => {
              </div>
           )}
 
-          {status === Status.ANALYSIS_COMPLETE && analysis && (
+          {/* JOB FINDER RESULTS */}
+          {appMode === 'finder' && foundJobs.length > 0 && (
+             <div className="space-y-6 animate-fade-in">
+                 <div className="flex justify-between items-center">
+                    <h3 className="text-2xl font-bold text-slate-800">Top Matched Jobs</h3>
+                    <Button onClick={() => { setFoundJobs([]); setStatus(Status.IDLE); }} variant="secondary" className="text-sm py-2">New Search</Button>
+                 </div>
+                 
+                 <div className="grid gap-6">
+                    {foundJobs.map((job, index) => (
+                        <div key={index} className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden hover:shadow-lg transition-all p-6 relative">
+                             <div className="absolute top-0 right-0 bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-bl-xl">
+                                {job.matchScore}% Match
+                             </div>
+                             <div className="flex justify-between items-start mb-2">
+                                 <div>
+                                    <h4 className="text-xl font-bold text-slate-900">{job.title}</h4>
+                                    <p className="text-slate-600 font-medium">{job.company} • {job.location}</p>
+                                    <p className="text-xs text-slate-400 mt-1">Posted: {job.datePosted}</p>
+                                 </div>
+                             </div>
+                             
+                             <div className="bg-slate-50 p-4 rounded-lg my-4 text-sm text-slate-700">
+                                 <p className="italic mb-2">"{job.analysis}"</p>
+                                 <p className="text-xs text-slate-500 border-t border-slate-200 pt-2 mt-2">{job.descriptionSnippet}</p>
+                             </div>
+
+                             <div className="flex gap-3">
+                                <a href={job.url} target="_blank" rel="noopener noreferrer" className="flex-1 text-center py-2 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 transition-colors">
+                                    View Job
+                                </a>
+                                <button 
+                                    onClick={() => generateFromFinder(job)}
+                                    className="flex-1 py-2 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition-colors shadow-sm"
+                                >
+                                    Generate CV
+                                </button>
+                             </div>
+                        </div>
+                    ))}
+                 </div>
+             </div>
+          )}
+
+          {/* TAILOR RESULTS (Existing) */}
+          {status === Status.ANALYSIS_COMPLETE && analysis && appMode === 'tailor' && (
               <div className="space-y-6 no-print">
                   <div className="flex items-center gap-2 text-slate-500 mb-2 cursor-pointer hover:text-indigo-600" onClick={reset}>
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7 7-7m-7 7h18" /></svg>
@@ -777,11 +1061,8 @@ export const App: React.FC = () => {
                    <div className="lg:col-span-1 space-y-6 no-print">
                         <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100">
                             <h3 className="text-xl font-bold text-slate-900 mb-4">Downloads</h3>
-                            
                             {!isPaidUser && <AdBanner className="mb-6" suffix="download" format="rectangle" />}
-
                             <div className="space-y-3">
-                                {/* Zip Download (Unlockable via ad or plan) */}
                                 <Button onClick={initiateDownloadBundle} className="w-full justify-between bg-indigo-600 hover:bg-indigo-700 h-14" isLoading={isZipping}>
                                     <span className="flex items-center gap-2">
                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
@@ -791,12 +1072,10 @@ export const App: React.FC = () => {
                                         </div>
                                     </span>
                                 </Button>
-                                
                                 {!isPaidUser && <p className="text-[10px] text-center text-slate-400">Watch a short ad to download for free.</p>}
                             </div>
                         </div>
-
-                        {!isPaidUser && <ProPlusFeatureCard onUpgrade={() => initiatePayment('subscribe')} />}
+                        {!isPaidUser && <ProPlusFeatureCard onUpgrade={scrollToPlans} />}
                    </div>
 
                    <div className="lg:col-span-2">
@@ -807,8 +1086,6 @@ export const App: React.FC = () => {
                                    <button onClick={() => setPreviewTab('cl')} className={`px-6 py-4 font-bold text-sm uppercase tracking-wider transition-colors ${previewTab === 'cl' ? 'bg-white text-indigo-600 border-t-2 border-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>Cover Letter</button>
                                </div>
                            </div>
-                           
-                           {/* Preview Container */}
                            <div className="p-8 h-[600px] overflow-auto relative bg-white">
                                <div className="relative z-0 prose prose-sm max-w-none text-slate-800">
                                    {previewTab === 'cv' && result.cvData ? (
@@ -828,6 +1105,7 @@ export const App: React.FC = () => {
 
           {status === Status.REJECTED && result && (
             <div className="bg-white rounded-2xl shadow-xl border-l-8 border-red-500 p-8 space-y-6 animate-fade-in no-print">
+              {/* Rejection UI */}
               <div className="flex items-start gap-4">
                  <div className="p-3 bg-red-100 rounded-full text-red-600 shrink-0">
                     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
@@ -850,6 +1128,9 @@ export const App: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* PLANS SECTION (Visible to all) */}
+          <PlansSection />
 
         </main>
         

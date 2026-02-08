@@ -1,6 +1,6 @@
 
 import { supabase } from './supabaseClient';
-import { UserProfile, SavedApplication } from '../types';
+import { UserProfile, SavedApplication, JobSearchResult } from '../types';
 
 export const authService = {
   async signUp(email: string, password: string) {
@@ -13,9 +13,6 @@ export const authService = {
   },
 
   async signIn(email: string, password: string, rememberMe: boolean = true) {
-    // Note: In Supabase v2, persistence is handled by the client configuration (defaults to localStorage).
-    // The 'rememberMe' toggle is removed from logic as it requires client re-initialization.
-    
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -47,7 +44,6 @@ export const authService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("No user logged in");
 
-    // 1. Update the public profile table
     const { error: profileError } = await supabase
       .from('profiles')
       .update({ full_name: fullName })
@@ -55,7 +51,6 @@ export const authService = {
 
     if (profileError) throw profileError;
 
-    // 2. Sync to Auth Metadata (Best Practice)
     const { error: authError } = await supabase.auth.updateUser({
       data: { full_name: fullName }
     });
@@ -112,5 +107,55 @@ export const authService = {
   async deleteApplication(id: string) {
     const { error } = await supabase.from('applications').delete().eq('id', id);
     if (error) throw error;
+  },
+
+  // --- Found Jobs History ---
+
+  async saveFoundJobs(jobs: JobSearchResult[]) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Filter out jobs already saved could be complex, for now just insert
+    // Ideally we batch insert
+    const rows = jobs.map(job => ({
+        user_id: user.id,
+        job_title: job.title,
+        company_name: job.company,
+        location: job.location,
+        url: job.url,
+        date_posted: job.datePosted,
+        match_score: job.matchScore,
+        analysis: job.analysis
+    }));
+
+    const { error } = await supabase.from('found_jobs').insert(rows);
+    if (error) console.error("Error saving found jobs:", error);
+  },
+
+  async getFoundJobs(): Promise<JobSearchResult[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('found_jobs')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50); // Limit to last 50
+
+    if (error) return [];
+    
+    return data.map((row: any) => ({
+        id: row.id,
+        title: row.job_title,
+        company: row.company_name,
+        location: row.location,
+        url: row.url,
+        datePosted: row.date_posted,
+        matchScore: row.match_score,
+        analysis: row.analysis,
+        descriptionSnippet: '', // Not stored in DB to save space
+        rankScore: 0
+    }));
   }
 };

@@ -6,16 +6,17 @@ export interface SubscriptionPlan {
   name: string;
   price: number;
   durationDays: number;
-  dailyLimit: number;
+  dailyLimit: number; // For CV Generations
+  jobSearchLimit: number; // New limit for Job Finder
   description: string;
 }
 
 export const PLANS: SubscriptionPlan[] = [
-  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 5, description: '5 Generations/Day' },
-  { id: 'tier_1', name: 'Starter', price: 19.99, durationDays: 30, dailyLimit: 20, description: '20 Generations/Day' },
-  { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 50, description: '50 Generations/Day' },
-  { id: 'tier_3', name: 'Pro', price: 99.99, durationDays: 30, dailyLimit: 100, description: '100 Generations/Day' },
-  { id: 'tier_4', name: 'Unlimited', price: 199.99, durationDays: 30, dailyLimit: 10000, description: 'Unlimited Generations' },
+  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 5, jobSearchLimit: 0, description: '5 CVs + 0 Searches / Day' },
+  { id: 'tier_1', name: 'Starter', price: 19.99, durationDays: 30, dailyLimit: 20, jobSearchLimit: 1, description: '20 CVs + 1 Search / Day' },
+  { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 50, jobSearchLimit: 1, description: '50 CVs + 1 Search / Day' },
+  { id: 'tier_3', name: 'Pro', price: 99.99, durationDays: 30, dailyLimit: 100, jobSearchLimit: 1, description: '100 CVs + 1 Search / Day' },
+  { id: 'tier_4', name: 'Unlimited', price: 199.99, durationDays: 30, dailyLimit: 10000, jobSearchLimit: 5, description: 'Unlimited CVs + 5 Searches' },
 ];
 
 export const getPlanDetails = (planId: string) => {
@@ -52,7 +53,7 @@ export const updateUserSubscription = async (userId: string, planId: string): Pr
     const { error } = await supabase
         .from('profiles')
         .update({ 
-            is_pro_plus: true, // Legacy flag, basically means "Paid"
+            is_pro_plus: true, 
             plan_id: plan.id,
             subscription_end_date: endDate.toISOString()
         })

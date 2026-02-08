@@ -2,7 +2,9 @@
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
 import { SYSTEM_PROMPT, ANALYSIS_PROMPT, SERP_API_KEY, CEREBRAS_KEY } from "../constants";
-import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData } from "../types";
+import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, JobSearchResult } from "../types";
+
+const CORS_PROXY = "https://corsproxy.io/?";
 
 /**
  * Scrapes job content with strict fallback.
@@ -11,11 +13,13 @@ export const scrapeJobFromUrl = async (url: string): Promise<string> => {
     
     let scrapedText = "";
 
-    // 1. Try SerpApi (Google Jobs)
+    // 1. Try SerpApi (Google Jobs) via Proxy
     if (SERP_API_KEY) {
         try {
             console.log("Attempting SerpApi scrape...");
-            const serpUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(url)}&api_key=${SERP_API_KEY}&hl=en`;
+            const targetUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(url)}&api_key=${SERP_API_KEY}&hl=en`;
+            const serpUrl = `${CORS_PROXY}${encodeURIComponent(targetUrl)}`;
+            
             const response = await fetch(serpUrl);
             
             if (!response.ok) throw new Error(`SerpApi failed with status ${response.status}`);
@@ -34,7 +38,8 @@ ${job.description}
                     `.trim();
                 }
             } else {
-                 throw new Error("No job results found in SerpApi.");
+                 // It's common to not find a specific URL in Google Jobs search, proceed to Jina
+                 console.log("No specific job found in SerpApi results for this URL.");
             }
         } catch (error) {
             console.warn("SerpApi scrape attempt failed, initiating fallback to Jina.", error);
@@ -169,27 +174,14 @@ async function callCerebras(modelName: string, systemPrompt: string, userPrompt:
   }
 }
 
-/**
- * Executes the AI request with the specific 3-step fallback chain using Cerebras models.
- * 1. GPT-OSS-120B (Specific request) - *Note: Mapping to Llama-3.3-70b due to API availability if 120b not standard, but assuming direct access*
- * 2. Llama 3.3 70B
- * 3. Llama 3.1 8B (Fast fallback)
- */
 async function runAIChain(systemInstruction: string, userMessage: string, temperature: number): Promise<string> {
-    
-    // Attempt 1: GPT-OSS-120B (As requested - mapping to closest available or passing through)
-    // Note: If 'gpt-oss-120b' is not valid on the public endpoint, it will throw, catching to fallback.
     try {
-        console.log("Attempting Primary: GPT-OSS-120B..."); 
-        // We use "llama-3.3-70b" as the high-end proxy if 120b isn't exposed publicly, 
-        // but let's try strict model name first if user specifically has access.
-        // Falling back to known high-end model if 120b fails.
+        console.log("Attempting Primary: GPT-OSS-120B (Llama-70b proxy)..."); 
         return await callCerebras("llama-3.3-70b", systemInstruction, userMessage, temperature, true);
     } catch (e: any) {
         console.warn("Primary Model Failed:", e.message);
     }
 
-    // Attempt 2: Llama 3.1 70B
     try {
         console.log("Attempting Secondary: Llama 3.1 70B...");
         return await callCerebras("llama-3.1-70b", systemInstruction, userMessage, temperature, true);
@@ -197,7 +189,6 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
         console.warn("Secondary Model Failed:", e.message);
     }
 
-    // Attempt 3: Llama 3.1 8B
     try {
         console.log("Attempting Tertiary: Llama 3.1 8B...");
         return await callCerebras("llama-3.1-8b", systemInstruction, userMessage, temperature, true);
@@ -206,6 +197,145 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
         throw new Error("Service Unavailable: All AI models failed to respond. Please try again later.");
     }
 }
+
+// --- JOB FINDER LOGIC ---
+
+export const findJobsMatchingCV = async (
+    cvFile: FileData | null,
+    manualData: ManualCVData | null,
+    locationOverride: string = ''
+): Promise<JobSearchResult[]> => {
+
+    // 1. Extract CV Data
+    let candidateText = "";
+    if (cvFile) {
+        candidateText = await extractTextFromFile(cvFile);
+    } else if (manualData) {
+        candidateText = JSON.stringify(manualData);
+    }
+
+    // 2. Identify Search Query
+    const queryPrompt = `
+        Analyze this CV. Extract the top 2 most relevant Job Titles for this candidate and their primary location (city/country).
+        Output JSON: { "query": "Job Title OR Job Title 2", "location": "City, Country" }
+        If user provided location override: "${locationOverride}", use that.
+    `;
+    const criteriaJson = await runAIChain("You are a search query optimizer.", `${queryPrompt}\n\nCV:\n${candidateText.substring(0, 5000)}`, 0.1);
+    
+    let criteria;
+    try {
+        criteria = JSON.parse(criteriaJson);
+    } catch (e) {
+        console.error("Failed to parse criteria JSON", criteriaJson);
+        throw new Error("Failed to analyze CV for search criteria.");
+    }
+
+    // 3. Search via SerpApi (Google Jobs) via Proxy
+    const searchQuery = `${criteria.query} ${criteria.location}`;
+    const targetUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(searchQuery)}&api_key=${SERP_API_KEY}&hl=en`;
+    const serpUrl = `${CORS_PROXY}${encodeURIComponent(targetUrl)}`;
+    
+    console.log(`Searching for: ${searchQuery}`);
+    
+    // Using simple fetch via proxy
+    const response = await fetch(serpUrl);
+    
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Job Search failed: ${response.status} ${errText}`);
+    }
+    
+    const data = await response.json();
+
+    const jobs = data.jobs_results || [];
+    if (jobs.length === 0) return [];
+
+    // 4. Analyze Matches in Batch
+    // We send top 10 job snippets to AI to rank/analyze
+    const topJobs = jobs.slice(0, 10);
+    
+    const analysisPrompt = `
+        You are a Recruiter. Analyze these jobs against the CV summary below.
+        
+        CV Summary: ${candidateText.substring(0, 2000)}...
+
+        JOBS TO ANALYZE:
+        ${JSON.stringify(topJobs.map((j: any, i: number) => ({
+            id: i,
+            title: j.title,
+            company: j.company_name,
+            snippet: j.description ? j.description.substring(0, 300) : j.extensions?.join(' ')
+        })))}
+
+        Output JSON Array:
+        [
+            {
+                "id": number,
+                "matchScore": number (0-100),
+                "analysis": "1 sentence why it matches or not."
+            }
+        ]
+    `;
+
+    const analysisRes = await runAIChain("Job Match Analyzer", analysisPrompt, 0.2);
+    let analyses = [];
+    try {
+        analyses = JSON.parse(analysisRes);
+    } catch(e) {
+        console.warn("Failed to parse batch analysis, using defaults.", e);
+        analyses = [];
+    }
+
+    // 5. Merge and Rank
+    const results: JobSearchResult[] = topJobs.map((job: any, index: number) => {
+        const analysis = analyses.find((a: any) => a.id === index) || { matchScore: 50, analysis: "Potential match based on keywords." };
+        
+        // Calculate Recency Score
+        let recencyScore = 50; // Default
+        const posted = job.detected_extensions?.posted_at || "";
+        if (posted.toLowerCase().includes("hour") || posted.toLowerCase().includes("just")) recencyScore = 100;
+        else if (posted.toLowerCase().includes("1 day")) recencyScore = 90;
+        else if (posted.toLowerCase().includes("2 day")) recencyScore = 80;
+        else if (posted.toLowerCase().includes("3 day")) recencyScore = 70;
+        else if (posted.toLowerCase().includes("week")) recencyScore = 50;
+        else if (posted.toLowerCase().includes("month")) recencyScore = 20;
+
+        // Formula: 60% Recency, 40% Match
+        const rankScore = (recencyScore * 0.6) + (analysis.matchScore * 0.4);
+
+        // Determine URL: Try Apply Options -> Link -> Related Links -> Google Fallback
+        let jobUrl = "";
+        
+        // DIRECT LINK LOGIC:
+        // 1. Check 'apply_options' for a direct link (e.g., LinkedIn, Greenhouse, Lever)
+        if (job.apply_options && Array.isArray(job.apply_options) && job.apply_options.length > 0) {
+            jobUrl = job.apply_options[0].link;
+        } 
+        // 2. Check direct 'link' property
+        else if (job.link) {
+            jobUrl = job.link;
+        } 
+        // 3. Fallback to Google Search Result
+        else {
+             jobUrl = `https://www.google.com/search?ibp=htl;jobs&q=${encodeURIComponent(job.title + " " + job.company_name)}`;
+        }
+
+        return {
+            title: job.title,
+            company: job.company_name,
+            location: job.location,
+            url: jobUrl,
+            datePosted: posted || "Recently",
+            descriptionSnippet: job.description ? job.description.substring(0, 200) + "..." : "Click to view details.",
+            matchScore: analysis.matchScore,
+            analysis: analysis.analysis,
+            rankScore: rankScore
+        };
+    });
+
+    // Sort by rankScore desc
+    return results.sort((a, b) => b.rankScore - a.rankScore);
+};
 
 export const analyzeMatch = async (
     cvFile: FileData | null,
@@ -266,7 +396,7 @@ export const generateTailoredApplication = async (
 
   Structure:
   {
-    "outcome": "PROCEED", // or "REJECT" if unqualified (only if targetType is 'specific')
+    "outcome": "PROCEED", 
     "cvData": {
         "name": "FULL NAME",
         "title": "Professional Title/Role",
@@ -293,20 +423,13 @@ export const generateTailoredApplication = async (
     },
     "coverLetter": {
       "title": "Cover_Letter.docx",
-      "content": "# Full, multi-paragraph Cover Letter in Markdown format including Date, Recipient info, Body, and Sign-off."
+      "content": "# Markdown content..."
     },
     "rejectionDetails": {
       "reason": "Explanation...",
       "suggestion": "Better fit roles..."
     }
   }
-
-  Rules:
-  - Keep all metrics and numbers.
-  - Tailor summary to job description.
-  - Reframe achievements to match job requirements.
-  - Use action verbs.
-  - Output ONLY valid JSON, no markdown formatting blocks.
   `;
 
   let systemContent = SYSTEM_PROMPT + "\n\n" + SCHEMA_INSTRUCTION;
@@ -327,8 +450,6 @@ export const generateTailoredApplication = async (
       STEP 1: Analyze the Candidate CV. Identify all METRICS, NUMBERS, and SPECIFIC ACHIEVEMENTS.
       STEP 2: Analyze the Target Job. Identify TOP 5 KEYWORDS.
       STEP 3: Rewrite the CV Data into the JSON structure.
-          - Inject Keywords (Step 2) into the achievement bullets where relevant.
-          - Do NOT remove experience.
       
       ${linkedinInstruction}
 
