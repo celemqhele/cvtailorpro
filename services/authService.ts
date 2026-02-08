@@ -1,5 +1,4 @@
 
-
 import { supabase } from './supabaseClient';
 import { UserProfile, SavedApplication } from '../types';
 
@@ -45,12 +44,20 @@ export const authService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("No user logged in");
 
-    const { error } = await supabase
+    // 1. Update the public profile table
+    const { error: profileError } = await supabase
       .from('profiles')
       .update({ full_name: fullName })
       .eq('id', user.id);
 
-    if (error) throw error;
+    if (profileError) throw profileError;
+
+    // 2. Sync to Auth Metadata (Best Practice)
+    const { error: authError } = await supabase.auth.updateUser({
+      data: { full_name: fullName }
+    });
+
+    if (authError) console.error("Failed to sync auth metadata", authError);
   },
 
   async updateEmail(newEmail: string) {
