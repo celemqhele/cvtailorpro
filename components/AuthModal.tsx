@@ -13,6 +13,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showVerification, setShowVerification] = useState(false);
@@ -21,15 +23,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError(null);
+
+    if (mode === 'signup' && !termsAccepted) {
+        setError("You must accept the Terms and Privacy Policy to create an account.");
+        return;
+    }
+
+    setIsLoading(true);
 
     try {
       if (mode === 'signup') {
         await authService.signUp(email, password);
         setShowVerification(true);
       } else {
-        await authService.signIn(email, password);
+        await authService.signIn(email, password, keepLoggedIn);
         onSuccess();
         onClose();
       }
@@ -44,6 +52,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     setShowVerification(false);
     setMode('signin');
     setError(null);
+    setKeepLoggedIn(false);
+    setTermsAccepted(false);
     onClose();
   };
 
@@ -111,6 +121,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
               onChange={e => setPassword(e.target.value)}
             />
           </div>
+
+          {mode === 'signin' && (
+            <div className="flex items-center">
+              <input
+                id="keep-logged-in"
+                type="checkbox"
+                checked={keepLoggedIn}
+                onChange={(e) => setKeepLoggedIn(e.target.checked)}
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer"
+              />
+              <label htmlFor="keep-logged-in" className="ml-2 block text-sm text-slate-700 cursor-pointer select-none">
+                Keep me logged in
+              </label>
+            </div>
+          )}
+
+          {mode === 'signup' && (
+             <div className="flex items-start">
+              <input
+                id="accept-terms"
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                className="h-4 w-4 mt-1 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer"
+              />
+              <label htmlFor="accept-terms" className="ml-2 block text-xs text-slate-600 cursor-pointer select-none">
+                I acknowledge the <span className="underline">Privacy Policy</span> and agree to the <span className="underline">Terms and Conditions</span>.
+              </label>
+            </div>
+          )}
 
           <Button type="submit" isLoading={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700">
             {mode === 'signin' ? 'Sign In' : 'Create Account'}

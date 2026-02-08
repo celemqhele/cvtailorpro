@@ -1,5 +1,4 @@
 
-
 export enum Status {
   IDLE = 'IDLE',
   SCANNING = 'SCANNING',
@@ -15,7 +14,8 @@ export interface UserProfile {
   id: string;
   email: string;
   full_name?: string;
-  is_pro_plus: boolean;
+  is_pro_plus: boolean; // Kept for backwards compatibility logic
+  plan_id: string; // 'free', 'tier_1', 'tier_2', etc.
   subscription_end_date?: string;
 }
 
@@ -23,7 +23,7 @@ export interface SavedApplication {
   id: string;
   job_title: string;
   company_name: string;
-  cv_content: string;
+  cv_content: string; // Storing the JSON stringified now
   cl_content: string;
   match_score?: number;
   created_at: string;
@@ -31,7 +31,7 @@ export interface SavedApplication {
 
 export interface TailoredDocument {
   title: string;
-  content: string; // Markdown content
+  content: string; // Markdown content (Used for Cover Letter)
 }
 
 export interface RejectionDetails {
@@ -39,12 +39,44 @@ export interface RejectionDetails {
   suggestion: string;
 }
 
+export interface CVSkill {
+  category: string;
+  items: string;
+}
+
+export interface CVExperience {
+  title: string;
+  company: string;
+  dates: string;
+  achievements: string[];
+}
+
+export interface CVEducation {
+  degree: string;
+  institution?: string;
+  year?: string;
+}
+
+export interface CVData {
+  name: string;
+  title: string;
+  location: string;
+  phone: string;
+  email: string;
+  linkedin?: string;
+  summary: string;
+  skills: CVSkill[];
+  experience: CVExperience[];
+  keyAchievements?: string[];
+  education: CVEducation[];
+}
+
 export interface GeneratorResponse {
   outcome: 'PROCEED' | 'REJECT';
   rejectionDetails?: RejectionDetails;
-  cv?: TailoredDocument;
-  coverLetter?: TailoredDocument;
-  brandingImage?: string; // Base64 image string
+  cvData?: CVData; // The structured data for the CV
+  coverLetter?: TailoredDocument; // Cover letter remains Markdown for simplicity
+  brandingImage?: string; 
 }
 
 export interface FileData {
@@ -55,9 +87,9 @@ export interface FileData {
 
 export interface ManualCVData {
   fullName: string;
-  contactInfo: string; // Phone, Email, Location
+  contactInfo: string; 
   summary: string;
-  experience: string; // Free text for now, LLM parses it
+  experience: string; 
   education: string;
   skills: string;
 }
@@ -69,4 +101,6 @@ export interface MatchAnalysis {
   pros: string[];
   cons: string[];
   reasoning: string;
+  jobTitle?: string;
+  company?: string;
 }

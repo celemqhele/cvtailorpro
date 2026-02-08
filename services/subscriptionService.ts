@@ -2,32 +2,36 @@
 import { supabase } from './supabaseClient';
 
 export interface SubscriptionPlan {
-  id: 'one_time' | '30_days' | '3_months' | '1_year';
+  id: 'free' | 'tier_1' | 'tier_2' | 'tier_3' | 'tier_4';
   name: string;
   price: number;
   durationDays: number;
-  type: 'subscription' | 'one_time';
+  dailyLimit: number;
+  description: string;
 }
 
 export const PLANS: SubscriptionPlan[] = [
-  { id: 'one_time', name: 'Single Unlock', price: 20.00, durationDays: 0, type: 'one_time' },
-  { id: '30_days', name: '30 Days Pro+', price: 99.00, durationDays: 30, type: 'subscription' },
-  { id: '3_months', name: '3 Months Pro+', price: 179.00, durationDays: 90, type: 'subscription' },
-  { id: '1_year', name: '1 Year Pro+', price: 499.00, durationDays: 365, type: 'subscription' },
+  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 5, description: '5 Generations/Day' },
+  { id: 'tier_1', name: 'Starter', price: 19.99, durationDays: 30, dailyLimit: 20, description: '20 Generations/Day' },
+  { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 50, description: '50 Generations/Day' },
+  { id: 'tier_3', name: 'Pro', price: 99.99, durationDays: 30, dailyLimit: 100, description: '100 Generations/Day' },
+  { id: 'tier_4', name: 'Unlimited', price: 199.99, durationDays: 30, dailyLimit: 10000, description: 'Unlimited Generations' },
 ];
+
+export const getPlanDetails = (planId: string) => {
+  return PLANS.find(p => p.id === planId) || PLANS[0];
+};
 
 export const createSubscription = async (
   planId: string, 
   paymentRef: string
 ): Promise<{ success: boolean; subscriptionId?: string; error?: string }> => {
-  // Legacy function mostly for anonymous one-time orders if we still want to track them without user ID
-  // For the new auth system, we use updateUserSubscription
   return { success: true };
 };
 
 export const updateUserSubscription = async (userId: string, planId: string): Promise<boolean> => {
     const plan = PLANS.find(p => p.id === planId);
-    if (!plan || plan.type === 'one_time') return true; 
+    if (!plan || plan.id === 'free') return true; 
 
     const now = new Date();
     
@@ -48,7 +52,8 @@ export const updateUserSubscription = async (userId: string, planId: string): Pr
     const { error } = await supabase
         .from('profiles')
         .update({ 
-            is_pro_plus: true,
+            is_pro_plus: true, // Legacy flag, basically means "Paid"
+            plan_id: plan.id,
             subscription_end_date: endDate.toISOString()
         })
         .eq('id', userId);

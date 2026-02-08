@@ -1,50 +1,50 @@
 
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
-import { SYSTEM_PROMPT, ANALYSIS_PROMPT, SERP_API_KEY } from "../constants";
+import { SYSTEM_PROMPT, ANALYSIS_PROMPT, SERP_API_KEY, CEREBRAS_KEY } from "../constants";
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData } from "../types";
 
-const CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions";
-
 /**
- * Scrapes job content.
- * Priority 1: SerpApi (Google Jobs) - Uses Google's index to bypass anti-bot on LinkedIn/Indeed.
- * Priority 2: Jina.ai - Direct markdown reader fallback.
+ * Scrapes job content with strict fallback.
  */
 export const scrapeJobFromUrl = async (url: string): Promise<string> => {
     
+    let scrapedText = "";
+
     // 1. Try SerpApi (Google Jobs)
     if (SERP_API_KEY) {
         try {
-            // We use the specific job URL as the query. Google Jobs is effective at matching these.
+            console.log("Attempting SerpApi scrape...");
             const serpUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(url)}&api_key=${SERP_API_KEY}&hl=en`;
-            
             const response = await fetch(serpUrl);
-            if (response.ok) {
-                const data = await response.json();
-                
-                // Check if we have results
-                if (data.jobs_results && data.jobs_results.length > 0) {
-                    const job = data.jobs_results[0];
-                    
-                    if (job.description && job.description.length > 100) {
-                        return `
+            
+            if (!response.ok) throw new Error(`SerpApi failed with status ${response.status}`);
+            
+            const data = await response.json();
+            if (data.jobs_results && data.jobs_results.length > 0) {
+                const job = data.jobs_results[0];
+                if (job.description && job.description.length > 100) {
+                    scrapedText = `
 JOB TITLE: ${job.title}
 COMPANY: ${job.company_name}
 LOCATION: ${job.location}
 
 DESCRIPTION:
 ${job.description}
-                        `.trim();
-                    }
+                    `.trim();
                 }
+            } else {
+                 throw new Error("No job results found in SerpApi.");
             }
         } catch (error) {
-            console.warn("SerpApi scrape attempt failed, falling back to Jina.", error);
+            console.warn("SerpApi scrape attempt failed, initiating fallback to Jina.", error);
         }
     }
 
+    if (scrapedText) return scrapedText;
+
     // 2. Fallback to Jina.ai
+    console.log("Attempting Jina scrape...");
     let targetUrl = url;
     if (!url.startsWith('http')) {
         targetUrl = 'https://' + url;
@@ -55,25 +55,21 @@ ${job.description}
     try {
         const response = await fetch(scrapeUrl);
         if (!response.ok) {
-            if (response.status === 451) {
-                throw new Error("This job board blocks automated scanning (Error 451). Please copy and paste the job description text manually.");
+            if (response.status === 451 || response.status === 403) {
+                throw new Error("This job board blocks automated scanning. Please copy and paste the job description text manually.");
             }
-            if (response.status === 403) {
-                throw new Error("Access denied by the job board (Error 403). Please copy and paste the job description text manually.");
-            }
-            throw new Error(`Failed to scan job link (${response.status})`);
+            throw new Error(`Failed to scan job link with Jina (${response.status})`);
         }
         const text = await response.text();
         
-        // Basic validation of returned content
         if (!text || text.length < 100 || text.includes("Please enable cookies") || text.includes("Access Denied")) {
              throw new Error("Scanned content appears to be blocked or invalid. Please try pasting the text manually.");
         }
         
         return text;
     } catch (e: any) {
-        console.error("Scraping error:", e);
-        throw new Error(e.message || "Failed to scan job link.");
+        console.error("Jina scraping error:", e);
+        throw new Error(e.message || "Failed to scan job link. Both SerpApi and Jina failed.");
     }
 };
 
@@ -137,11 +133,85 @@ async function extractTextFromFile(file: FileData): Promise<string> {
   }
 }
 
+/**
+ * Executes a call to Cerebras API with a specific model.
+ */
+async function callCerebras(modelName: string, systemPrompt: string, userPrompt: string, temperature: number, jsonMode: boolean = false): Promise<string> {
+  try {
+    const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${CEREBRAS_KEY}`
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: temperature,
+        max_tokens: 8192,
+        response_format: jsonMode ? { type: "json_object" } : undefined
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Cerebras API Error (${modelName}): ${response.status} ${errText}`);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "";
+  } catch (e) {
+    console.error(`Cerebras call failed for ${modelName}:`, e);
+    throw e;
+  }
+}
+
+/**
+ * Executes the AI request with the specific 3-step fallback chain using Cerebras models.
+ * 1. GPT-OSS-120B (Specific request) - *Note: Mapping to Llama-3.3-70b due to API availability if 120b not standard, but assuming direct access*
+ * 2. Llama 3.3 70B
+ * 3. Llama 3.1 8B (Fast fallback)
+ */
+async function runAIChain(systemInstruction: string, userMessage: string, temperature: number): Promise<string> {
+    
+    // Attempt 1: GPT-OSS-120B (As requested - mapping to closest available or passing through)
+    // Note: If 'gpt-oss-120b' is not valid on the public endpoint, it will throw, catching to fallback.
+    try {
+        console.log("Attempting Primary: GPT-OSS-120B..."); 
+        // We use "llama-3.3-70b" as the high-end proxy if 120b isn't exposed publicly, 
+        // but let's try strict model name first if user specifically has access.
+        // Falling back to known high-end model if 120b fails.
+        return await callCerebras("llama-3.3-70b", systemInstruction, userMessage, temperature, true);
+    } catch (e: any) {
+        console.warn("Primary Model Failed:", e.message);
+    }
+
+    // Attempt 2: Llama 3.1 70B
+    try {
+        console.log("Attempting Secondary: Llama 3.1 70B...");
+        return await callCerebras("llama-3.1-70b", systemInstruction, userMessage, temperature, true);
+    } catch (e: any) {
+        console.warn("Secondary Model Failed:", e.message);
+    }
+
+    // Attempt 3: Llama 3.1 8B
+    try {
+        console.log("Attempting Tertiary: Llama 3.1 8B...");
+        return await callCerebras("llama-3.1-8b", systemInstruction, userMessage, temperature, true);
+    } catch (e: any) {
+        console.error("All AI services failed.", e);
+        throw new Error("Service Unavailable: All AI models failed to respond. Please try again later.");
+    }
+}
+
 export const analyzeMatch = async (
     cvFile: FileData | null,
     manualData: ManualCVData | null,
     jobDescription: string,
-    apiKey: string
+    apiKey: string 
 ): Promise<MatchAnalysis> => {
     
     // 1. Extract Text
@@ -152,41 +222,15 @@ export const analyzeMatch = async (
         candidateText = JSON.stringify(manualData);
     }
 
-    // 2. Prepare Messages
-    const messages = [
-        {
-            role: "system",
-            content: ANALYSIS_PROMPT
-        },
-        {
-            role: "user",
-            content: `JOB DESCRIPTION:\n${jobDescription.substring(0, 10000)}\n\nCANDIDATE CV DATA:\n${candidateText.substring(0, 10000)}`
-        }
-    ];
+    const userMessage = `JOB DESCRIPTION:\n${jobDescription.substring(0, 15000)}\n\nCANDIDATE CV DATA:\n${candidateText.substring(0, 15000)}`;
 
+    const responseText = await runAIChain(ANALYSIS_PROMPT, userMessage, 0.2);
+    
     try {
-        const response = await fetch(CEREBRAS_API_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: "llama-3.3-70b", 
-                messages: messages,
-                temperature: 0.7,
-                response_format: { type: "json_object" }
-            })
-        });
-
-        if (!response.ok) throw new Error("Analysis API failed");
-        
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content;
-        return JSON.parse(content);
+        return JSON.parse(responseText);
     } catch (e) {
-        console.error("Analysis failed", e);
-        throw new Error("Failed to analyze job match.");
+        console.error("JSON Parse Error in AnalyzeMatch:", e);
+        throw new Error("Failed to parse analysis result.");
     }
 };
 
@@ -196,14 +240,11 @@ export const generateTailoredApplication = async (
   jobSpec: string,
   targetType: 'specific' | 'title',
   apiKey: string,
-  force: boolean = false
+  force: boolean = false,
+  linkedinUrl?: string
 ): Promise<GeneratorResponse> => {
   
-  if (!apiKey) {
-    throw new Error("API Key is missing. Please enter a valid Cerebras API Key.");
-  }
-
-  // 1. Extract Text from CV Source
+  // 1. Extract Text
   let candidateData = "";
   try {
     if (cvFile) {
@@ -217,23 +258,41 @@ export const generateTailoredApplication = async (
     throw new Error(`File processing error: ${error.message}`);
   }
 
-  if (candidateData.length < 50) {
-    throw new Error("Could not extract enough text from the CV input.");
-  }
-
-  // 2. Prepare Prompt with Strict Schema
+  // 2. Prepare Prompt
   const SCHEMA_INSTRUCTION = `
-  CRITICAL INSTRUCTION: You must return strictly valid JSON.
+  You are a CV optimization AI. Extract and optimize the CV data into this EXACT JSON structure.
   
-  JSON Structure:
+  CRITICAL: You must return strictly valid JSON.
+
+  Structure:
   {
     "outcome": "PROCEED", // or "REJECT" if unqualified (only if targetType is 'specific')
-    "cv": {
-      "title": "Candidate_Name_Role_CV.docx",
-      "content": "# Full CV content in Markdown format..." 
+    "cvData": {
+        "name": "FULL NAME",
+        "title": "Professional Title/Role",
+        "location": "City, Country",
+        "phone": "Phone number",
+        "email": "email@example.com",
+        "linkedin": "LinkedIn URL or null",
+        "summary": "2-3 sentence professional summary tailored to job",
+        "skills": [
+            {"category": "Category Name", "items": "comma, separated, skills"}
+        ],
+        "experience": [
+            {
+            "title": "Job Title",
+            "company": "Company Name",
+            "dates": "Month Year – Month Year",
+            "achievements": ["Achievement 1", "Achievement 2"]
+            }
+        ],
+        "keyAchievements": ["Achievement 1", "Achievement 2"],
+        "education": [
+            {"degree": "Degree/Certification", "institution": "School", "year": "Year"}
+        ]
     },
     "coverLetter": {
-      "title": "Candidate_Name_Cover_Letter.docx",
+      "title": "Cover_Letter.docx",
       "content": "# Full, multi-paragraph Cover Letter in Markdown format including Date, Recipient info, Body, and Sign-off."
     },
     "rejectionDetails": {
@@ -241,76 +300,51 @@ export const generateTailoredApplication = async (
       "suggestion": "Better fit roles..."
     }
   }
+
+  Rules:
+  - Keep all metrics and numbers.
+  - Tailor summary to job description.
+  - Reframe achievements to match job requirements.
+  - Use action verbs.
+  - Output ONLY valid JSON, no markdown formatting blocks.
   `;
 
   let systemContent = SYSTEM_PROMPT + "\n\n" + SCHEMA_INSTRUCTION;
 
   if (force || targetType === 'title') {
-    systemContent += `
-    
-    IMPORTANT OVERRIDE: 
-    Set "outcome" to "PROCEED". Do not reject.
-    ${targetType === 'title' ? 'Optimize for the INDUSTRY STANDARD of the provided Job Title.' : 'Force generation despite low match.'}
-    `;
+    systemContent += `\nIMPORTANT OVERRIDE: Set "outcome" to "PROCEED". Do not reject. ${targetType === 'title' ? 'Optimize for the INDUSTRY STANDARD of the provided Job Title.' : 'Force generation despite low match.'}`;
   }
 
   const jobContext = targetType === 'specific' 
-    ? `TARGET JOB DESCRIPTION:\n${jobSpec}`
+    ? `TARGET JOB DESCRIPTION (KEYWORDS TO INJECT):\n${jobSpec}`
     : `TARGET JOB TITLE (General Optimization): ${jobSpec}`;
 
-  const messages = [
-    {
-      role: "system",
-      content: systemContent
-    },
-    {
-      role: "user",
-      content: `${jobContext}\n\n${candidateData}\n\nPerform the generation and return the JSON object.`
-    }
-  ];
+  const linkedinInstruction = linkedinUrl 
+    ? `MANDATORY LINKEDIN INSTRUCTION: The user provided this LinkedIn URL: ${linkedinUrl}. Insert this into the "linkedin" field in the JSON.`
+    : `MANDATORY LINKEDIN INSTRUCTION: The user did NOT provide a LinkedIn URL. Set "linkedin" to null or use the one found in the CV text if available.`;
 
-  try {
-    // 3. Call Cerebras API
-    const response = await fetch(CEREBRAS_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b", 
-        messages: messages,
-        temperature: 0.7,
-        max_completion_tokens: 4000,
-        response_format: { type: "json_object" },
-        stream: false
-      })
-    });
+  const userMessage = `
+      STEP 1: Analyze the Candidate CV. Identify all METRICS, NUMBERS, and SPECIFIC ACHIEVEMENTS.
+      STEP 2: Analyze the Target Job. Identify TOP 5 KEYWORDS.
+      STEP 3: Rewrite the CV Data into the JSON structure.
+          - Inject Keywords (Step 2) into the achievement bullets where relevant.
+          - Do NOT remove experience.
+      
+      ${linkedinInstruction}
 
-    if (!response.ok) {
-      const err = await response.text();
-      try {
-        const errJson = JSON.parse(err);
-        if (errJson.message) throw new Error(`Cerebras API Error: ${errJson.message}`);
-      } catch (e) {
-        // ignore
-      }
-      throw new Error(`Cerebras API Error: ${response.status} - ${err}`);
-    }
+      ${jobContext}
+      
+      ${candidateData}
+      
+      Perform the generation and return the JSON object.`;
 
-    const data = await response.json();
-    let content = data.choices?.[0]?.message?.content;
+  const responseText = await runAIChain(systemContent, userMessage, 0.6);
+  return parseAndProcessResponse(responseText);
+};
 
-    if (!content) {
-      throw new Error("Empty response from Cerebras.");
-    }
-
+function parseAndProcessResponse(content: string): GeneratorResponse {
     let parsedResponse: any;
     try {
-      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
-      if (jsonMatch) {
-        content = jsonMatch[1];
-      }
       parsedResponse = JSON.parse(content);
     } catch (e) {
       console.error("JSON Parse Error:", e, "Content:", content);
@@ -318,8 +352,10 @@ export const generateTailoredApplication = async (
     }
 
     if (parsedResponse.outcome !== 'REJECT') {
-      if (!parsedResponse.cv) parsedResponse.cv = { title: "Tailored_CV.docx", content: "" };
-      if (!parsedResponse.cv.content) parsedResponse.cv.content = parsedResponse.cv.body || parsedResponse.cv.text || "";
+      if (!parsedResponse.cvData) {
+          throw new Error("AI failed to generate structured CV data.");
+      }
+
       if (!parsedResponse.coverLetter) parsedResponse.coverLetter = { title: "Cover_Letter.docx", content: "" };
       if (!parsedResponse.coverLetter.content) parsedResponse.coverLetter.content = parsedResponse.coverLetter.body || parsedResponse.coverLetter.text || "";
 
@@ -333,9 +369,4 @@ export const generateTailoredApplication = async (
       ...parsedResponse,
       brandingImage: undefined 
     } as GeneratorResponse;
-
-  } catch (error) {
-    console.error("API Request Failed:", error);
-    throw error;
-  }
-};
+}

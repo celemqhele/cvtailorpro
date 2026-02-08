@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from './Button';
 
@@ -21,7 +22,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
         
         {/* Header */}
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
-          <h3 className="text-xl font-bold text-slate-800">Privacy Policy</h3>
+          <h3 className="text-xl font-bold text-slate-800">Privacy Policy & Terms</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
@@ -31,39 +32,34 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
         <div className="p-6 overflow-y-auto text-slate-600 space-y-6 text-sm leading-relaxed">
           
           <section>
-            <h4 className="font-bold text-slate-900 mb-2">1. Introduction</h4>
+            <h4 className="font-bold text-slate-900 mb-2">1. Introduction & Acceptance</h4>
             <p>
-              Welcome to CV Tailor Pro ("we," "our," or "us"). We are committed to protecting your personal information.
-              This policy explains how we handle your data when you use our CV tailoring service.
+              By using CV Tailor Pro ("the Service"), you agree to these Terms and Conditions and Privacy Policy. If you do not agree, please do not use the Service.
             </p>
           </section>
 
           <section>
-            <h4 className="font-bold text-slate-900 mb-2">2. Data Retention & Cloud Storage</h4>
-            <ul className="list-disc pl-5 space-y-2">
-              <li>
-                <strong>Transaction IDs:</strong> We store <strong>Pro Plus IDs</strong> (Subscriptions) and <strong>Order IDs</strong> (Single Downloads) in our secure database to verify your purchase status and manage subscription validity.
-              </li>
-              <li>
-                <strong>Generated Content:</strong> For paid orders (identified by an Order ID), we securely store the generated CV and Cover Letter text in our database. This allows you to <strong>restore your document</strong> from any device using your Order ID.
-              </li>
-              <li>
-                <strong>Uploaded Files:</strong> The original files you upload are processed in-memory and are <strong>NOT</strong> permanently stored on our servers.
-              </li>
+            <h4 className="font-bold text-slate-900 mb-2">2. Data Collection & Storage</h4>
+            <p>We collect and store specific information to provide the Service:</p>
+            <ul className="list-disc pl-5 space-y-2 mt-2">
+              <li><strong>User Account Data:</strong> Name, email address, and encrypted password authentication data.</li>
+              <li><strong>Usage Data:</strong> Application history, including Job Titles, Company Names, and the generated CV/Cover Letter content, is stored in our database to allow you to view and restore your history.</li>
+              <li><strong>uploaded Documents:</strong> Original files uploaded for analysis are processed in temporary memory. However, the text extracted from them is stored as part of the "Generated Content" in your history logs.</li>
+              <li><strong>Transaction Data:</strong> We store Order IDs and Subscription status linked to your account. We do NOT store credit card numbers.</li>
             </ul>
           </section>
 
           <section>
-            <h4 className="font-bold text-slate-900 mb-2">3. Third-Party AI Services</h4>
+            <h4 className="font-bold text-slate-900 mb-2">3. Third-Party AI Processing</h4>
              <p>
-              We utilize Cerebras AI (powering models like Llama 3.3 70B) to process text. By using this tool, you acknowledge that your input data is sent to the Cerebras API solely for the purpose of generating your tailored application.
+              This service utilizes Third-Party Artificial Intelligence providers (specifically Cerebras AI) to process your data. By using this tool, you grant us permission to send your anonymized CV text and Job Descriptions to these providers for the sole purpose of content generation.
             </p>
           </section>
 
           <section>
-            <h4 className="font-bold text-slate-900 mb-2">4. Payment Information</h4>
+            <h4 className="font-bold text-slate-900 mb-2">4. User Obligations</h4>
             <p>
-              Payments are processed securely via Paystack. We do not store your credit card details. We only store the transaction reference linked to your Order ID or Subscription ID to confirm payment success.
+              You agree not to upload sensitive personal data (e.g., ID numbers, health data) irrelevant to a job application. You are responsible for the accuracy of the data you input.
             </p>
           </section>
 
@@ -78,7 +74,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
 
         {/* Footer */}
         <div className="p-6 border-t border-slate-100 bg-slate-50 rounded-b-2xl flex justify-end">
-          <Button onClick={onClose} variant="secondary">Close Policy</Button>
+          <Button onClick={onClose} variant="secondary">Close</Button>
         </div>
       </div>
     </div>

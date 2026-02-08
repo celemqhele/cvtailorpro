@@ -5,7 +5,7 @@ import { PLANS } from '../services/subscriptionService';
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (orderId: string, isSubscription: boolean) => void;
+  onSuccess: (planId: string, isSubscription: boolean) => void;
   documentTitle: string;
   existingOrderId: string | null;
   triggerPlanId?: string | null;
@@ -20,21 +20,12 @@ declare global {
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, triggerPlanId }) => {
-  const [view, setView] = useState<'options' | 'one_time' | 'pro_plus'>('options');
-  const [selectedPlanId, setSelectedPlanId] = useState<string>('30_days');
   const PUBLIC_KEY = 'pk_live_9989ae457450be7da1256d8a2c2c0b181d0a2d30'; 
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('tier_2'); // Default to middle tier
 
-  // Reset view when opened/closed or allow triggering
   useEffect(() => {
-    if (isOpen) {
-        if (triggerPlanId) {
-             const timer = setTimeout(() => {
-                 handlePayment(triggerPlanId);
-             }, 300);
-             return () => clearTimeout(timer);
-        } else {
-             setView('options');
-        }
+    if (isOpen && triggerPlanId) {
+       handlePayment(triggerPlanId);
     }
   }, [isOpen, triggerPlanId]);
 
@@ -43,9 +34,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
   const handlePayment = (specificPlanId?: string) => {
     const planId = specificPlanId || selectedPlanId;
     const plan = PLANS.find(p => p.id === planId);
-    if (!plan) return;
+    if (!plan || plan.price === 0) return;
     
-    // Subscription refs
+    // Use random Ref
     const ref = 'TXN-' + Math.random().toString(36).substring(2, 12).toUpperCase();
     const metadata = {
         custom_fields: [
@@ -72,98 +63,67 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     paystack.openIframe();
   };
 
-  const renderOptions = () => (
-    <div className="space-y-6">
-        <div className="text-center">
-            <h3 className="text-2xl font-bold text-slate-900">Unlock Downloads</h3>
-            <p className="text-slate-500 text-sm mt-2">Choose how you want to access your documents.</p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-4">
-            {/* Option 1: One Time */}
-            <div className="border-2 border-slate-200 rounded-xl p-6 hover:border-indigo-400 cursor-pointer transition-all bg-white" onClick={() => handlePayment('one_time')}>
-                <div className="flex justify-between items-start mb-4">
-                    <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold uppercase">Pro (Single)</span>
-                    <span className="text-2xl font-bold text-slate-900">R20</span>
-                </div>
-                <ul className="space-y-2 text-sm text-slate-600 mb-6">
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Download DOCX (Editable)</li>
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Download Cover Letter</li>
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg> Includes Ads</li>
-                </ul>
-                <button className="w-full py-2 bg-slate-800 text-white rounded-lg font-bold text-sm">Unlock Now</button>
-            </div>
-
-            {/* Option 2: Pro Plus */}
-            <div className="border-2 border-indigo-500 rounded-xl p-6 relative bg-indigo-50 cursor-pointer transform hover:scale-[1.02] transition-all shadow-xl" onClick={() => setView('pro_plus')}>
-                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-amber-500 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase shadow-sm">
-                      Recommended
-                  </div>
-                <div className="flex justify-between items-start mb-4">
-                    <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold uppercase">Pro Plus</span>
-                    <span className="text-2xl font-bold text-indigo-700">R99+</span>
-                </div>
-                <ul className="space-y-2 text-sm text-slate-700 mb-6">
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> <strong>Unlimited</strong> Downloads</li>
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> <strong>No Ads</strong> (Ad-Free)</li>
-                    <li className="flex items-center gap-2"><svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Priority Processing</li>
-                </ul>
-                <button className="w-full py-2 bg-indigo-600 text-white rounded-lg font-bold text-sm shadow-md">View Plans</button>
-            </div>
-        </div>
-    </div>
-  );
-
-  const renderProPlus = () => (
+  const renderPlans = () => (
       <div className="space-y-6">
-           <div className="flex items-center gap-2 cursor-pointer text-slate-500 hover:text-slate-800" onClick={() => setView('options')}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-              <span className="text-sm font-bold">Back</span>
-           </div>
-           
            <div className="text-center">
-              <h3 className="text-2xl font-bold text-slate-900"><span className="text-indigo-600">Pro Plus</span> Access</h3>
-              <p className="text-slate-500 text-sm mt-1">Remove ads and download unlimited CVs.</p>
-              
-              <div className="flex items-center justify-center gap-2 mt-3 text-[10px] text-green-700 bg-green-50 py-1.5 px-3 rounded-full w-fit mx-auto border border-green-200">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                  <span>One-off Payment. No Card Saved. No Auto-Renew.</span>
-              </div>
+              <h3 className="text-2xl font-bold text-slate-900">Upgrade for More Power</h3>
+              <p className="text-slate-500 text-sm mt-1">Unlock ad-free downloads and higher daily limits. <br/>All plans are valid for 30 days (One-time payment).</p>
            </div>
 
-           <div className="grid md:grid-cols-3 gap-3">
-              {PLANS.filter(p => p.type === 'subscription').map((plan) => (
-                  <div 
-                    key={plan.id}
-                    onClick={() => setSelectedPlanId(plan.id)}
-                    className={`cursor-pointer rounded-xl border-2 p-4 transition-all relative ${selectedPlanId === plan.id ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-slate-200 bg-white hover:border-slate-300'}`}
-                  >
-                      <div className="text-center space-y-1">
-                          <h4 className="font-bold text-slate-700 text-xs uppercase">{plan.name}</h4>
-                          <div className="text-2xl font-bold text-indigo-700">R{plan.price}</div>
-                          <div className="text-[10px] text-slate-500">Valid for {plan.durationDays} days</div>
-                      </div>
-                  </div>
-              ))}
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              {PLANS.filter(p => p.price > 0).map((plan) => {
+                  const isSelected = selectedPlanId === plan.id;
+                  const isPopular = plan.id === 'tier_2';
+
+                  return (
+                    <div 
+                        key={plan.id}
+                        onClick={() => setSelectedPlanId(plan.id)}
+                        className={`cursor-pointer rounded-xl border-2 p-4 transition-all relative flex flex-col justify-between
+                            ${isSelected ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600 transform scale-105 z-10' : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'}
+                        `}
+                    >
+                        {isPopular && (
+                            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-amber-500 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase shadow-sm whitespace-nowrap">
+                                Most Popular
+                            </div>
+                        )}
+                        <div className="text-center space-y-1 mb-4 pt-2">
+                            <h4 className="font-bold text-slate-700 text-sm uppercase">{plan.name}</h4>
+                            <div className="text-2xl font-bold text-indigo-700">R{plan.price}</div>
+                            <div className="text-xs font-bold text-slate-900 bg-white border border-slate-200 rounded-full py-1 px-2 inline-block">
+                                {plan.description}
+                            </div>
+                        </div>
+                        <ul className="text-[11px] text-slate-600 space-y-1 mb-4 text-left pl-2">
+                            <li className="flex items-center gap-1">✅ No Ads</li>
+                            <li className="flex items-center gap-1">✅ Priority PDF</li>
+                            <li className="flex items-center gap-1">✅ Valid 30 Days</li>
+                        </ul>
+                        <div className={`w-full h-4 rounded-full ${isSelected ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
+                    </div>
+                  );
+              })}
            </div>
 
            <button 
               onClick={() => handlePayment()}
               className={`w-full py-4 px-4 font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700`}
             >
-              Get Pro Plus Access
+              Get {PLANS.find(p => p.id === selectedPlanId)?.name} Access
             </button>
+            
+            <div className="text-center">
+                 <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm">Cancel</button>
+            </div>
       </div>
   );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col max-h-[90vh]">
         <div className="p-6 md:p-8 overflow-y-auto">
-            {view === 'options' ? renderOptions() : renderProPlus()}
-            <div className="mt-6 text-center">
-                 <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm">Cancel</button>
-            </div>
+            {renderPlans()}
         </div>
       </div>
     </div>

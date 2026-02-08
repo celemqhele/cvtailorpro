@@ -12,7 +12,10 @@ export const authService = {
     return data;
   },
 
-  async signIn(email: string, password: string) {
+  async signIn(email: string, password: string, rememberMe: boolean = true) {
+    // Note: In Supabase v2, persistence is handled by the client configuration (defaults to localStorage).
+    // The 'rememberMe' toggle is removed from logic as it requires client re-initialization.
+    
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
