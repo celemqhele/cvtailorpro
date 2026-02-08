@@ -1,3 +1,4 @@
+
 export enum Status {
   IDLE = 'IDLE',
   SCANNING = 'SCANNING',
@@ -7,6 +8,23 @@ export enum Status {
   SUCCESS = 'SUCCESS',
   ERROR = 'ERROR',
   REJECTED = 'REJECTED'
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  is_pro_plus: boolean;
+  subscription_end_date?: string;
+}
+
+export interface SavedApplication {
+  id: string;
+  job_title: string;
+  company_name: string;
+  cv_content: string;
+  cl_content: string;
+  match_score?: number;
+  created_at: string;
 }
 
 export interface TailoredDocument {
@@ -31,6 +49,15 @@ export interface FileData {
   base64: string;
   mimeType: string;
   name: string;
+}
+
+export interface ManualCVData {
+  fullName: string;
+  contactInfo: string; // Phone, Email, Location
+  summary: string;
+  experience: string; // Free text for now, LLM parses it
+  education: string;
+  skills: string;
 }
 
 export interface MatchAnalysis {

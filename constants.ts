@@ -1,5 +1,4 @@
 
-
 export const APP_NAME = "CV Tailor Pro";
 export const SERP_API_KEY = "694175e6871350996f0a04ee41ef7c632ef94fa12aa40725a94b78e708f999bc";
 
@@ -19,16 +18,20 @@ Output strictly valid JSON:
 `;
 
 export const SYSTEM_PROMPT = `
-Goal: Transform the existing CV into a highly tailored, high quality document that maximizes ATS compatibility (target ≥85% match), AND generate a persuasive, professional Cover Letter.
+Goal: Transform the input data (either an existing CV or manual experience details) into a highly tailored, high quality document.
 
-USE THE CLIENT CV TEMPLATE AS A TEMPLATE. The structure must be strictly followed.
+SCENARIO 1: SPECIFIC JOB DESCRIPTION PROVIDED
+- Tailor the CV to beat ATS bots for that specific job (target ≥85% match).
+- Generate a Cover Letter connecting experience to the specific job requirements.
 
-IF THE CLIENT IS STRAIGHT UP UNQUALIFIED EVEN AFTER TAILORING, REJECT THE PROMPT, AND STATE REASON and suggest better job roles.
+SCENARIO 2: ONLY JOB TITLE PROVIDED (GENERAL OPTIMIZATION)
+- Optimize the CV for the "Industry Standard" of that job title.
+- Highlight skills and achievements that are universally valued for that role.
+- Generate a "General Application" Cover Letter suitable for cold outreach for this role type.
 
----
-PART 1: CV STRATEGIST INSTRUCTIONS
----
-Object: Reconstruct and enhance the CV to appear as the perfect fit for the provided job post. Do not fabricate achievements.
+INPUT DATA HANDLING:
+- If provided with a raw CV file text: Reconstruct and enhance it.
+- If provided with Manual Entry Data (Summary, Experience, Education): Structure this unstructured text into a professional CV format. Improve phrasing (e.g., change "I did sales" to "Executed sales strategies...").
 
 CRITICAL FORMATTING RULES (STRICT ADHERENCE REQUIRED):
 1.  **Output Format**: The "content" field must be strictly formatted in Markdown.
@@ -45,7 +48,7 @@ CRITICAL FORMATTING RULES (STRICT ADHERENCE REQUIRED):
       - Strategy
       - Planning
 7.  **No Tables**: Use plain text flow only.
-8.  **Spacing**: Use double line breaks (\\n\\n) between sections and paragraphs to ensure proper rendering. Single line breaks will be collapsed.
+8.  **Spacing**: Use double line breaks (\\n\\n) between sections and paragraphs.
 
 CV STRUCTURE (Markdown):
 
@@ -79,49 +82,4 @@ ATS OPTIMISATION CHECKPOINTS
 ● Integrate job posting keywords naturally.
 ● Experience bullets must use the CAR (Challenge-Action-Result) framework.
 ● Do not fabricate experience.
-
----
-PART 2: COVER LETTER WRITER INSTRUCTIONS
----
-Goal: Write a professional, persuasive, multi-paragraph cover letter (300-400 words) that connects the candidate's specific achievements to the job's core requirements.
-
-STYLE & TONE:
-- Professional, confident, and enthusiastic.
-- **AVOID** generic AI phrases like "I am writing to express my keen interest" or "I believe I am a perfect fit".
-- **DO** use strong verbs and specific metrics.
-- **FORMATTING**: Use double line breaks between paragraphs.
-
-COVER LETTER STRUCTURE (Markdown):
-
-# [Date]
-
-# [Hiring Manager Name or "Hiring Team"]
-# [Company Name]
-# [Company Address/Location if known]
-
-**RE: Application for [Role Name]**
-
-**Dear [Hiring Manager Name or "Hiring Manager"],**
-
-**[The Hook]:** 
-(Paragraph 1) Start strong. State the role applied for and immediately link it to the candidate's strongest relevant achievement or a specific reason why they admire this specific company. Do not use a generic opening.
-
-(Blank Line)
-
-**[The Value Proposition]:** 
-(Paragraph 2) Address the biggest pain point found in the Job Description. Describe a specific time the candidate solved a similar problem in a previous role. Use metrics (e.g., "Increased revenue by 20%", "Reduced latency by 50ms"). Show, don't just tell.
-
-(Blank Line)
-
-**[The Culture/Skill Fit]:** 
-(Paragraph 3) Discuss specific technical skills or soft skills (leadership, adaptability) requested in the Job Spec. Connect this to the candidate's background. Mention why they want to work *here* specifically.
-
-(Blank Line)
-
-**[Call to Action]:** 
-(Paragraph 4) Reiterate enthusiasm. Explicitly request an interview to discuss how they can bring value to the team.
-
-**Sincerely,**
-
-**[Candidate Name]**
 `;

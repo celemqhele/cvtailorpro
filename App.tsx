@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import JSZip from 'jszip';
@@ -9,20 +10,35 @@ import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { PaymentModal } from './components/DonationModal';
 import { RewardedAdModal } from './components/RewardedAdModal';
 import { SupportModal } from './components/SupportModal';
+import { AuthModal } from './components/AuthModal';
+import { HistoryModal } from './components/HistoryModal';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from './services/geminiService';
-import { createSubscription, verifySubscription } from './services/subscriptionService';
-import { FileData, GeneratorResponse, Status, MatchAnalysis } from './types';
+import { createSubscription, updateUserSubscription } from './services/subscriptionService';
+import { authService } from './services/authService';
+import { FileData, GeneratorResponse, Status, MatchAnalysis, UserProfile, SavedApplication, ManualCVData } from './types';
 import { APP_NAME } from './constants';
 import { generateWordDocument, createWordBlob } from './utils/docHelper';
 import { createPdfBlob } from './utils/pdfHelper';
+import { supabase } from './services/supabaseClient';
 
 const App: React.FC = () => {
+  // User & Auth State
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+
+  // Input Modes
+  const [cvInputMode, setCvInputMode] = useState<'upload' | 'scratch'>('upload');
   const [file, setFile] = useState<FileData | null>(null);
+  const [manualData, setManualData] = useState<ManualCVData>({
+    fullName: '', contactInfo: '', summary: '', experience: '', education: '', skills: ''
+  });
   
-  // Job Input State
-  const [inputMode, setInputMode] = useState<'url' | 'text'>('url');
+  // Job Target Modes
+  const [targetMode, setTargetMode] = useState<'url' | 'text' | 'title'>('url');
   const [jobLink, setJobLink] = useState('');
   const [manualJobText, setManualJobText] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
   const [jobSpec, setJobSpec] = useState(''); 
   
   const [apiKey] = useState('csk-rmv54ykfk8mp439ww3xrrjy98nk3phnh3hentfprjxp2xwv3');
@@ -38,11 +54,9 @@ const App: React.FC = () => {
   const [showSupportModal, setShowSupportModal] = useState(false);
 
   // Subscription State
-  const [isProPlus, setIsProPlus] = useState(false); // No ads, unlimited downloads
-  const [isProOneTime, setIsProOneTime] = useState(false); // Has ads, can download DOCX/Zip for current session
+  const [isProPlus, setIsProPlus] = useState(false); 
+  const [isProOneTime, setIsProOneTime] = useState(false); // Valid for current session/generated doc
   
-  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
-  const [restoreIdInput, setRestoreIdInput] = useState('');
   const [paymentTriggerPlan, setPaymentTriggerPlan] = useState<string | null>(null);
   const [pendingPaymentAction, setPendingPaymentAction] = useState<'zip' | 'cv_word' | 'cl_word' | null>(null);
 
@@ -57,34 +71,65 @@ const App: React.FC = () => {
   // Temp state to trigger PDF download after ad
   const [pendingPdfType, setPendingPdfType] = useState<'cv' | 'cl' | null>(null);
 
-  // Check for stored subscription on load
+  // 1. Check Auth Status on Load
   useEffect(() => {
-    const storedSub = localStorage.getItem('cv_subscription_id');
-    if (storedSub) {
-        checkSubscription(storedSub, true);
-    }
+    checkUserSession();
+
+    // Listen for auth state changes (e.g. sign out elsewhere)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      checkUserSession();
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const checkSubscription = async (subId: string, silent: boolean = false) => {
-      const { active, isProPlus: isProPlusActive } = await verifySubscription(subId);
+  const checkUserSession = async () => {
+    const profile = await authService.getCurrentProfile();
+    setUser(profile);
+    
+    // Automatically revert to free if date has passed
+    if (profile && profile.is_pro_plus) {
+        if (profile.subscription_end_date && new Date(profile.subscription_end_date) > new Date()) {
+            setIsProPlus(true);
+            setIsProOneTime(true);
+        } else {
+            // Expired
+            setIsProPlus(false);
+        }
+    } else {
+        setIsProPlus(false);
+    }
+  };
+
+  const getDaysRemaining = () => {
+    if (!user?.subscription_end_date) return 0;
+    const end = new Date(user.subscription_end_date);
+    const now = new Date();
+    if (end < now) return 0;
+    const diff = end.getTime() - now.getTime();
+    return Math.ceil(diff / (1000 * 3600 * 24));
+  };
+
+  const handleLogout = async () => {
+      await authService.signOut();
+      setUser(null);
+      setIsProPlus(false);
+      reset();
+  };
+
+  const initiatePayment = (action: 'zip' | 'cv_word' | 'cl_word' | 'subscribe') => {
+      // Gate: Must be logged in for subscription/pro plus
+      if (!user) {
+          setShowAuthModal(true);
+          return;
+      }
       
-      if (active) {
-          setSubscriptionId(subId);
-          localStorage.setItem('cv_subscription_id', subId);
-          
-          if (isProPlusActive) {
-              setIsProPlus(true);
-              setIsProOneTime(true); // Pro Plus includes Pro features
-              if (!silent) alert(`Pro Plus Active: Ads Removed!\nID: ${subId}`);
-          } else {
-              // It's a valid one-time code (ORD-...) or non-Pro+ sub
-              setIsProOneTime(true);
-              setIsProPlus(false);
-              if (!silent) alert(`Pro Access Active (Single Session).\nID: ${subId}`);
-          }
+      if (action === 'subscribe') {
+          // Open modal in Pro Plus view
+          setShowPaymentModal(true);
       } else {
-          localStorage.removeItem('cv_subscription_id');
-          if (!silent) alert("Invalid or Expired ID.");
+          setPendingPaymentAction(action);
+          setShowPaymentModal(true);
       }
   };
 
@@ -139,45 +184,45 @@ const App: React.FC = () => {
   };
 
   const handlePaymentSuccess = async (planId: string, isSubscription: boolean) => {
-    const ref = 'PAY-' + Date.now();
-    const subResult = await createSubscription(planId, ref);
     
-    if (subResult.success && subResult.subscriptionId) {
-        setSubscriptionId(subResult.subscriptionId);
-        localStorage.setItem('cv_subscription_id', subResult.subscriptionId);
-        
-        if (planId === 'one_time') {
-            setIsProOneTime(true);
-            alert(`Downloads Unlocked! Your ID is: ${subResult.subscriptionId}`);
-        } else {
-            setIsProPlus(true);
-            setIsProOneTime(true);
-            alert(`Pro Plus Activated! Ads Removed.\nYour ID is: ${subResult.subscriptionId}`);
+    if (isSubscription && user) {
+        // Update user profile
+        const success = await updateUserSubscription(user.id, planId);
+        if (success) {
+            await checkUserSession();
+            alert("Pro Plus Activated! Ads removed and unlimited downloads unlocked.");
         }
-
-        if (pendingPaymentAction === 'zip') {
-             await executeZipDownload();
-        } else if (pendingPaymentAction === 'cv_word') {
-             await executeWordDownload('cv');
-        } else if (pendingPaymentAction === 'cl_word') {
-             await executeWordDownload('cl');
-        }
+    } else if (planId === 'one_time') {
+        setIsProOneTime(true);
     }
+
+    // Execute pending actions
+    if (pendingPaymentAction === 'zip') {
+         await executeZipDownload();
+    } else if (pendingPaymentAction === 'cv_word') {
+         await executeWordDownload('cv');
+    } else if (pendingPaymentAction === 'cl_word') {
+         await executeWordDownload('cl');
+    }
+
     setPendingPaymentAction(null);
     setPaymentTriggerPlan(null);
     setShowPaymentModal(false);
   };
 
-  const handleRestoreId = () => {
-      if (restoreIdInput.trim()) {
-          checkSubscription(restoreIdInput.trim());
-      }
+  const validateInputs = () => {
+      if (cvInputMode === 'upload' && !file) return false;
+      if (cvInputMode === 'scratch' && (!manualData.fullName || !manualData.experience)) return false;
+      
+      if (targetMode === 'url' && !jobLink) return false;
+      if (targetMode === 'text' && !manualJobText.trim()) return false;
+      if (targetMode === 'title' && !jobTitle.trim()) return false;
+      
+      return true;
   };
 
   const handleScanAndAnalyze = async () => {
-      if (!file) return;
-      if (inputMode === 'url' && !jobLink) return;
-      if (inputMode === 'text' && !manualJobText.trim()) return;
+      if (!validateInputs()) return;
       
       setStatus(Status.SCANNING);
       setErrorMsg(null);
@@ -187,7 +232,13 @@ const App: React.FC = () => {
       try {
           let textToAnalyze = '';
 
-          if (inputMode === 'url') {
+          // 1. Get Job Spec
+          if (targetMode === 'title') {
+              // Skip analysis for Title Mode, go straight to generate instructions
+              setJobSpec(jobTitle);
+              handleGenerate(false, true); // Trigger generate immediately, skip dashboard
+              return;
+          } else if (targetMode === 'url') {
               textToAnalyze = await scrapeJobFromUrl(jobLink);
           } else {
               textToAnalyze = manualJobText;
@@ -200,7 +251,13 @@ const App: React.FC = () => {
           setJobSpec(textToAnalyze);
           setStatus(Status.ANALYZING);
 
-          const analysisResult = await analyzeMatch(file, textToAnalyze, apiKey);
+          // 2. Analyze
+          const analysisResult = await analyzeMatch(
+              cvInputMode === 'upload' ? file : null, 
+              cvInputMode === 'scratch' ? manualData : null,
+              textToAnalyze, 
+              apiKey
+          );
           setAnalysis(analysisResult);
           setStatus(Status.ANALYSIS_COMPLETE);
 
@@ -211,21 +268,44 @@ const App: React.FC = () => {
       }
   };
 
-  const handleGenerate = async (forceOverride: boolean = false) => {
+  const handleGenerate = async (forceOverride: boolean = false, isDirectTitleMode: boolean = false) => {
     const force = typeof forceOverride === 'boolean' ? forceOverride : false;
 
-    if (!file || !jobSpec.trim() || !apiKey.trim()) return;
+    // Use state or passed argument for job spec (Title mode sets it differently)
+    const currentJobSpec = isDirectTitleMode ? jobTitle : jobSpec;
+
+    if (!apiKey.trim()) return;
 
     setStatus(Status.GENERATING);
     setErrorMsg(null);
     setResult(null);
 
     try {
-      const response = await generateTailoredApplication(file, jobSpec, apiKey, force);
+      const response = await generateTailoredApplication(
+          cvInputMode === 'upload' ? file : null,
+          cvInputMode === 'scratch' ? manualData : null,
+          currentJobSpec,
+          targetMode === 'title' ? 'title' : 'specific',
+          apiKey, 
+          force
+      );
       
       if (response.outcome !== 'REJECT') {
           setResult(response);
           setStatus(Status.SUCCESS);
+          
+          // Auto-save to history if logged in
+          if (user && response.cv) {
+             const title = targetMode === 'title' ? jobTitle : (analysis?.headline || "Application");
+             const company = targetMode === 'title' ? "General Application" : "Job Application";
+             authService.saveApplication(
+                 title,
+                 company,
+                 response.cv.content,
+                 response.coverLetter?.content || '',
+                 analysis?.matchScore || 0
+             );
+          }
       } else {
           setResult(response);
           setStatus(Status.REJECTED);
@@ -236,6 +316,23 @@ const App: React.FC = () => {
       setStatus(Status.ERROR);
       setErrorMsg(e.message || "An unexpected error occurred.");
     }
+  };
+
+  const handleLoadHistory = (app: SavedApplication) => {
+      setResult({
+          outcome: 'PROCEED',
+          cv: { title: 'Restored_CV.docx', content: app.cv_content },
+          coverLetter: { title: 'Restored_CL.docx', content: app.cl_content }
+      });
+      setAnalysis({
+          decision: 'APPLY', // Dummy data for restored view
+          matchScore: app.match_score || 0,
+          headline: app.job_title,
+          pros: [],
+          cons: [],
+          reasoning: "Restored from history"
+      });
+      setStatus(Status.SUCCESS);
   };
 
   // --- Download Handlers ---
@@ -253,7 +350,7 @@ const App: React.FC = () => {
   const handleSupportConfirm = () => {
       setShowSupportModal(false);
       setPaymentTriggerPlan('one_time');
-      setShowPaymentModal(true);
+      initiatePayment('zip'); // Placeholder to trigger modal
   };
 
   const handleSupportDecline = () => {
@@ -285,8 +382,7 @@ const App: React.FC = () => {
 
   const handleDownloadWord = async (type: 'cv' | 'cl') => {
      if (!isProOneTime && !isProPlus) {
-         setPendingPaymentAction(type === 'cv' ? 'cv_word' : 'cl_word');
-         setShowPaymentModal(true);
+         initiatePayment(type === 'cv' ? 'cv_word' : 'cl_word');
          return;
      }
      await executeWordDownload(type);
@@ -294,8 +390,7 @@ const App: React.FC = () => {
 
   const handleDownloadAllZip = async () => {
       if (!isProOneTime && !isProPlus) {
-          setPendingPaymentAction('zip');
-          setShowPaymentModal(true);
+          initiatePayment('zip');
           return;
       }
       await executeZipDownload();
@@ -306,7 +401,9 @@ const App: React.FC = () => {
     setJobLink('');
     setJobSpec('');
     setManualJobText('');
-    setInputMode('url');
+    setJobTitle('');
+    // setCvInputMode('upload'); // Keep user preference
+    // setTargetMode('url'); // Keep user preference
     setStatus(Status.IDLE);
     setResult(null);
     setAnalysis(null);
@@ -390,6 +487,9 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans relative">
       
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={checkUserSession} />
+      <HistoryModal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} onLoadApplication={handleLoadHistory} />
+
       <PrivacyPolicyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
       
       <SupportModal 
@@ -431,7 +531,7 @@ const App: React.FC = () => {
         <header className="flex flex-col md:flex-row justify-between items-center gap-6 border-b border-slate-200 pb-8 relative">
           <div className="text-center md:text-left">
             <div className="flex items-center gap-3 justify-center md:justify-start mb-2">
-                <div className="p-2 bg-indigo-600 rounded-lg shadow-md">
+                <div className="p-2 bg-indigo-600 rounded-lg shadow-md cursor-pointer" onClick={reset}>
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
                 </div>
                 <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{APP_NAME}</h1>
@@ -440,47 +540,48 @@ const App: React.FC = () => {
           </div>
 
           <div className="w-full md:w-auto flex flex-col items-end gap-2">
-             {isProPlus ? (
-                 <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                     <div>
-                         <p className="font-bold text-sm">Pro Plus Active</p>
-                         <p className="text-[10px] opacity-80">Ad-Free Experience</p>
-                     </div>
-                 </div>
-             ) : isProOneTime ? (
-                <div className="flex flex-col items-end gap-2">
-                    <div className="bg-gradient-to-r from-slate-700 to-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold">
-                        Single Order Unlocked
-                    </div>
-                     <button 
-                        onClick={() => setShowPaymentModal(true)} 
-                        className="text-indigo-600 font-bold text-xs hover:underline"
-                    >
-                        Upgrade to Remove Ads
-                    </button>
+             {user ? (
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col items-end">
+                      <span className="text-sm font-bold text-slate-900">{user.email}</span>
+                      {isProPlus ? (
+                        <span className="text-xs text-green-600 font-bold uppercase">
+                            Pro Active ({getDaysRemaining()} days left)
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500">Free Account</span>
+                            {user.subscription_end_date && new Date(user.subscription_end_date) < new Date() && (
+                                <button onClick={() => initiatePayment('subscribe')} className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold hover:bg-indigo-200 transition-colors">
+                                    Renew Plan
+                                </button>
+                            )}
+                        </div>
+                      )}
+                  </div>
+                  <div className="flex gap-2">
+                      <button 
+                        onClick={() => setShowHistoryModal(true)}
+                        className="px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-medium"
+                      >
+                        History
+                      </button>
+                      <button 
+                        onClick={handleLogout}
+                        className="px-3 py-1.5 border border-slate-200 text-slate-600 hover:text-red-600 rounded-lg text-sm font-medium"
+                      >
+                        Sign Out
+                      </button>
+                  </div>
                 </div>
              ) : (
-                <div className="flex flex-col items-end gap-2">
-                    <button 
-                        onClick={() => setShowPaymentModal(true)} 
-                        className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold hover:bg-amber-200 transition-colors flex items-center gap-1"
-                    >
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" /></svg>
-                        Remove Ads
-                    </button>
-                    <div className="bg-white p-1 rounded-lg border border-slate-200 flex gap-2">
-                        <input 
-                            type="text" 
-                            placeholder="Restore ID"
-                            value={restoreIdInput}
-                            onChange={(e) => setRestoreIdInput(e.target.value)}
-                            className="px-2 py-1 text-xs outline-none bg-transparent w-32"
-                        />
-                        <button onClick={handleRestoreId} className="text-xs font-bold text-indigo-600 hover:text-indigo-800">
-                            Apply
-                        </button>
-                    </div>
+                <div className="flex gap-2">
+                   <button 
+                      onClick={() => setShowAuthModal(true)}
+                      className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                   >
+                      Login / Sign Up
+                   </button>
                 </div>
              )}
           </div>
@@ -495,54 +596,134 @@ const App: React.FC = () => {
                   <AdBanner suffix="top" format="horizontal" />
               )}
 
+              {/* SECTION 1: CANDIDATE INFO */}
               <div className="space-y-4">
-                <label className="block text-sm font-semibold text-slate-700 uppercase tracking-wider">
-                  1. Upload your Current CV
-                </label>
-                <FileUpload onFileSelect={setFile} selectedFileName={file?.name} />
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                     <label className="block text-sm font-semibold text-slate-700 uppercase tracking-wider">
-                      2. Job Details
+                      1. Candidate Information
                     </label>
                     <div className="flex bg-slate-100 p-1 rounded-lg">
                         <button 
-                            onClick={() => setInputMode('url')}
-                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${inputMode === 'url' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            onClick={() => setCvInputMode('upload')}
+                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${cvInputMode === 'upload' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                            Link
+                            Upload CV
                         </button>
                         <button 
-                            onClick={() => setInputMode('text')}
-                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${inputMode === 'text' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            onClick={() => setCvInputMode('scratch')}
+                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${cvInputMode === 'scratch' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                            Text
+                            Create from Scratch
                         </button>
                     </div>
                 </div>
 
-                {inputMode === 'url' ? (
-                    <>
-                        <div className="flex gap-2">
-                            <input
-                              type="url"
-                              value={jobLink}
-                              onChange={(e) => setJobLink(e.target.value)}
-                              placeholder="https://linkedin.com/jobs/..."
-                              className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700"
+                {cvInputMode === 'upload' ? (
+                     <FileUpload onFileSelect={setFile} selectedFileName={file?.name} />
+                ) : (
+                    <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <input 
+                           type="text" 
+                           placeholder="Full Name" 
+                           className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                           value={manualData.fullName}
+                           onChange={e => setManualData({...manualData, fullName: e.target.value})}
+                        />
+                         <input 
+                           type="text" 
+                           placeholder="Contact Info (Phone, Email, Location, LinkedIn)" 
+                           className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                           value={manualData.contactInfo}
+                           onChange={e => setManualData({...manualData, contactInfo: e.target.value})}
+                        />
+                        <textarea 
+                           placeholder="Professional Experience (Role, Company, Dates, Duties - Paste loosely, AI will fix it)"
+                           className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none h-24"
+                           value={manualData.experience}
+                           onChange={e => setManualData({...manualData, experience: e.target.value})}
+                        />
+                        <div className="grid grid-cols-2 gap-3">
+                            <textarea 
+                               placeholder="Education & Certifications"
+                               className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none h-20"
+                               value={manualData.education}
+                               onChange={e => setManualData({...manualData, education: e.target.value})}
+                            />
+                             <textarea 
+                               placeholder="Core Skills (Comma separated)"
+                               className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none h-20"
+                               value={manualData.skills}
+                               onChange={e => setManualData({...manualData, skills: e.target.value})}
                             />
                         </div>
-                        <p className="text-xs text-slate-400">Supported: LinkedIn, Indeed, Glassdoor, Company Pages.</p>
-                    </>
-                ) : (
+                    </div>
+                )}
+              </div>
+
+              {/* SECTION 2: JOB TARGET */}
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-2 gap-2">
+                    <label className="block text-sm font-semibold text-slate-700 uppercase tracking-wider">
+                      2. Target Job
+                    </label>
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                        <button 
+                            onClick={() => setTargetMode('url')}
+                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'url' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Link
+                        </button>
+                        <button 
+                            onClick={() => setTargetMode('text')}
+                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'text' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Text
+                        </button>
+                         <button 
+                            onClick={() => setTargetMode('title')}
+                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'title' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Title Only
+                        </button>
+                    </div>
+                </div>
+
+                {targetMode === 'url' && (
+                        <>
+                            <div className="flex gap-2">
+                                <input
+                                  type="url"
+                                  value={jobLink}
+                                  onChange={(e) => setJobLink(e.target.value)}
+                                  placeholder="https://linkedin.com/jobs/..."
+                                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700"
+                                />
+                            </div>
+                            <p className="text-xs text-slate-400">Supported: LinkedIn, Indeed, Glassdoor, Company Pages.</p>
+                        </>
+                )}
+
+                {targetMode === 'text' && (
                      <textarea 
                         value={manualJobText}
                         onChange={(e) => setManualJobText(e.target.value)}
                         placeholder="Paste the full job description here (Responsibilities, Requirements, etc)..."
                         className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 h-32 text-sm resize-none"
                     />
+                )}
+
+                {targetMode === 'title' && (
+                     <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                        <p className="text-xs text-indigo-700 mb-2 font-semibold">General Optimization Mode</p>
+                        <input
+                           type="text" 
+                           placeholder="Enter Job Title (e.g. Project Manager, Junior Developer)" 
+                           className="w-full px-4 py-3 rounded-xl border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 font-bold"
+                           value={jobTitle}
+                           onChange={e => setJobTitle(e.target.value)}
+                        />
+                        <p className="text-xs text-slate-500 mt-2">The AI will optimize your CV based on industry standards for this role, rather than a specific job post.</p>
+                     </div>
                 )}
               </div>
 
@@ -560,10 +741,10 @@ const App: React.FC = () => {
               <div className="pt-4">
                 <Button 
                   onClick={handleScanAndAnalyze} 
-                  disabled={!file || (inputMode === 'url' ? !jobLink : !manualJobText.trim())}
+                  disabled={!validateInputs()}
                   className="w-full text-lg py-4 bg-slate-800 hover:bg-slate-900"
                 >
-                  {inputMode === 'url' ? 'Scan Link & Analyze Match' : 'Analyze Job Match'}
+                  {targetMode === 'title' ? 'Generate General CV (Skip Analysis)' : (targetMode === 'url' ? 'Scan Link & Analyze Match' : 'Analyze Job Match')}
                 </Button>
                 <p className="text-xs text-center text-slate-400 mt-4">
                   Free Tool • Powered by Llama 3.3 70B via Cerebras
@@ -615,6 +796,11 @@ const App: React.FC = () => {
                    </div>
                    <div>
                        <p className="font-bold">Document Generated Successfully</p>
+                       {!user && (
+                         <p className="text-xs text-green-700 mt-1 cursor-pointer underline" onClick={() => setShowAuthModal(true)}>
+                            Sign in to save this to your history.
+                         </p>
+                       )}
                    </div>
                    <Button onClick={reset} variant="secondary" className="text-sm h-10 ml-auto">Create New</Button>
                </div>

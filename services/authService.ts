@@ -1,0 +1,83 @@
+
+import { supabase } from './supabaseClient';
+import { UserProfile, SavedApplication } from '../types';
+
+export const authService = {
+  async signUp(email: string, password: string) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async signIn(email: string, password: string) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async signOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  },
+
+  async getCurrentProfile(): Promise<UserProfile | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (error) return null;
+    return data as UserProfile;
+  },
+
+  async saveApplication(
+    jobTitle: string, 
+    companyName: string, 
+    cvContent: string, 
+    clContent: string, 
+    matchScore: number
+  ) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { error } = await supabase.from('applications').insert({
+      user_id: user.id,
+      job_title: jobTitle,
+      company_name: companyName,
+      cv_content: cvContent,
+      cl_content: clContent,
+      match_score: matchScore
+    });
+
+    if (error) console.error("Error saving application:", error);
+  },
+
+  async getHistory(): Promise<SavedApplication[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('applications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data as SavedApplication[];
+  },
+
+  async deleteApplication(id: string) {
+    const { error } = await supabase.from('applications').delete().eq('id', id);
+    if (error) throw error;
+  }
+};

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { PLANS } from '../services/subscriptionService';
 
@@ -27,7 +28,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
   useEffect(() => {
     if (isOpen) {
         if (triggerPlanId) {
-             // Delay slightly to ensure modal is rendered
              const timer = setTimeout(() => {
                  handlePayment(triggerPlanId);
              }, 300);
@@ -123,7 +123,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
            
            <div className="text-center">
               <h3 className="text-2xl font-bold text-slate-900"><span className="text-indigo-600">Pro Plus</span> Access</h3>
-              <p className="text-slate-500">Remove all ads and download unlimited CVs.</p>
+              <p className="text-slate-500 text-sm mt-1">Remove ads and download unlimited CVs.</p>
+              
+              <div className="flex items-center justify-center gap-2 mt-3 text-[10px] text-green-700 bg-green-50 py-1.5 px-3 rounded-full w-fit mx-auto border border-green-200">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                  <span>One-off Payment. No Card Saved. No Auto-Renew.</span>
+              </div>
            </div>
 
            <div className="grid md:grid-cols-3 gap-3">
@@ -131,11 +136,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                   <div 
                     key={plan.id}
                     onClick={() => setSelectedPlanId(plan.id)}
-                    className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${selectedPlanId === plan.id ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                    className={`cursor-pointer rounded-xl border-2 p-4 transition-all relative ${selectedPlanId === plan.id ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-slate-200 bg-white hover:border-slate-300'}`}
                   >
                       <div className="text-center space-y-1">
-                          <h4 className="font-bold text-slate-700 text-sm">{plan.name}</h4>
-                          <div className="text-lg font-bold text-indigo-700">R{plan.price}</div>
+                          <h4 className="font-bold text-slate-700 text-xs uppercase">{plan.name}</h4>
+                          <div className="text-2xl font-bold text-indigo-700">R{plan.price}</div>
+                          <div className="text-[10px] text-slate-500">Valid for {plan.durationDays} days</div>
                       </div>
                   </div>
               ))}
@@ -145,7 +151,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               onClick={() => handlePayment()}
               className={`w-full py-4 px-4 font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700`}
             >
-              Subscribe Now
+              Get Pro Plus Access
             </button>
       </div>
   );

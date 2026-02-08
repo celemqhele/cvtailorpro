@@ -1,26 +1,20 @@
 
-
-
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
 import { SYSTEM_PROMPT, ANALYSIS_PROMPT } from "../constants";
-import { FileData, GeneratorResponse, MatchAnalysis } from "../types";
+import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData } from "../types";
 
 const CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions";
 
 /**
  * Scrapes job content from a URL using Jina.ai (free markdown reader).
- * Note: SERP_API_KEY is available in constants if needed for specific engines,
- * but Jina is used here for direct URL text extraction compatibility on frontend.
  */
 export const scrapeJobFromUrl = async (url: string): Promise<string> => {
-    // Validating URL
     let targetUrl = url;
     if (!url.startsWith('http')) {
         targetUrl = 'https://' + url;
     }
 
-    // Using r.jina.ai as a reader proxy to get Markdown content
     const scrapeUrl = `https://r.jina.ai/${targetUrl}`;
 
     try {
@@ -68,11 +62,8 @@ async function extractTextFromFile(file: FileData): Promise<string> {
   // Handle PDF
   else if (file.mimeType === "application/pdf" || file.name.endsWith(".pdf")) {
     try {
-      // Fix for "Cannot read properties of undefined (reading 'workerSrc')"
-      // In some environments, the library is the default export
       const pdfjs = (pdfjsLib as any).default || pdfjsLib;
 
-      // Set worker source to CDN to avoid bundler/browser issues
       if (!pdfjs.GlobalWorkerOptions.workerSrc) {
         const version = pdfjs.version || '3.11.174';
         pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
@@ -85,13 +76,9 @@ async function extractTextFromFile(file: FileData): Promise<string> {
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        
-        // Extract strings from text items and join with spaces
-        // Use a more robust join to prevent words running together
         const pageText = textContent.items
           .map((item: any) => item.str)
           .join(' ');
-          
         fullText += pageText + "\n\n";
       }
       
@@ -109,13 +96,19 @@ async function extractTextFromFile(file: FileData): Promise<string> {
 }
 
 export const analyzeMatch = async (
-    cvFile: FileData,
+    cvFile: FileData | null,
+    manualData: ManualCVData | null,
     jobDescription: string,
     apiKey: string
 ): Promise<MatchAnalysis> => {
     
     // 1. Extract Text
-    const cvText = await extractTextFromFile(cvFile);
+    let candidateText = "";
+    if (cvFile) {
+        candidateText = await extractTextFromFile(cvFile);
+    } else if (manualData) {
+        candidateText = JSON.stringify(manualData);
+    }
 
     // 2. Prepare Messages
     const messages = [
@@ -125,7 +118,7 @@ export const analyzeMatch = async (
         },
         {
             role: "user",
-            content: `JOB DESCRIPTION:\n${jobDescription.substring(0, 10000)}\n\nCANDIDATE CV:\n${cvText.substring(0, 10000)}`
+            content: `JOB DESCRIPTION:\n${jobDescription.substring(0, 10000)}\n\nCANDIDATE CV DATA:\n${candidateText.substring(0, 10000)}`
         }
     ];
 
@@ -156,8 +149,10 @@ export const analyzeMatch = async (
 };
 
 export const generateTailoredApplication = async (
-  cvFile: FileData,
-  jobDescription: string,
+  cvFile: FileData | null,
+  manualData: ManualCVData | null,
+  jobSpec: string,
+  targetType: 'specific' | 'title',
   apiKey: string,
   force: boolean = false
 ): Promise<GeneratorResponse> => {
@@ -166,16 +161,22 @@ export const generateTailoredApplication = async (
     throw new Error("API Key is missing. Please enter a valid Cerebras API Key.");
   }
 
-  // 1. Extract Text from CV
-  let cvText = "";
+  // 1. Extract Text from CV Source
+  let candidateData = "";
   try {
-    cvText = await extractTextFromFile(cvFile);
+    if (cvFile) {
+        candidateData = "CANDIDATE EXISTING CV:\n" + (await extractTextFromFile(cvFile));
+    } else if (manualData) {
+        candidateData = "CANDIDATE MANUAL ENTRY:\n" + JSON.stringify(manualData, null, 2);
+    } else {
+        throw new Error("No candidate data provided.");
+    }
   } catch (error: any) {
     throw new Error(`File processing error: ${error.message}`);
   }
 
-  if (!cvText || cvText.length < 50) {
-    throw new Error("Could not extract enough text from the CV. Please check the file.");
+  if (candidateData.length < 50) {
+    throw new Error("Could not extract enough text from the CV input.");
   }
 
   // 2. Prepare Prompt with Strict Schema
@@ -184,7 +185,7 @@ export const generateTailoredApplication = async (
   
   JSON Structure:
   {
-    "outcome": "PROCEED", // or "REJECT" if unqualified
+    "outcome": "PROCEED", // or "REJECT" if unqualified (only if targetType is 'specific')
     "cv": {
       "title": "Candidate_Name_Role_CV.docx",
       "content": "# Full CV content in Markdown format..." 
@@ -193,7 +194,6 @@ export const generateTailoredApplication = async (
       "title": "Candidate_Name_Cover_Letter.docx",
       "content": "# Full, multi-paragraph Cover Letter in Markdown format including Date, Recipient info, Body, and Sign-off."
     },
-    // If outcome is REJECT:
     "rejectionDetails": {
       "reason": "Explanation...",
       "suggestion": "Better fit roles..."
@@ -203,16 +203,18 @@ export const generateTailoredApplication = async (
 
   let systemContent = SYSTEM_PROMPT + "\n\n" + SCHEMA_INSTRUCTION;
 
-  if (force) {
+  if (force || targetType === 'title') {
     systemContent += `
     
     IMPORTANT OVERRIDE: 
-    The user has requested to FORCE GENERATION regardless of qualification match.
-    IGNORE the instruction to reject unqualified candidates.
-    You MUST generate the tailored CV and Cover Letter to the best of your ability, even if the match is low.
-    Set "outcome" to "PROCEED".
+    Set "outcome" to "PROCEED". Do not reject.
+    ${targetType === 'title' ? 'Optimize for the INDUSTRY STANDARD of the provided Job Title.' : 'Force generation despite low match.'}
     `;
   }
+
+  const jobContext = targetType === 'specific' 
+    ? `TARGET JOB DESCRIPTION:\n${jobSpec}`
+    : `TARGET JOB TITLE (General Optimization): ${jobSpec}`;
 
   const messages = [
     {
@@ -221,7 +223,7 @@ export const generateTailoredApplication = async (
     },
     {
       role: "user",
-      content: `Here is the Job Description:\n${jobDescription}\n\nHere is the Candidate's CV Text:\n${cvText}\n\nPerform the tailoring and return the JSON object.`
+      content: `${jobContext}\n\n${candidateData}\n\nPerform the generation and return the JSON object.`
     }
   ];
 
@@ -261,10 +263,8 @@ export const generateTailoredApplication = async (
       throw new Error("Empty response from Cerebras.");
     }
 
-    // 4. Parse & Normalize JSON Response
     let parsedResponse: any;
     try {
-      // Sometimes models wrap JSON in markdown blocks
       const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
       if (jsonMatch) {
         content = jsonMatch[1];
@@ -275,40 +275,18 @@ export const generateTailoredApplication = async (
       throw new Error("Failed to parse the AI response. Please try again.");
     }
 
-    // Normalize Data Structure (Handling potential model hallucinations on property names)
     if (parsedResponse.outcome !== 'REJECT') {
-      
-      // Ensure CV object structure
-      if (!parsedResponse.cv) {
-        parsedResponse.cv = { title: "Tailored_CV.docx", content: "" };
-      }
-      
-      // Fix missing content property (mapped from common alternatives)
-      if (!parsedResponse.cv.content) {
-        parsedResponse.cv.content = parsedResponse.cv.body || parsedResponse.cv.text || parsedResponse.cv.markdown || "";
-      }
+      if (!parsedResponse.cv) parsedResponse.cv = { title: "Tailored_CV.docx", content: "" };
+      if (!parsedResponse.cv.content) parsedResponse.cv.content = parsedResponse.cv.body || parsedResponse.cv.text || "";
+      if (!parsedResponse.coverLetter) parsedResponse.coverLetter = { title: "Cover_Letter.docx", content: "" };
+      if (!parsedResponse.coverLetter.content) parsedResponse.coverLetter.content = parsedResponse.coverLetter.body || parsedResponse.coverLetter.text || "";
 
-      // Ensure Cover Letter object structure
-      if (!parsedResponse.coverLetter) {
-        parsedResponse.coverLetter = { title: "Cover_Letter.docx", content: "" };
-      }
-
-      if (!parsedResponse.coverLetter.content) {
-        parsedResponse.coverLetter.content = parsedResponse.coverLetter.body || parsedResponse.coverLetter.text || "";
-      }
-
-      // --- FIX: Enforce Markdown Paragraph Spacing in Cover Letter ---
-      // Markdown requires double newlines for a new paragraph. 
-      // If the model generates single newlines, it renders as one block.
-      // We detect if no double newlines exist but single newlines do, and assume compressed formatting.
       const clContent = parsedResponse.coverLetter.content;
       if (clContent && !clContent.includes('\n\n') && clContent.includes('\n')) {
-          // Replace all single newlines with double newlines to ensure proper paragraphs in Markdown
           parsedResponse.coverLetter.content = clContent.replace(/\n/g, '\n\n');
       }
     }
 
-    // Return result
     return {
       ...parsedResponse,
       brandingImage: undefined 
