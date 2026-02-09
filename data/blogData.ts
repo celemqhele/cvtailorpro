@@ -1,320 +1,160 @@
+
 export interface BlogPost {
   id: string;
+  slug: string;
   title: string;
-  category: string;
-  summary: string;
-  content: string; // Markdown
+  excerpt: string;
+  category: 'Guide' | 'Listicle' | 'Product';
   date: string;
+  readTime: string;
+  content: string; // Markdown supported
+  imageUrl?: string;
 }
 
-const generateContent = (title: string, topic: string) => `
+const generateContent = (title: string) => `
 # ${title}
 
-In today's competitive job market, understanding **${topic}** is crucial for career success. Whether you are a fresh graduate or a seasoned professional, optimizing your approach can significantly increase your chances of landing your dream role.
+## Introduction
+In today's competitive job market, standing out is more important than ever. This article explores actionable strategies to help you navigate the recruitment process with confidence.
 
-## Why This Matters Now
+## Key Takeaways
+*   **Relevance is Key:** Tailoring your application to the specific job description is the #1 factor in passing ATS scans.
+*   **Metrics Matter:** Quantifying your achievements (e.g., "Increased sales by 20%") is far more powerful than listing duties.
+*   **Professional Formatting:** Keep it clean, simple, and easy to read.
 
-Recruiters spend an average of 7 seconds scanning a resume. Similarly, interview windows are short. Mastering ${topic} gives you the edge to stand out immediately.
-
-### Key Strategies
-
-1. **Be Specific**: Generalizations kill applications. Always quantify your achievements.
-2. **Tailor Your Approach**: Generic applications get generic rejections. Use tools like **CV Tailor Pro** to customize your documents.
-3. **Stay Consistent**: Ensure your LinkedIn profile matches your CV.
-
-## Actionable Steps
-
-*   **Review your current status**: Where are you failing? Is it the application stage or the interview stage?
-*   **Update your materials**: Don't use a CV from 5 years ago.
-*   **Network**: 80% of jobs are filled via networking, but a strong CV seals the deal.
+## The Strategy
+Start by analyzing the job description. What are the top 3 skills they are asking for? Ensure those keywords appear in your professional summary and skills section.
 
 ## Conclusion
-
-${topic} is not just a buzzword; it's a skill. By applying these tips, you position yourself as a top 1% candidate.
-
-*Ready to apply these tips? Use our free [CV Scanner](/) to see how your resume stacks up.*
+Preparation is 90% of success. Use tools like **CV Tailor Pro** to automate the tedious parts of customization so you can focus on interview prep.
 `;
 
-export const blogPosts: BlogPost[] = [
-  // --- CV Advice ---
+export const BLOG_POSTS: BlogPost[] = [
+  // 5 Listicles
   {
-    id: "how-to-edit-your-own-cv",
-    title: "How to Edit Your Own CV Like a Pro",
-    category: "CV Advice",
-    summary: "Learn the self-editing techniques professional resume writers use to polish documents.",
-    content: generateContent("How to Edit Your Own CV Like a Pro", "CV editing"),
-    date: "2024-03-15"
+    id: '1', slug: '5-red-flags-on-cv', title: '5 Red Flags Recruiters Look For on Your CV', 
+    excerpt: 'Avoid these common mistakes that get your application rejected in less than 6 seconds.', 
+    category: 'Listicle', date: '2024-02-10', readTime: '4 min', content: generateContent('5 Red Flags Recruiters Look For on Your CV')
   },
   {
-    id: "beat-the-ats-bots",
-    title: "5 Secrets to Beating Applicant Tracking Systems (ATS)",
-    category: "CV Advice",
-    summary: "Stop getting rejected by robots. Here is how to format your CV for parsing success.",
-    content: generateContent("5 Secrets to Beating Applicant Tracking Systems (ATS)", "ATS optimization"),
-    date: "2024-03-14"
+    id: '2', slug: '10-power-words', title: '10 Power Words to Transform Your Resume', 
+    excerpt: 'Stop using "Responsible for" and start using words that drive impact and show leadership.', 
+    category: 'Listicle', date: '2024-02-08', readTime: '3 min', content: generateContent('10 Power Words to Transform Your Resume')
   },
   {
-    id: "cv-keywords-guide",
-    title: "The Ultimate Guide to CV Keywords",
-    category: "CV Advice",
-    summary: "How to find and use the right keywords from job descriptions.",
-    content: generateContent("The Ultimate Guide to CV Keywords", "keyword optimization"),
-    date: "2024-03-12"
+    id: '3', slug: '7-ats-myths', title: '7 ATS Myths Busted: How Robots Actually Read Your CV', 
+    excerpt: 'We clarify the confusion around Applicant Tracking Systems and how to beat them honestly.', 
+    category: 'Listicle', date: '2024-02-05', readTime: '5 min', content: generateContent('7 ATS Myths Busted')
   },
   {
-    id: "cv-length-debate",
-    title: "One Page or Two? The CV Length Debate Settled",
-    category: "CV Advice",
-    summary: "We analyze when you need a single page and when two pages are acceptable.",
-    content: generateContent("One Page or Two? The CV Length Debate Settled", "resume length"),
-    date: "2024-03-10"
+    id: '4', slug: 'top-soft-skills-2024', title: 'Top 8 Soft Skills Employers Want in 2024', 
+    excerpt: 'Hard skills get you the interview, but soft skills get you the job. Here is what is trending.', 
+    category: 'Listicle', date: '2024-02-01', readTime: '4 min', content: generateContent('Top 8 Soft Skills Employers Want in 2024')
   },
   {
-    id: "soft-skills-cv",
-    title: "How to Showcase Soft Skills on Your CV",
-    category: "CV Advice",
-    summary: "Don't just list 'Leadership'. Show it through impact and results.",
-    content: generateContent("How to Showcase Soft Skills on Your CV", "soft skills presentation"),
-    date: "2024-03-08"
+    id: '5', slug: 'cv-formatting-tools', title: '5 Tools to Format Your CV Perfectly', 
+    excerpt: 'From Canva to Word to AI tools, we rank the best ways to structure your document.', 
+    category: 'Listicle', date: '2024-01-28', readTime: '6 min', content: generateContent('5 Tools to Format Your CV Perfectly')
+  },
+  // 20 Articles
+  {
+    id: '6', slug: 'how-to-prep-for-interviews', title: 'How to Prep for Interviews: The STAR Method', 
+    excerpt: 'Master behavioral interview questions using the Situation, Task, Action, Result framework.', 
+    category: 'Guide', date: '2024-02-12', readTime: '8 min', content: generateContent('How to Prep for Interviews: The STAR Method')
   },
   {
-    id: "handling-employment-gaps",
-    title: "How to Explain Employment Gaps on Your CV",
-    category: "CV Advice",
-    summary: "Turn a career break into a narrative of growth and learning.",
-    content: generateContent("How to Explain Employment Gaps on Your CV", "employment gaps"),
-    date: "2024-03-05"
-  },
-
-  // --- Interview Tips ---
-  {
-    id: "land-your-next-interview",
-    title: "How to Land Your Next Interview in 30 Days",
-    category: "Interview Tips",
-    summary: "A step-by-step 30-day plan to go from application to interview invite.",
-    content: generateContent("How to Land Your Next Interview in 30 Days", "job search strategy"),
-    date: "2024-03-01"
+    id: '7', slug: 'make-cv-from-scratch', title: 'How to Make Your CV From Scratch', 
+    excerpt: 'A step-by-step guide for fresh graduates or career changers building their first professional document.', 
+    category: 'Guide', date: '2024-02-11', readTime: '10 min', content: generateContent('How to Make Your CV From Scratch')
   },
   {
-    id: "star-method-explained",
-    title: "The STAR Method: Crushing Behavioral Questions",
-    category: "Interview Tips",
-    summary: "Situation, Task, Action, Result. The only formula you need for interview questions.",
-    content: generateContent("The STAR Method: Crushing Behavioral Questions", "the STAR method"),
-    date: "2024-02-28"
+    id: '8', slug: 'why-our-tool-is-great', title: 'Why AI Tailoring Beats Generic Templates', 
+    excerpt: 'Generic templates look nice but lack substance. Learn how AI injection helps you rank higher.', 
+    category: 'Product', date: '2024-02-09', readTime: '3 min', content: generateContent('Why AI Tailoring Beats Generic Templates')
   },
   {
-    id: "questions-to-ask-interviewers",
-    title: "Top 5 Questions to Ask Your Interviewer",
-    category: "Interview Tips",
-    summary: "Impress hiring managers by asking insightful questions at the end of the interview.",
-    content: generateContent("Top 5 Questions to Ask Your Interviewer", "interview preparation"),
-    date: "2024-02-25"
+    id: '9', slug: 'writing-professional-summary', title: 'Writing a Professional Summary That Hooks Recruiters', 
+    excerpt: 'The first 3 lines of your CV are the most critical. Here is how to nail them.', 
+    category: 'Guide', date: '2024-02-07', readTime: '5 min', content: generateContent('Writing a Professional Summary That Hooks Recruiters')
   },
   {
-    id: "virtual-interview-tips",
-    title: "Mastering the Zoom Interview",
-    category: "Interview Tips",
-    summary: "Lighting, audio, and eye contact tips for remote job interviews.",
-    content: generateContent("Mastering the Zoom Interview", "virtual interviewing"),
-    date: "2024-02-22"
+    id: '10', slug: 'cover-letters-dead', title: 'Are Cover Letters Dead? When to Send One', 
+    excerpt: 'Spoiler: They aren\'t dead, but they have changed. Learn when to skip and when to write.', 
+    category: 'Guide', date: '2024-02-06', readTime: '4 min', content: generateContent('Are Cover Letters Dead?')
   },
   {
-    id: "salary-negotiation-basics",
-    title: "Salary Negotiation 101 for Beginners",
-    category: "Interview Tips",
-    summary: "How to ask for what you are worth without losing the offer.",
-    content: generateContent("Salary Negotiation 101 for Beginners", "salary negotiation"),
-    date: "2024-02-20"
+    id: '11', slug: 'career-gap-explanation', title: 'How to Explain Gaps in Your Employment History', 
+    excerpt: 'Turn your sabbatical, layoff, or parental leave into a strength rather than a weakness.', 
+    category: 'Guide', date: '2024-02-04', readTime: '6 min', content: generateContent('How to Explain Gaps in Your Employment History')
   },
   {
-    id: "handling-rejection",
-    title: "How to Handle Interview Rejection Gracefully",
-    category: "Interview Tips",
-    summary: "Turning a 'No' into a networking opportunity for the future.",
-    content: generateContent("How to Handle Interview Rejection Gracefully", "resilience"),
-    date: "2024-02-18"
-  },
-
-  // --- LinkedIn & Branding ---
-  {
-    id: "revamp-your-linkedin",
-    title: "How to Revamp Your LinkedIn Profile for Recruiter Visibility",
-    category: "LinkedIn",
-    summary: "Optimize your headline, summary, and skills to appear in recruiter searches.",
-    content: generateContent("How to Revamp Your LinkedIn Profile for Recruiter Visibility", "LinkedIn optimization"),
-    date: "2024-02-15"
+    id: '12', slug: 'salary-negotiation', title: 'The Art of Salary Negotiation for New Hires', 
+    excerpt: 'Don\'t leave money on the table. Learn the polite yet firm way to ask for more.', 
+    category: 'Guide', date: '2024-02-03', readTime: '7 min', content: generateContent('The Art of Salary Negotiation')
   },
   {
-    id: "linkedin-headline-hacks",
-    title: "7 LinkedIn Headline Hacks to Get Noticed",
-    category: "LinkedIn",
-    summary: "Your headline is your billboard. Make it count.",
-    content: generateContent("7 LinkedIn Headline Hacks to Get Noticed", "personal branding"),
-    date: "2024-02-12"
+    id: '13', slug: 'linkedin-optimization', title: 'Optimizing Your LinkedIn Profile for Headhunters', 
+    excerpt: 'Your CV is outbound marketing; LinkedIn is inbound. Make sure they match.', 
+    category: 'Guide', date: '2024-01-30', readTime: '5 min', content: generateContent('Optimizing Your LinkedIn Profile')
   },
   {
-    id: "networking-on-linkedin",
-    title: "The Non-Awkward Guide to Networking on LinkedIn",
-    category: "LinkedIn",
-    summary: "How to slide into DMs professionally and get referrals.",
-    content: generateContent("The Non-Awkward Guide to Networking on LinkedIn", "networking"),
-    date: "2024-02-10"
+    id: '14', slug: 'remote-work-cv', title: 'Tailoring Your CV for Remote Work Roles', 
+    excerpt: 'Remote employers look for specific traits like autonomy and async communication skills.', 
+    category: 'Guide', date: '2024-01-25', readTime: '4 min', content: generateContent('Tailoring Your CV for Remote Work Roles')
   },
   {
-    id: "linkedin-content-strategy",
-    title: "Should You Post Content on LinkedIn?",
-    category: "LinkedIn",
-    summary: "Understanding if content creation aids your job search.",
-    content: generateContent("Should You Post Content on LinkedIn?", "content strategy"),
-    date: "2024-02-08"
+    id: '15', slug: 'tech-cv-guide', title: 'The Ultimate Guide to Technical Resumes', 
+    excerpt: 'Developers and Engineers: Here is how to list your stack without cluttering the page.', 
+    category: 'Guide', date: '2024-01-20', readTime: '6 min', content: generateContent('The Ultimate Guide to Technical Resumes')
   },
   {
-    id: "linkedin-recommendations",
-    title: "The Power of LinkedIn Recommendations",
-    category: "LinkedIn",
-    summary: "Who to ask and how to ask for powerful social proof.",
-    content: generateContent("The Power of LinkedIn Recommendations", "social proof"),
-    date: "2024-02-05"
-  },
-
-  // --- Listicles (Top 10s) ---
-  {
-    id: "top-10-interview-questions-tech",
-    title: "Top 10 Interview Questions for the Tech Industry",
-    category: "Top 10 Lists",
-    summary: "Prepare for these common technical and behavioral questions.",
-    content: `
-# Top 10 Interview Questions for Tech
-
-1. **Tell me about a challenging bug you fixed.**
-2. **Explain a complex technical concept to a non-technical person.**
-3. **How do you handle technical debt?**
-4. **Describe your preferred development workflow.**
-5. **What is the most interesting project you've worked on?**
-6. **How do you stay updated with new technologies?**
-7. **Describe a time you disagreed with a team lead.**
-8. **What are your strengths and weaknesses as a developer?**
-9. **Why do you want to work with our specific tech stack?**
-10. **Do you have any questions for us?**
-
-## How to Answer
-Focus on the *process*, not just the solution. Use the STAR method for behavioral questions.
-    `,
-    date: "2024-02-01"
+    id: '16', slug: 'career-change-cv', title: 'Pivoting Careers: The Transferable Skills CV', 
+    excerpt: 'Changing industries? Focus on what translates, not just what you did.', 
+    category: 'Guide', date: '2024-01-18', readTime: '5 min', content: generateContent('Pivoting Careers: The Transferable Skills CV')
   },
   {
-    id: "top-10-companies-remote",
-    title: "Top 10 Companies Hiring for Remote Work in 2024",
-    category: "Top 10 Lists",
-    summary: "The best employers offering flexible, work-from-anywhere roles.",
-    content: generateContent("Top 10 Companies Hiring for Remote Work", "remote work"),
-    date: "2024-01-28"
+    id: '17', slug: 'executive-cv-tips', title: 'Executive CVs: How C-Suite Resumes Differ', 
+    excerpt: 'Executives need to show ROI and Strategy, not just tasks. Here is the blueprint.', 
+    category: 'Guide', date: '2024-01-15', readTime: '5 min', content: generateContent('Executive CVs: How C-Suite Resumes Differ')
   },
   {
-    id: "top-10-soft-skills",
-    title: "Top 10 Soft Skills Employers Want Right Now",
-    category: "Top 10 Lists",
-    summary: "Communication, adaptability, and emotional intelligence top the list.",
-    content: generateContent("Top 10 Soft Skills Employers Want Right Now", "employability skills"),
-    date: "2024-01-25"
+    id: '18', slug: 'student-graduate-cv', title: 'No Experience? No Problem. The Graduate CV Guide', 
+    excerpt: 'Leverage your academic projects and internships to land your first role.', 
+    category: 'Guide', date: '2024-01-12', readTime: '4 min', content: generateContent('No Experience? No Problem')
   },
   {
-    id: "top-10-cv-mistakes",
-    title: "Top 10 CV Mistakes That Get You Rejected",
-    category: "Top 10 Lists",
-    summary: "Avoid these common errors to keep your application in the 'Yes' pile.",
-    content: generateContent("Top 10 CV Mistakes That Get You Rejected", "CV writing errors"),
-    date: "2024-01-22"
+    id: '19', slug: 'creative-industry-cv', title: 'Creative Portfolios vs. Standard CVs', 
+    excerpt: 'Designers and Marketers: When to use a creative layout and when to stick to basics.', 
+    category: 'Guide', date: '2024-01-10', readTime: '4 min', content: generateContent('Creative Portfolios vs. Standard CVs')
   },
   {
-    id: "top-10-questions-finance",
-    title: "Top 10 Interview Questions for Finance Roles",
-    category: "Top 10 Lists",
-    summary: "Prep for your next banking or accounting interview.",
-    content: generateContent("Top 10 Interview Questions for Finance Roles", "finance interviews"),
-    date: "2024-01-20"
-  },
-
-  // --- Career Growth ---
-  {
-    id: "career-change-30s",
-    title: "Changing Careers in Your 30s: A Survival Guide",
-    category: "Career Growth",
-    summary: "It's never too late to pivot. Here is how to manage the transition.",
-    content: generateContent("Changing Careers in Your 30s: A Survival Guide", "career pivoting"),
-    date: "2024-01-15"
+    id: '20', slug: 'video-interviews', title: 'Mastering the One-Way Video Interview', 
+    excerpt: 'More companies are using AI video screening. Here is how to look natural on camera.', 
+    category: 'Guide', date: '2024-01-08', readTime: '5 min', content: generateContent('Mastering the One-Way Video Interview')
   },
   {
-    id: "imposter-syndrome",
-    title: "Overcoming Imposter Syndrome at Work",
-    category: "Career Growth",
-    summary: "You belong in the room. Techniques to silence the inner critic.",
-    content: generateContent("Overcoming Imposter Syndrome at Work", "mental health at work"),
-    date: "2024-01-12"
+    id: '21', slug: 'networking-emails', title: 'Writing Cold Networking Emails That Get Replies', 
+    excerpt: 'The hidden job market is unlocked via networking. Here are templates that work.', 
+    category: 'Guide', date: '2024-01-05', readTime: '3 min', content: generateContent('Writing Cold Networking Emails')
   },
   {
-    id: "asking-for-promotion",
-    title: "The Right Way to Ask for a Promotion",
-    category: "Career Growth",
-    summary: "Build your case before you walk into the meeting.",
-    content: generateContent("The Right Way to Ask for a Promotion", "career advancement"),
-    date: "2024-01-10"
+    id: '22', slug: 'reference-checks', title: 'Preparing Your References for the Call', 
+    excerpt: 'Don\'t let a bad reference ruin a great offer. Coach your advocates.', 
+    category: 'Guide', date: '2024-01-02', readTime: '3 min', content: generateContent('Preparing Your References')
   },
   {
-    id: "work-life-balance",
-    title: "Achieving Work-Life Balance in a Hybrid World",
-    category: "Career Growth",
-    summary: "Setting boundaries when your office is your living room.",
-    content: generateContent("Achieving Work-Life Balance in a Hybrid World", "productivity"),
-    date: "2024-01-08"
+    id: '23', slug: 'internal-promotion', title: 'Applying for an Internal Promotion', 
+    excerpt: 'You still need a CV for internal roles. Treat it as seriously as an external application.', 
+    category: 'Guide', date: '2023-12-28', readTime: '4 min', content: generateContent('Applying for an Internal Promotion')
   },
   {
-    id: "mentorship-importance",
-    title: "Why You Need a Career Mentor",
-    category: "Career Growth",
-    summary: "Accelerate your learning curve by finding the right guide.",
-    content: generateContent("Why You Need a Career Mentor", "professional development"),
-    date: "2024-01-05"
+    id: '24', slug: 'contract-vs-perm', title: 'Contract vs. Permanent: Positioning Yourself', 
+    excerpt: 'How to label freelance work so it looks stable and professional.', 
+    category: 'Guide', date: '2023-12-25', readTime: '4 min', content: generateContent('Contract vs. Permanent')
   },
   {
-    id: "certifications-worth-it",
-    title: "Are Professional Certifications Worth It?",
-    category: "Career Growth",
-    summary: "Analyzing ROI on certifications like PMP, AWS, and CFA.",
-    content: generateContent("Are Professional Certifications Worth It?", "education"),
-    date: "2024-01-02"
-  },
-  {
-    id: "toxic-workplace-signs",
-    title: "5 Signs You Are in a Toxic Workplace",
-    category: "Career Growth",
-    summary: "Recognize the red flags before they burn you out.",
-    content: generateContent("5 Signs You Are in a Toxic Workplace", "workplace culture"),
-    date: "2023-12-30"
-  },
-  {
-    id: "quitting-job-gracefully",
-    title: "How to Quit Your Job Without Burning Bridges",
-    category: "Career Growth",
-    summary: "Resignation etiquette for a professional exit.",
-    content: generateContent("How to Quit Your Job Without Burning Bridges", "resignation"),
-    date: "2023-12-28"
-  },
-  {
-    id: "freelancing-guide",
-    title: "Starting Freelancing on the Side",
-    category: "Career Growth",
-    summary: "How to monetize your skills without quitting your day job.",
-    content: generateContent("Starting Freelancing on the Side", "gig economy"),
-    date: "2023-12-25"
-  },
-  {
-    id: "returning-to-office",
-    title: "Navigating the Return to Office Mandates",
-    category: "Career Growth",
-    summary: "Adjusting to the commute and office politics again.",
-    content: generateContent("Navigating the Return to Office Mandates", "hybrid work"),
-    date: "2023-12-22"
+    id: '25', slug: 'final-proofread', title: 'The Final Proofread Checklist', 
+    excerpt: 'The checklist you must run through before hitting "Submit" on any application.', 
+    category: 'Guide', date: '2023-12-20', readTime: '2 min', content: generateContent('The Final Proofread Checklist')
   }
 ];

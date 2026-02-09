@@ -1,123 +1,130 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Button } from '../components/Button';
-import { AdBanner } from '../components/AdBanner';
+import { useOutletContext } from 'react-router-dom';
 
-const Home: React.FC = () => {
+export const Home: React.FC = () => {
+  const { user, triggerAuth } = useOutletContext<any>();
+
   return (
-    <div className="flex flex-col">
+    <div className="animate-fade-in font-sans">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 text-white pt-24 pb-20 px-6 relative overflow-hidden">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center relative z-10">
-          <div className="space-y-6">
-             <div className="inline-block bg-indigo-500/20 border border-indigo-400/30 rounded-full px-4 py-1 text-sm font-medium text-indigo-200">
-                🚀 AI-Powered Resume Builder
-             </div>
-             <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
-               Beat the Bots. <br/>
-               <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Get Hired Faster.</span>
-             </h1>
-             <p className="text-lg text-slate-300 leading-relaxed max-w-lg">
-               Tailor your CV and Cover Letter to any job description in seconds using our advanced AI. Increase your match score and land more interviews.
-             </p>
-             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <Link to="/app">
-                  <Button className="w-full sm:w-auto text-lg py-4 px-8 bg-indigo-500 hover:bg-indigo-600 shadow-xl shadow-indigo-500/20 border-none">
-                    Start Tailoring Free
-                  </Button>
-                </Link>
-                <Link to="/about">
-                   <Button variant="secondary" className="w-full sm:w-auto text-lg py-4 px-8 bg-transparent text-white border-slate-500 hover:bg-white/10">
-                      How it Works
-                   </Button>
-                </Link>
-             </div>
-             <p className="text-sm text-slate-400 flex items-center gap-2">
-                <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
-                No credit card required for basic scan
-             </p>
-          </div>
-          
-          <div className="relative">
-             <div className="absolute inset-0 bg-indigo-500 blur-3xl opacity-20 rounded-full"></div>
-             <div className="bg-slate-800/80 backdrop-blur-xl border border-slate-700 rounded-2xl p-6 shadow-2xl relative">
-                <div className="space-y-4">
-                   <div className="flex justify-between items-center border-b border-slate-700 pb-4">
-                      <div className="h-2 w-24 bg-slate-600 rounded"></div>
-                      <div className="h-6 w-16 bg-green-500/20 text-green-400 rounded flex items-center justify-center text-xs font-bold">94% Match</div>
-                   </div>
-                   <div className="space-y-2">
-                      <div className="h-2 w-full bg-slate-700 rounded"></div>
-                      <div className="h-2 w-3/4 bg-slate-700 rounded"></div>
-                      <div className="h-2 w-5/6 bg-slate-700 rounded"></div>
-                   </div>
-                   <div className="bg-indigo-900/50 p-4 rounded-lg border border-indigo-500/30">
-                      <div className="flex items-start gap-3">
-                         <div className="bg-indigo-500 p-1.5 rounded text-white mt-1">
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                         </div>
-                         <div>
-                            <p className="text-indigo-200 text-xs font-bold mb-1">AI Suggestion</p>
-                            <p className="text-slate-300 text-xs">Your experience in "Project Management" aligns perfectly with the "Team Lead" requirement. Emphasized 3 key achievements.</p>
-                         </div>
-                      </div>
-                   </div>
+      <div className="relative overflow-hidden bg-white pb-16 pt-16 md:pt-24 lg:pb-32 lg:pt-32">
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl text-center">
+                <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-6xl">
+                    Tailor Your CV for <br/>
+                    <span className="text-indigo-600">Every Job Application</span>
+                </h1>
+                <p className="mt-6 text-lg leading-8 text-slate-600">
+                    Stop getting rejected by ATS robots. Our AI analyzes the job description and rewrites your CV to match the keywords perfectly—without inventing facts.
+                </p>
+                <div className="mt-10 flex items-center justify-center gap-x-6">
+                    <Link 
+                        to="/guestuserdashboard" 
+                        className="rounded-full bg-indigo-600 px-8 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-transform hover:-translate-y-1"
+                    >
+                        Get Free CV
+                    </Link>
+                    <button onClick={triggerAuth} className="text-sm font-semibold leading-6 text-slate-900 hover:text-indigo-600">
+                        Sign In <span aria-hidden="true">→</span>
+                    </button>
                 </div>
-             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Ad Section */}
-      <section className="bg-white py-8 flex justify-center border-b border-slate-100">
-         <AdBanner format="horizontal" />
-      </section>
-
-      {/* How it Works */}
-      <section className="py-20 px-6 bg-slate-50">
-         <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
-               <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4">How it Works</h2>
-               <p className="text-slate-600 max-w-2xl mx-auto">Three simple steps to a job-winning application.</p>
             </div>
             
-            <div className="grid md:grid-cols-3 gap-8">
-               <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-bold text-xl mb-6">1</div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">Upload CV</h3>
-                  <p className="text-slate-600">Upload your existing resume (PDF or Docx). We extract your skills and experience securely.</p>
-               </div>
-               <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-bold text-xl mb-6">2</div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">Add Job Link</h3>
-                  <p className="text-slate-600">Paste the URL of the job you want. Our AI analyzes the requirements instantly.</p>
-               </div>
-               <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-bold text-xl mb-6">3</div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">Get Hired</h3>
-                  <p className="text-slate-600">Download a perfectly tailored CV and Cover Letter optimized for ATS systems.</p>
-               </div>
+            {/* Visual Abstract */}
+            <div className="mt-16 flow-root sm:mt-24">
+                <div className="-m-2 rounded-xl bg-gray-900/5 p-2 ring-1 ring-inset ring-gray-900/10 lg:-m-4 lg:rounded-2xl lg:p-4">
+                    <div className="rounded-md bg-white p-4 shadow-2xl ring-1 ring-gray-900/10 grid md:grid-cols-3 gap-4">
+                        <div className="hidden md:block border border-slate-100 p-4 rounded bg-slate-50">
+                            <div className="h-4 w-1/2 bg-slate-200 rounded mb-4"></div>
+                            <div className="space-y-2">
+                                <div className="h-2 w-full bg-slate-200 rounded"></div>
+                                <div className="h-2 w-5/6 bg-slate-200 rounded"></div>
+                                <div className="h-2 w-4/6 bg-slate-200 rounded"></div>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-center text-indigo-500">
+                             <svg className="w-12 h-12 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                        </div>
+                        <div className="border border-green-100 p-4 rounded bg-green-50">
+                            <div className="h-4 w-1/2 bg-green-200 rounded mb-4"></div>
+                            <div className="space-y-2">
+                                <div className="h-2 w-full bg-green-200 rounded"></div>
+                                <div className="h-2 w-full bg-green-200 rounded"></div>
+                                <div className="h-2 w-full bg-green-200 rounded"></div>
+                            </div>
+                            <div className="mt-4 text-xs text-green-700 font-bold flex items-center gap-1">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                ATS Optimized
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-         </div>
-      </section>
+        </div>
+      </div>
+
+      {/* Feature Section */}
+      <div className="bg-slate-50 py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl lg:text-center">
+                <h2 className="text-base font-semibold leading-7 text-indigo-600">Match Analysis</h2>
+                <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Everything you need to get hired</p>
+                <p className="mt-6 text-lg leading-8 text-slate-600">
+                    We don't just rewrite your CV. We analyze the gap between your skills and the job requirements.
+                </p>
+            </div>
+            <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
+                <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-10 lg:max-w-none lg:grid-cols-3">
+                    <div className="relative pl-16">
+                        <dt className="text-base font-semibold leading-7 text-slate-900">
+                            <div className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600">
+                                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+                            </div>
+                            Keyword Matching
+                        </dt>
+                        <dd className="mt-2 text-base leading-7 text-slate-600">The AI scans the job description for critical hard skills and injects them naturally into your experience bullet points.</dd>
+                    </div>
+                    <div className="relative pl-16">
+                        <dt className="text-base font-semibold leading-7 text-slate-900">
+                            <div className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600">
+                                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                            </div>
+                            Full Rewrite & Formatting
+                        </dt>
+                        <dd className="mt-2 text-base leading-7 text-slate-600">You get a completely formatted, professional PDF and Word document ready for submission.</dd>
+                    </div>
+                    <div className="relative pl-16">
+                        <dt className="text-base font-semibold leading-7 text-slate-900">
+                            <div className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600">
+                                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </div>
+                            Cover Letters Included
+                        </dt>
+                        <dd className="mt-2 text-base leading-7 text-slate-600">We automatically generate a matching cover letter that highlights why you are the perfect fit for the specific role.</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+      </div>
 
       {/* CTA Section */}
-      <section className="py-20 px-6 bg-white">
-          <div className="max-w-4xl mx-auto bg-indigo-900 rounded-3xl p-12 text-center text-white relative overflow-hidden shadow-2xl">
-              <div className="absolute top-0 left-0 w-full h-full bg-indigo-600 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, #ffffff 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-              <div className="relative z-10">
-                  <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to land your dream job?</h2>
-                  <p className="text-indigo-200 mb-8 max-w-lg mx-auto">Join thousands of job seekers who are getting more interviews with tailored applications.</p>
-                  <Link to="/app">
-                     <Button className="text-lg py-4 px-10 bg-white text-indigo-900 hover:bg-indigo-50 border-none font-bold">
-                        Tailor My CV Now
-                     </Button>
-                  </Link>
-              </div>
-          </div>
-      </section>
+      <div className="bg-white">
+        <div className="px-6 py-24 sm:px-6 sm:py-32 lg:px-8">
+            <div className="mx-auto max-w-2xl text-center">
+                <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Ready to boost your career?<br />Start applying with confidence today.</h2>
+                <div className="mt-10 flex items-center justify-center gap-x-6">
+                    <Link to="/guestuserdashboard" className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                        Get Started for Free
+                    </Link>
+                    <Link to="/blog" className="text-sm font-semibold leading-6 text-slate-900">
+                        Read Career Advice <span aria-hidden="true">→</span>
+                    </Link>
+                </div>
+            </div>
+        </div>
+      </div>
     </div>
   );
 };
-
-export default Home;

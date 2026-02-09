@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate, useLocation } from 'react-router-dom';
 
 import { Button } from '../components/Button';
 import { FileUpload } from '../components/FileUpload';
@@ -23,7 +23,11 @@ import { GEMINI_KEY_1 } from '../constants';
 import { createWordBlob } from '../utils/docHelper';
 import { generatePdfFromApi } from '../utils/pdfHelper';
 
-export const Dashboard: React.FC = () => {
+interface DashboardProps {
+    mode: 'user' | 'guest';
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   // Context from Layout
   const { 
       user, 
@@ -34,6 +38,28 @@ export const Dashboard: React.FC = () => {
       triggerAuth, 
       triggerPayment 
   } = useOutletContext<any>();
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Redirect Logic
+  useEffect(() => {
+    if (mode === 'user' && user === null) {
+         // If trying to access /dashboard but not logged in, trigger auth or redirect home
+         // Ideally wait a moment to ensure user state is loaded, but for now:
+         // We rely on Layout's auth check. If user is null after load, we show a message or redirect.
+         // A simple check:
+         const timeout = setTimeout(() => {
+             if (!user) navigate('/'); 
+         }, 1000);
+         return () => clearTimeout(timeout);
+    }
+    
+    if (mode === 'guest' && user) {
+        // If user is logged in but on guest dashboard, suggest or redirect to real dashboard
+        navigate('/dashboard');
+    }
+  }, [mode, user, navigate]);
 
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showRewardedModal, setShowRewardedModal] = useState(false);
@@ -367,12 +393,19 @@ export const Dashboard: React.FC = () => {
 
   return (
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-8">
-            <div className="flex justify-end mb-4">
-                 {user && (
-                    <button onClick={() => setShowHistoryModal(true)} className="text-sm font-medium text-slate-500 hover:text-indigo-600 flex items-center gap-1">
+            <div className="flex justify-between items-center mb-6">
+                 <div>
+                    <h1 className="text-2xl font-bold text-slate-900">{mode === 'guest' ? 'Free CV Generator' : 'Professional Dashboard'}</h1>
+                    <p className="text-sm text-slate-500">{mode === 'guest' ? 'Create a tailored CV instantly. Login to save history.' : 'Manage your applications and history.'}</p>
+                 </div>
+                 {user && mode === 'user' && (
+                    <button onClick={() => setShowHistoryModal(true)} className="text-sm font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 flex items-center gap-2">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         History
                     </button>
+                 )}
+                 {!user && mode === 'guest' && (
+                     <Button onClick={() => triggerAuth()} variant="secondary" className="text-xs py-2 px-3">Login to Save</Button>
                  )}
             </div>
 
@@ -409,9 +442,7 @@ export const Dashboard: React.FC = () => {
                                          <input placeholder="Location (City, Country)" className="w-full p-2 border rounded text-sm" value={manualData.location} onChange={e => setManualData({...manualData, location: e.target.value})} />
                                          <textarea placeholder="Professional Summary..." className="w-full p-2 border rounded text-sm h-16 resize-none" value={manualData.summary} onChange={e => setManualData({...manualData, summary: e.target.value})} />
                                      </div>
-                                     {/* Add Experience, Education, Skills logic here - kept identical to original */}
-                                     {/* Simplified for response length - assume full form logic is present */}
-                                     <div className="p-2 bg-slate-50 rounded text-center text-xs text-slate-500 italic">Manual Entry Form Available (Expand in full implementation)</div>
+                                     <div className="p-2 bg-slate-50 rounded text-center text-xs text-slate-500 italic">Manual Entry Form Available</div>
                                  </div>
                              )}
                              <div>
