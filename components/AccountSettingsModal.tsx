@@ -220,12 +220,12 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOp
                         <div className="space-y-2">
                             <p className="text-sm text-slate-700">Your subscription is active and gives you unlimited downloads and ad-free access.</p>
                             <p className="text-sm font-bold text-green-700">Days Remaining: {getDaysRemaining()}</p>
-                            <p className="text-xs text-slate-500">
-                            Note: Subscriptions do not auto-renew.
-                            </p>
+                            <div className="bg-green-50 border border-green-200 p-2 rounded text-xs text-green-800">
+                               <strong>Peace of Mind:</strong> Your subscription will automatically expire. No recurring charges.
+                            </div>
                         </div>
                         <Button onClick={onUpgradeClick} variant="primary" className="w-full bg-indigo-600 hover:bg-indigo-700">
-                           Extend Subscription
+                           Extend Access
                         </Button>
                      </div>
                   ) : (
@@ -242,7 +242,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOp
                             </li>
                             <li className="flex items-center gap-2">
                                 <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                Priority Processing
+                                One-Time Payment (No Auto-Renew)
                             </li>
                         </ul>
                         <Button onClick={onUpgradeClick} className="w-full bg-indigo-600 hover:bg-indigo-700 shadow-md">

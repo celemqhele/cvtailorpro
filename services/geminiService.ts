@@ -278,9 +278,9 @@ export const generateTailoredApplication = async (
     ? `TARGET JOB DESCRIPTION (KEYWORDS TO INJECT):\n${jobSpec}`
     : `TARGET JOB TITLE (General Optimization): ${jobSpec}`;
 
-  const linkedinInstruction = linkedinUrl 
+  const linkedinInstruction = linkedinUrl && linkedinUrl.trim() !== ''
     ? `MANDATORY LINKEDIN INSTRUCTION: The user provided this LinkedIn URL: ${linkedinUrl}. Insert this into the "linkedin" field in the JSON.`
-    : `MANDATORY LINKEDIN INSTRUCTION: The user did NOT provide a LinkedIn URL. Set "linkedin" to null or use the one found in the CV text if available.`;
+    : `MANDATORY LINKEDIN INSTRUCTION: The user did NOT provide a LinkedIn URL. If one exists in the CV text, use it. If NOT, set "linkedin" to null. DO NOT invent a URL.`;
 
   const userMessage = `
       STEP 1: Analyze the Candidate CV. Identify all METRICS, NUMBERS, and SPECIFIC ACHIEVEMENTS.
@@ -311,6 +311,14 @@ function parseAndProcessResponse(content: string): GeneratorResponse {
     if (parsedResponse.outcome !== 'REJECT') {
       if (!parsedResponse.cvData) {
           throw new Error("AI failed to generate structured CV data.");
+      }
+
+      // Sanitize LinkedIn field
+      if (parsedResponse.cvData.linkedin) {
+          const lk = parsedResponse.cvData.linkedin;
+          if (lk === 'null' || lk === 'N/A' || lk === 'undefined' || lk.trim() === '') {
+              parsedResponse.cvData.linkedin = null;
+          }
       }
 
       if (!parsedResponse.coverLetter) parsedResponse.coverLetter = { title: "Cover_Letter.docx", content: "" };

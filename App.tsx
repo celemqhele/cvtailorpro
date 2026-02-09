@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
@@ -14,7 +14,8 @@ import { AuthModal } from './components/AuthModal';
 import { HistoryModal } from './components/HistoryModal';
 import { AccountSettingsModal } from './components/AccountSettingsModal';
 import { LimitReachedModal } from './components/LimitReachedModal';
-import CVTemplate from './components/CVTemplate'; 
+import CVTemplate from './components/CVTemplate';
+import { PlansSection } from './components/PlansSection';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from './services/geminiService';
 import { updateUserSubscription, getPlanDetails } from './services/subscriptionService';
 import { authService } from './services/authService';
@@ -97,6 +98,8 @@ export const App: React.FC = () => {
   const [previewTab, setPreviewTab] = useState<'cv' | 'cl'>('cv');
   const [isZipping, setIsZipping] = useState(false);
 
+  const previewRef = useRef<HTMLDivElement>(null);
+
   // --- Init ---
   useEffect(() => {
     checkUserSession();
@@ -128,6 +131,14 @@ export const App: React.FC = () => {
         saveCurrentResultToHistory();
     }
   }, [user, result, hasSavedCurrentResult, status]);
+
+  useEffect(() => {
+    if (status === Status.SUCCESS && result && previewRef.current) {
+        setTimeout(() => {
+            previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 300);
+    }
+  }, [status, result]);
 
   // --- Auth & Profile ---
   const checkUserSession = async () => {
@@ -192,6 +203,20 @@ export const App: React.FC = () => {
               setPendingLimitAction(null);
           }
       }
+  };
+
+  // Plan Selection Handler
+  const handlePlanSelection = (planId: string) => {
+     if (planId === 'free') return;
+     
+     if (!user) {
+         setPaymentTriggerPlan(planId);
+         setPendingPayment(true);
+         setShowAuthModal(true);
+     } else {
+         setPaymentTriggerPlan(planId);
+         setShowPaymentModal(true);
+     }
   };
 
   // --- Manual Entry Logic ---
@@ -751,7 +776,7 @@ export const App: React.FC = () => {
                     {!isPaidUser && <AdBanner />}
 
                     {result && status === Status.SUCCESS && (
-                        <div className="animate-fade-in mt-12">
+                        <div ref={previewRef} className="animate-fade-in mt-12">
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-2xl font-bold text-slate-800">Your Application Package</h2>
                                 <div className="flex bg-slate-200 p-1 rounded-lg">
@@ -785,6 +810,8 @@ export const App: React.FC = () => {
                         </div>
                     )}
             </div>
+
+            <PlansSection onSelectPlan={handlePlanSelection} userPlanId={user?.plan_id || 'free'} />
 
             <div className="absolute top-0 left-0 -z-50 opacity-0 pointer-events-none">
                  {result?.cvData && <div id="hidden-cv-content" style={{ width: '816px', backgroundColor: 'white' }}><CVTemplate data={result.cvData} /></div>}

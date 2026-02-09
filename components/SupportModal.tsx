@@ -34,6 +34,8 @@ export const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose, onC
                 We keep this tool free by running ads, but you can support us by upgrading. 
                 <br/>
                 <strong>Upgrading removes ads and increases your daily limits.</strong>
+                <br/>
+                <span className="text-green-600 text-xs font-bold">(One-time payment only. No auto-renewal.)</span>
             </p>
 
             <div className="bg-slate-50 p-4 rounded-xl text-left space-y-2 border border-slate-100 shadow-inner">

@@ -127,12 +127,15 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
     },
   };
 
+  // Check valid LinkedIn
+  const hasLinkedIn = data.linkedin && data.linkedin !== 'null' && data.linkedin !== 'N/A' && data.linkedin.trim() !== '';
+
   // Contact Info Parts
   const contactInfo = [
     data.location,
     data.phone,
     data.email,
-    data.linkedin && (
+    hasLinkedIn && (
       <a 
         key="linkedin" 
         href={data.linkedin} 
@@ -140,7 +143,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
         rel="noopener noreferrer" 
         style={{ color: '#4a4a4a', textDecoration: 'none' }}
       >
-        {data.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, 'in/')}
+        {data.linkedin!.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, 'in/')}
       </a>
     )
   ].filter(Boolean);

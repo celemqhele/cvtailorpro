@@ -25,6 +25,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
 
   useEffect(() => {
     if (isOpen && triggerPlanId) {
+       setSelectedPlanId(triggerPlanId);
        handlePayment(triggerPlanId);
     }
   }, [isOpen, triggerPlanId]);
@@ -67,7 +68,18 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
       <div className="space-y-6">
            <div className="text-center">
               <h3 className="text-2xl font-bold text-slate-900">Upgrade for More Power</h3>
-              <p className="text-slate-500 text-sm mt-1">Unlock ad-free downloads and higher daily limits. <br/>All plans are valid for 30 days (One-time payment).</p>
+              
+              {/* Reassurance Badge */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-4 mb-2 mx-auto max-w-lg shadow-sm">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                     <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                     <p className="text-green-800 text-sm font-bold uppercase tracking-wide">No Strings Attached!</p>
+                  </div>
+                  <p className="text-green-700 text-xs leading-relaxed">
+                      All plans are <strong>strictly one-time payments</strong>. They automatically expire after 30 days. <br/>
+                      <strong>No auto-renewals. No hidden fees. Total flexibility.</strong>
+                  </p>
+              </div>
            </div>
 
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -96,9 +108,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                             </div>
                         </div>
                         <ul className="text-[11px] text-slate-600 space-y-1 mb-4 text-left pl-2">
+                            <li className="flex items-center gap-1 text-green-700 font-medium">✅ One-Time Payment</li>
+                            <li className="flex items-center gap-1">✅ No Auto-Renewal</li>
                             <li className="flex items-center gap-1">✅ No Ads</li>
                             <li className="flex items-center gap-1">✅ Priority PDF</li>
-                            <li className="flex items-center gap-1">✅ Valid 30 Days</li>
                         </ul>
                         <div className={`w-full h-4 rounded-full ${isSelected ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
                     </div>
@@ -110,7 +123,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               onClick={() => handlePayment()}
               className={`w-full py-4 px-4 font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700`}
             >
-              Get {PLANS.find(p => p.id === selectedPlanId)?.name} Access
+              Get {PLANS.find(p => p.id === selectedPlanId)?.name} Access (One-Off)
             </button>
             
             <div className="text-center">
