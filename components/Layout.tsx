@@ -9,6 +9,7 @@ import { UserProfile } from '../types';
 import { AuthModal } from './AuthModal';
 import { PaymentModal } from './DonationModal';
 import { CookieConsent } from './CookieConsent';
+import { isPreviewOrAdmin } from '../utils/envHelper';
 
 // Extend window for Google Analytics
 declare global {
@@ -33,6 +34,9 @@ export const Layout: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentTriggerPlan, setPaymentTriggerPlan] = useState<string | null>(null);
+
+  // Check env
+  const showAdmin = isPreviewOrAdmin();
 
   useEffect(() => {
     checkUserSession();
@@ -158,10 +162,13 @@ export const Layout: React.FC = () => {
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center gap-8">
                  <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/')}`}>Home</Link>
+                 <Link to="/find-jobs" className={`text-sm font-medium transition-colors ${isActiveParent('/find-jobs')}`}>Find Jobs</Link>
                  <Link to="/content" className={`text-sm font-medium transition-colors ${isActiveParent('/content')}`}>Content</Link>
                  <Link to="/pricing" className={`text-sm font-medium transition-colors ${isActive('/pricing')}`}>Pricing</Link>
-                 <Link to="/about-us" className={`text-sm font-medium transition-colors ${isActive('/about-us')}`}>About</Link>
                  
+                 {/* Admin Link (Only in Preview) */}
+                 {showAdmin && <Link to="/admin-jobs" className="text-sm font-bold text-red-500">Admin</Link>}
+
                  {/* Auth Dependent Links */}
                  {user ? (
                      <>
@@ -214,10 +221,11 @@ export const Layout: React.FC = () => {
          {isMenuOpen && (
              <div className="md:hidden bg-white border-b border-slate-200 px-4 py-6 space-y-4 shadow-lg animate-fade-in">
                  <Link to="/" className="block text-base font-medium text-slate-600">Home</Link>
+                 <Link to="/find-jobs" className="block text-base font-medium text-slate-600">Find Jobs</Link>
                  <Link to="/content" className="block text-base font-medium text-slate-600">Content</Link>
                  <Link to="/pricing" className="block text-base font-medium text-slate-600">Pricing</Link>
-                 <Link to="/about-us" className="block text-base font-medium text-slate-600">About Us</Link>
-                 <Link to="/contact" className="block text-base font-medium text-slate-600">Contact</Link>
+                 {showAdmin && <Link to="/admin-jobs" className="block text-base font-bold text-red-500">Admin</Link>}
+                 
                  {user ? (
                      <>
                         <Link to="/dashboard" className="block text-base font-medium text-indigo-600">Dashboard</Link>
@@ -252,6 +260,7 @@ export const Layout: React.FC = () => {
                        <h4 className="font-bold text-slate-900 mb-4">Product</h4>
                        <ul className="space-y-2 text-sm text-slate-500">
                            <li><Link to="/pricing" className="hover:text-indigo-600">Pricing</Link></li>
+                           <li><Link to="/find-jobs" className="hover:text-indigo-600">Find Jobs</Link></li>
                            <li><Link to="/guestuserdashboard" className="hover:text-indigo-600">Free Generator</Link></li>
                            <li><Link to="/dashboard" className="hover:text-indigo-600">Pro Dashboard</Link></li>
                        </ul>
@@ -269,7 +278,6 @@ export const Layout: React.FC = () => {
                        <ul className="space-y-2 text-sm text-slate-500">
                            <li><Link to="/privacy-policy" className="hover:text-indigo-600">Privacy Policy</Link></li>
                            <li><Link to="/terms-and-conditions" className="hover:text-indigo-600">Terms of Service</Link></li>
-                           <li><Link to="/contact" className="hover:text-indigo-600">Report an Issue</Link></li>
                        </ul>
                    </div>
                </div>

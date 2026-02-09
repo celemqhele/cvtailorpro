@@ -45,7 +45,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   // Redirect Logic
   useEffect(() => {
     if (mode === 'user' && user === null) {
-         // If trying to access /dashboard but not logged in, trigger auth or redirect home
          const timeout = setTimeout(() => {
              if (!user) navigate('/'); 
          }, 1000);
@@ -53,7 +52,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     }
     
     if (mode === 'guest' && user) {
-        // If user is logged in but on guest dashboard, suggest or redirect to real dashboard
         navigate('/dashboard');
     }
   }, [mode, user, navigate]);
@@ -85,6 +83,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [jobTitle, setJobTitle] = useState('');
   const [jobSpec, setJobSpec] = useState(''); 
   
+  // Specific Job Application Link (from Find Jobs)
+  const [directApplyLink, setDirectApplyLink] = useState<string | null>(null);
+
   const [apiKey] = useState(GEMINI_KEY_1);
   const [status, setStatus] = useState<Status>(Status.IDLE);
   const [analysis, setAnalysis] = useState<MatchAnalysis | null>(null);
@@ -96,6 +97,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [previewTab, setPreviewTab] = useState<'cv' | 'cl'>('cv');
   const [isZipping, setIsZipping] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
+
+  // Check for incoming job data from "Find Jobs"
+  useEffect(() => {
+      if (location.state && location.state.autofillJobDescription) {
+          setTargetMode('text');
+          setManualJobText(location.state.autofillJobDescription);
+          if (location.state.autofillApplyLink) {
+              setDirectApplyLink(location.state.autofillApplyLink);
+          }
+          // Clear state so refresh doesn't re-trigger if needed, but keeping it simple for now
+      }
+  }, [location.state]);
 
   useEffect(() => {
     if (user && result && !hasSavedCurrentResult && status === Status.SUCCESS) {
@@ -516,11 +529,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                 )}
                             </div>
                             <div className="sticky bottom-4 z-30 mt-6 mx-auto max-w-lg">
-                                <div className="bg-slate-900 text-white p-2 pl-6 rounded-full shadow-2xl flex items-center justify-between">
-                                    <span className="font-bold text-sm">Ready to apply?</span>
-                                    <button onClick={initiateDownloadBundle} disabled={isZipping} className="bg-green-500 hover:bg-green-400 text-white px-6 py-3 rounded-full font-bold transition-all flex items-center gap-2 transform hover:scale-105 active:scale-95">
-                                        {isZipping ? 'Preparing...' : 'Download Bundle'}
-                                    </button>
+                                <div className="bg-slate-900 text-white p-2 pl-6 rounded-full shadow-2xl flex items-center justify-between gap-4">
+                                    <span className="font-bold text-sm hidden sm:block">Ready to apply?</span>
+                                    <div className="flex items-center gap-2">
+                                        {directApplyLink && (
+                                            <a 
+                                                href={directApplyLink} 
+                                                target="_blank" 
+                                                rel="noreferrer" 
+                                                className="bg-white text-slate-900 px-4 py-3 rounded-full font-bold transition-all hover:bg-slate-100 text-sm whitespace-nowrap"
+                                            >
+                                                Go to Application
+                                            </a>
+                                        )}
+                                        <button onClick={initiateDownloadBundle} disabled={isZipping} className="bg-green-500 hover:bg-green-400 text-white px-6 py-3 rounded-full font-bold transition-all flex items-center gap-2 transform hover:scale-105 active:scale-95 text-sm whitespace-nowrap">
+                                            {isZipping ? 'Preparing...' : 'Download'}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

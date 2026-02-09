@@ -12,6 +12,9 @@ import { Privacy } from './pages/Privacy';
 import { About } from './pages/About';
 import { Contact } from './pages/Contact';
 import { Terms } from './pages/Terms';
+import { FindJobs } from './pages/FindJobs';
+import { JobDetails } from './pages/JobDetails';
+import { AdminJobs } from './pages/AdminJobs';
 
 export const App: React.FC = () => {
   return (
@@ -27,6 +30,11 @@ export const App: React.FC = () => {
         {/* Legacy redirect support */}
         <Route path="/blog" element={<Content />} /> 
         <Route path="/blog/:slug" element={<ContentPost />} />
+
+        {/* Job Board Routes */}
+        <Route path="/find-jobs" element={<FindJobs />} />
+        <Route path="/find-jobs/:id" element={<JobDetails />} />
+        <Route path="/admin-jobs" element={<AdminJobs />} />
 
         <Route path="/pricing" element={<Pricing />} />
         

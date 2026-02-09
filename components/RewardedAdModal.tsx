@@ -58,7 +58,7 @@ export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({ isOpen, onClos
 
         {/* Ad Container */}
         <div className="w-full bg-black flex flex-col items-center justify-center p-6 min-h-[350px]">
-           <p className="text-slate-400 text-sm mb-4">Your download starts in {timeLeft}s...</p>
+           <p className="text-slate-400 text-sm mb-4">Your content is unlocking in {timeLeft}s...</p>
            
            {/* Display Ad is most appropriate for a modal/rectangle slot */}
            <div className="bg-white p-2 rounded w-full flex justify-center items-center min-h-[280px] overflow-hidden">
@@ -83,8 +83,8 @@ export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({ isOpen, onClos
                  onClick={onComplete}
                  className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg hover:shadow-green-500/20 transition-all flex items-center justify-center gap-2 animate-bounce-subtle"
                >
-                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                 Download PDF
+                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                 View CV
                </button>
             ) : (
                <button 

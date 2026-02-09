@@ -124,3 +124,15 @@ export interface MatchAnalysis {
   jobTitle?: string;
   company?: string;
 }
+
+// --- Job Listing Type ---
+export interface JobListing {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  summary: string;
+  description: string; // The AI rewritten 3rd person description
+  original_link: string;
+  created_at: string;
+}

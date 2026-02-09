@@ -1,3 +1,4 @@
+
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
 import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY } from "../constants";
@@ -139,36 +140,32 @@ async function callCerebras(modelName: string, systemPrompt: string, userPrompt:
 }
 
 async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, apiKey: string): Promise<string> {
-    // 1. Default: Llama 3.1 70B (Cerebras)
+    const models = [
+        "zai-glm-4.7",                    // Priority 1
+        "qwen-3-235b-a22b-instruct-2507", // Priority 2
+        "gpt-oss-120b",                   // Priority 3
+        "llama-3.3-70b",                  // Priority 4 (Likely highest success rate)
+        "qwen-3-32b",                     // Priority 5
+        "llama-3.1-8b"                    // Priority 6 (Fallback speed)
+    ];
+
+    for (const model of models) {
+        try {
+            console.log(`Attempting Model: ${model}...`);
+            // Attempt to call the model. If it's invalid/unavailable, callCerebras throws an error, 
+            // which is caught here to try the next one.
+            return await callCerebras(model, systemInstruction, userMessage, temperature, true);
+        } catch (e: any) {
+            console.warn(`Model ${model} failed or is unavailable:`, e.message);
+        }
+    }
+
+    // Ultimate fallback if even the priority list fails
     try {
-        console.log("Attempting Primary: Llama 3.1 70B...");
+        console.log("All priority models failed. Attempting legacy Llama 3.1 70B...");
         return await callCerebras("llama-3.1-70b", systemInstruction, userMessage, temperature, true);
-    } catch (e: any) {
-        console.warn("Primary Model Failed:", e.message);
-    }
-
-    // 2. Fallback 1: GLM-4 (Requested)
-    try {
-        console.log("Attempting Fallback 1: GLM-4...");
-        return await callCerebras("glm-4", systemInstruction, userMessage, temperature, true);
-    } catch (e: any) {
-        console.warn("Fallback 1 (GLM-4) Failed:", e.message);
-    }
-
-    // 3. Fallback 2: Qwen 2.5 72B (Requested)
-    try {
-        console.log("Attempting Fallback 2: Qwen 2.5 72B...");
-        return await callCerebras("qwen-2.5-72b-instruct", systemInstruction, userMessage, temperature, true);
-    } catch (e: any) {
-        console.warn("Fallback 2 (Qwen 2.5) Failed:", e.message);
-    }
-
-    // 4. Ultimate Fallback: Llama 3.1 8B (Cerebras - High Reliability)
-    try {
-        console.log("Attempting Ultimate Fallback: Llama 3.1 8B...");
-        return await callCerebras("llama-3.1-8b", systemInstruction, userMessage, temperature, true);
-    } catch (e: any) {
-        console.error("All AI services failed.", e);
+    } catch(e) {
+        console.error("All AI services failed.");
         throw new Error("Service Unavailable: All AI models failed to respond. Please try again later.");
     }
 }
@@ -353,10 +350,6 @@ function parseAndProcessResponse(content: string): GeneratorResponse {
 
       if (!parsedResponse.coverLetter) parsedResponse.coverLetter = { title: "Cover_Letter.docx", content: "" };
       if (!parsedResponse.coverLetter.content) parsedResponse.coverLetter.content = parsedResponse.coverLetter.body || parsedResponse.coverLetter.text || "";
-
-      // Ensure single newlines are treated as line breaks in the final rendering if needed, 
-      // but for business letters, double newline for paragraphs is standard.
-      // We accept the AI output mostly as is, but ensure no 'undefined' strings.
     }
 
     return {
@@ -364,3 +357,36 @@ function parseAndProcessResponse(content: string): GeneratorResponse {
       brandingImage: undefined 
     } as GeneratorResponse;
 }
+
+export const rewriteJobDescription = async (
+  rawDescription: string,
+  apiKey: string
+): Promise<{ description: string; summary: string }> => {
+    
+    const systemPrompt = `
+    You are a Professional Job Description Writer. 
+    Your task is to rewrite a raw job posting into a professional, engaging 3rd person narrative.
+    
+    RULES:
+    1. Write in the THIRD PERSON (e.g. "Google is looking for...", "The company requires...").
+    2. Maintain all technical requirements and qualifications.
+    3. Make it sound exciting and professional.
+    
+    OUTPUT FORMAT:
+    Return strictly valid JSON:
+    {
+       "description": "Full rewritten job description in markdown format (use bullet points for requirements).",
+       "summary": "A 2-sentence summary of the role and company for a listing card. STRICTLY write in the third person (e.g. 'The company is looking for...', 'This role involves...'). Do not use 'You will...' or 'We are looking for...'."
+    }
+    `;
+
+    const userMessage = `
+    RAW JOB DESCRIPTION:
+    ${rawDescription}
+    
+    Please rewrite this now.
+    `;
+    
+    const responseText = await runAIChain(systemPrompt, userMessage, 0.5, apiKey);
+    return JSON.parse(responseText);
+};
