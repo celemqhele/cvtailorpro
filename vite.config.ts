@@ -6,4 +6,4 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
 });
-// Force rebuild comment
+// Rebuild trigger: Fixed proxy issues

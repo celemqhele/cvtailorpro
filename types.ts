@@ -38,6 +38,7 @@ export interface JobSearchResult {
   company: string;
   location: string;
   url: string;
+  applyLinks?: { link: string; title: string }[]; // New field for direct apply options
   datePosted: string; // "2 days ago", "Just now"
   descriptionSnippet: string;
   matchScore: number;

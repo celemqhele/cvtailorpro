@@ -4,23 +4,24 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { SYSTEM_PROMPT, ANALYSIS_PROMPT, SERP_API_KEY, CEREBRAS_KEY } from "../constants";
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, JobSearchResult } from "../types";
 
-const CORS_PROXY = "https://corsproxy.io/?";
+// Removed corsproxy.io due to limitations. Using direct fetch or fallback proxy.
+const FALLBACK_PROXY = "https://api.allorigins.win/raw?url=";
 
 /**
- * Scrapes job content with strict fallback.
+ * Scrapes job content using SerpApi Google Jobs engine directly.
  */
 export const scrapeJobFromUrl = async (url: string): Promise<string> => {
     
     let scrapedText = "";
 
-    // 1. Try SerpApi (Google Jobs) via Proxy
+    // 1. Try SerpApi (Google Jobs) Direct Fetch
     if (SERP_API_KEY) {
         try {
-            console.log("Attempting SerpApi scrape...");
+            console.log("Attempting SerpApi Google Jobs scrape...");
+            // We search for the URL itself to see if Google Jobs indexed it
             const targetUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(url)}&api_key=${SERP_API_KEY}&hl=en`;
-            const serpUrl = `${CORS_PROXY}${encodeURIComponent(targetUrl)}`;
             
-            const response = await fetch(serpUrl);
+            const response = await fetch(targetUrl);
             
             if (!response.ok) throw new Error(`SerpApi failed with status ${response.status}`);
             
@@ -37,12 +38,9 @@ DESCRIPTION:
 ${job.description}
                     `.trim();
                 }
-            } else {
-                 // It's common to not find a specific URL in Google Jobs search, proceed to Jina
-                 console.log("No specific job found in SerpApi results for this URL.");
             }
         } catch (error) {
-            console.warn("SerpApi scrape attempt failed, initiating fallback to Jina.", error);
+            console.warn("SerpApi scrape attempt failed, initiating fallback.", error);
         }
     }
 
@@ -74,7 +72,7 @@ ${job.description}
         return text;
     } catch (e: any) {
         console.error("Jina scraping error:", e);
-        throw new Error(e.message || "Failed to scan job link. Both SerpApi and Jina failed.");
+        throw new Error(e.message || "Failed to scan job link. Please paste the description manually.");
     }
 };
 
@@ -214,7 +212,7 @@ export const findJobsMatchingCV = async (
         candidateText = JSON.stringify(manualData);
     }
 
-    // 2. Identify Search Query
+    // 2. Identify Search Query via AI
     const queryPrompt = `
         Analyze this CV. Extract the top 2 most relevant Job Titles for this candidate and their primary location (city/country).
         Output JSON: { "query": "Job Title OR Job Title 2", "location": "City, Country" }
@@ -230,28 +228,45 @@ export const findJobsMatchingCV = async (
         throw new Error("Failed to analyze CV for search criteria.");
     }
 
-    // 3. Search via SerpApi (Google Jobs) via Proxy
+    // 3. Search via SerpApi (Google Jobs) - Direct Fetch
     const searchQuery = `${criteria.query} ${criteria.location}`;
-    const targetUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(searchQuery)}&api_key=${SERP_API_KEY}&hl=en`;
-    const serpUrl = `${CORS_PROXY}${encodeURIComponent(targetUrl)}`;
-    
     console.log(`Searching for: ${searchQuery}`);
-    
-    // Using simple fetch via proxy
-    const response = await fetch(serpUrl);
-    
-    if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Job Search failed: ${response.status} ${errText}`);
-    }
-    
-    const data = await response.json();
 
-    const jobs = data.jobs_results || [];
+    // Construct SerpApi URL for Google Jobs
+    const serpUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(searchQuery)}&hl=en&num=20&api_key=${SERP_API_KEY}`;
+    
+    let jobs = [];
+    
+    try {
+        // Attempt Direct Fetch
+        let response = await fetch(serpUrl);
+        
+        // If direct fetch fails (CORS), try fallback proxy
+        if (!response.ok) {
+            console.warn("Direct SerpApi call failed, trying fallback proxy...");
+            response = await fetch(`${FALLBACK_PROXY}${encodeURIComponent(serpUrl)}`);
+        }
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Job Search failed: ${response.status} ${errText}`);
+        }
+        
+        const data = await response.json();
+        const rawJobs = data.jobs_results || [];
+
+        // 4. Process and Filter Jobs
+        // Rule: Only keep jobs with direct apply options (apply_options)
+        jobs = rawJobs.filter((j: any) => j.apply_options && Array.isArray(j.apply_options) && j.apply_options.length > 0);
+
+    } catch (error: any) {
+        console.error("SerpApi Fetch Error:", error);
+        throw new Error("Could not connect to job search service. Please try again later.");
+    }
+
     if (jobs.length === 0) return [];
 
-    // 4. Analyze Matches in Batch
-    // We send top 10 job snippets to AI to rank/analyze
+    // 5. Analyze Matches in Batch (Top 10)
     const topJobs = jobs.slice(0, 10);
     
     const analysisPrompt = `
@@ -264,7 +279,7 @@ export const findJobsMatchingCV = async (
             id: i,
             title: j.title,
             company: j.company_name,
-            snippet: j.description ? j.description.substring(0, 300) : j.extensions?.join(' ')
+            snippet: j.description ? j.description.substring(0, 300) : "No desc"
         })))}
 
         Output JSON Array:
@@ -286,12 +301,12 @@ export const findJobsMatchingCV = async (
         analyses = [];
     }
 
-    // 5. Merge and Rank
+    // 6. Map to JobSearchResult
     const results: JobSearchResult[] = topJobs.map((job: any, index: number) => {
         const analysis = analyses.find((a: any) => a.id === index) || { matchScore: 50, analysis: "Potential match based on keywords." };
         
         // Calculate Recency Score
-        let recencyScore = 50; // Default
+        let recencyScore = 50; 
         const posted = job.detected_extensions?.posted_at || "";
         if (posted.toLowerCase().includes("hour") || posted.toLowerCase().includes("just")) recencyScore = 100;
         else if (posted.toLowerCase().includes("1 day")) recencyScore = 90;
@@ -300,31 +315,23 @@ export const findJobsMatchingCV = async (
         else if (posted.toLowerCase().includes("week")) recencyScore = 50;
         else if (posted.toLowerCase().includes("month")) recencyScore = 20;
 
-        // Formula: 60% Recency, 40% Match
         const rankScore = (recencyScore * 0.6) + (analysis.matchScore * 0.4);
 
-        // Determine URL: Try Apply Options -> Link -> Related Links -> Google Fallback
-        let jobUrl = "";
-        
-        // DIRECT LINK LOGIC:
-        // 1. Check 'apply_options' for a direct link (e.g., LinkedIn, Greenhouse, Lever)
-        if (job.apply_options && Array.isArray(job.apply_options) && job.apply_options.length > 0) {
-            jobUrl = job.apply_options[0].link;
-        } 
-        // 2. Check direct 'link' property
-        else if (job.link) {
-            jobUrl = job.link;
-        } 
-        // 3. Fallback to Google Search Result
-        else {
-             jobUrl = `https://www.google.com/search?ibp=htl;jobs&q=${encodeURIComponent(job.title + " " + job.company_name)}`;
-        }
+        // Extract Apply Links
+        const applyLinks = job.apply_options.map((opt: any) => ({
+            link: opt.link,
+            title: opt.title || "Apply Now"
+        }));
+
+        // Use the first valid link as the primary URL
+        const primaryUrl = applyLinks[0]?.link || "#";
 
         return {
             title: job.title,
             company: job.company_name,
             location: job.location,
-            url: jobUrl,
+            url: primaryUrl,
+            applyLinks: applyLinks,
             datePosted: posted || "Recently",
             descriptionSnippet: job.description ? job.description.substring(0, 200) + "..." : "Click to view details.",
             matchScore: analysis.matchScore,
