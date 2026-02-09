@@ -4,8 +4,40 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { SYSTEM_PROMPT, ANALYSIS_PROMPT, SERP_API_KEY, CEREBRAS_KEY } from "../constants";
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, JobSearchResult } from "../types";
 
-// Removed corsproxy.io due to limitations. Using direct fetch or fallback proxy.
-const FALLBACK_PROXY = "https://api.allorigins.win/raw?url=";
+// Reliable CORS Proxy
+const PROXY_URL = "https://api.allorigins.win/raw?url=";
+
+/**
+ * Helper to fetch JSON from a URL with CORS fallback.
+ */
+async function fetchJsonWithFallback(targetUrl: string): Promise<any> {
+    // 1. Attempt Direct Fetch (Fastest, but likely blocked by CORS in browser)
+    try {
+        const response = await fetch(targetUrl);
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch (e) {
+        console.warn("Direct fetch blocked (CORS), attempting proxy...");
+    }
+
+    // 2. Attempt via Proxy
+    try {
+        // Add timestamp to prevent caching
+        const proxiedUrl = `${PROXY_URL}${encodeURIComponent(targetUrl)}&_t=${Date.now()}`;
+        const response = await fetch(proxiedUrl);
+        
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`Proxy error: ${response.status} ${text}`);
+        }
+        
+        return await response.json();
+    } catch (e: any) {
+        console.error("Proxy fetch failed:", e);
+        throw new Error("Unable to connect to search service. Please try again or check your internet connection.");
+    }
+}
 
 /**
  * Scrapes job content using SerpApi Google Jobs engine directly.
@@ -21,13 +53,11 @@ export const scrapeJobFromUrl = async (url: string): Promise<string> => {
             // We search for the URL itself to see if Google Jobs indexed it
             const targetUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(url)}&api_key=${SERP_API_KEY}&hl=en`;
             
-            const response = await fetch(targetUrl);
+            const data = await fetchJsonWithFallback(targetUrl);
             
-            if (!response.ok) throw new Error(`SerpApi failed with status ${response.status}`);
-            
-            const data = await response.json();
             if (data.jobs_results && data.jobs_results.length > 0) {
                 const job = data.jobs_results[0];
+                // Simple heuristic: if the title is vaguely similar or it's the only result
                 if (job.description && job.description.length > 100) {
                     scrapedText = `
 JOB TITLE: ${job.title}
@@ -228,7 +258,7 @@ export const findJobsMatchingCV = async (
         throw new Error("Failed to analyze CV for search criteria.");
     }
 
-    // 3. Search via SerpApi (Google Jobs) - Direct Fetch
+    // 3. Search via SerpApi (Google Jobs) - With Proxy Fallback
     const searchQuery = `${criteria.query} ${criteria.location}`;
     console.log(`Searching for: ${searchQuery}`);
 
@@ -238,30 +268,23 @@ export const findJobsMatchingCV = async (
     let jobs = [];
     
     try {
-        // Attempt Direct Fetch
-        let response = await fetch(serpUrl);
+        const data = await fetchJsonWithFallback(serpUrl);
         
-        // If direct fetch fails (CORS), try fallback proxy
-        if (!response.ok) {
-            console.warn("Direct SerpApi call failed, trying fallback proxy...");
-            response = await fetch(`${FALLBACK_PROXY}${encodeURIComponent(serpUrl)}`);
-        }
-
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Job Search failed: ${response.status} ${errText}`);
-        }
-        
-        const data = await response.json();
         const rawJobs = data.jobs_results || [];
 
         // 4. Process and Filter Jobs
         // Rule: Only keep jobs with direct apply options (apply_options)
         jobs = rawJobs.filter((j: any) => j.apply_options && Array.isArray(j.apply_options) && j.apply_options.length > 0);
 
+        // Extra fallback: If strict filtering returns nothing, relax it but mark them
+        if (jobs.length === 0 && rawJobs.length > 0) {
+            console.warn("No jobs with direct apply_options found. Returning filtered raw jobs.");
+            jobs = rawJobs;
+        }
+
     } catch (error: any) {
         console.error("SerpApi Fetch Error:", error);
-        throw new Error("Could not connect to job search service. Please try again later.");
+        throw new Error(error.message || "Could not connect to job search service. Please try again later.");
     }
 
     if (jobs.length === 0) return [];
@@ -318,13 +341,16 @@ export const findJobsMatchingCV = async (
         const rankScore = (recencyScore * 0.6) + (analysis.matchScore * 0.4);
 
         // Extract Apply Links
-        const applyLinks = job.apply_options.map((opt: any) => ({
-            link: opt.link,
-            title: opt.title || "Apply Now"
-        }));
+        let applyLinks: any[] = [];
+        if (job.apply_options && Array.isArray(job.apply_options)) {
+             applyLinks = job.apply_options.map((opt: any) => ({
+                link: opt.link,
+                title: opt.title || "Apply Now"
+            }));
+        }
 
-        // Use the first valid link as the primary URL
-        const primaryUrl = applyLinks[0]?.link || "#";
+        // Use the first valid link as the primary URL, or Google Jobs URL if none
+        const primaryUrl = applyLinks.length > 0 ? applyLinks[0].link : (job.share_link || "#");
 
         return {
             title: job.title,
