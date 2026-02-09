@@ -33,33 +33,56 @@ export const Home: React.FC = () => {
                 </div>
             </div>
             
-            {/* Visual Abstract */}
+            {/* Visual Abstract - Before & After Comparison */}
             <div className="mt-16 flow-root sm:mt-24">
                 <div className="-m-2 rounded-xl bg-gray-900/5 p-2 ring-1 ring-inset ring-gray-900/10 lg:-m-4 lg:rounded-2xl lg:p-4">
-                    <div className="rounded-md bg-white p-4 shadow-2xl ring-1 ring-gray-900/10 grid md:grid-cols-3 gap-4">
-                        <div className="hidden md:block border border-slate-100 p-4 rounded bg-slate-50">
-                            <div className="h-4 w-1/2 bg-slate-200 rounded mb-4"></div>
-                            <div className="space-y-2">
-                                <div className="h-2 w-full bg-slate-200 rounded"></div>
-                                <div className="h-2 w-5/6 bg-slate-200 rounded"></div>
-                                <div className="h-2 w-4/6 bg-slate-200 rounded"></div>
+                    <div className="rounded-md bg-white p-6 shadow-2xl ring-1 ring-gray-900/10 grid md:grid-cols-7 gap-6 items-center">
+                        
+                        {/* BEFORE CARD */}
+                        <div className="hidden md:block col-span-3 border border-red-100 p-6 rounded-xl bg-slate-50 relative h-full">
+                            <div className="absolute -top-3 left-4 bg-red-100 text-red-600 border border-red-200 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                Standard CV (Rejected)
+                            </div>
+                            <div className="space-y-2 mt-2 opacity-70">
+                                <h4 className="font-bold text-slate-400 text-xs uppercase mb-2">Professional Summary</h4>
+                                <p className="text-xs leading-relaxed text-slate-500 font-serif italic">
+                                    "Hard-working and dedicated individual with good communication skills and the ability to work well under pressure. I am a fast learner who always gives 110% in everything I do. I am looking for a challenging position where I can grow within the company and use my skills to the best of my ability. I am passionate about success and always willing to go the extra mile to achieve company goals."
+                                </p>
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-slate-200">
+                                <p className="text-[10px] text-red-500 font-bold">Analysis: Too generic. No metrics. Subjective adjectives.</p>
                             </div>
                         </div>
-                        <div className="flex items-center justify-center text-indigo-500">
-                             <svg className="w-12 h-12 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+
+                        {/* ARROW */}
+                        <div className="col-span-1 flex flex-col items-center justify-center text-indigo-500 gap-2">
+                             <div className="bg-indigo-50 p-3 rounded-full">
+                                <svg className="w-8 h-8 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                             </div>
+                             <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">AI Rewrites</span>
                         </div>
-                        <div className="border border-green-100 p-4 rounded bg-green-50">
-                            <div className="h-4 w-1/2 bg-green-200 rounded mb-4"></div>
-                            <div className="space-y-2">
-                                <div className="h-2 w-full bg-green-200 rounded"></div>
-                                <div className="h-2 w-full bg-green-200 rounded"></div>
-                                <div className="h-2 w-full bg-green-200 rounded"></div>
+
+                        {/* AFTER CARD */}
+                        <div className="col-span-7 md:col-span-3 border border-green-200 p-6 rounded-xl bg-white shadow-lg relative ring-4 ring-green-50 h-full">
+                            <div className="absolute -top-3 left-4 bg-green-100 text-green-700 border border-green-200 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                CV Tailor Optimized
                             </div>
-                            <div className="mt-4 text-xs text-green-700 font-bold flex items-center gap-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                ATS Optimized
+                            <div className="space-y-2 mt-2">
+                                <h4 className="font-bold text-slate-800 text-xs uppercase mb-2">Professional Summary</h4>
+                                <p className="text-xs leading-relaxed text-slate-700">
+                                    "Results-oriented <span className="font-bold bg-indigo-50 text-indigo-700 px-0.5 rounded border border-indigo-100">Project Administrator</span> with <span className="font-bold bg-indigo-50 text-indigo-700 px-0.5 rounded border border-indigo-100">4+ years of experience</span> streamlining operations in high-pressure environments. Proven track record of <span className="font-bold bg-indigo-50 text-indigo-700 px-0.5 rounded border border-indigo-100">improving workflow efficiency by 30%</span> through independent initiative and team collaboration. Dedicated to leveraging strong communication skills to drive organizational KPIs and sustainable growth."
+                                </p>
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-slate-100">
+                                <p className="text-[10px] text-green-600 font-bold flex items-center gap-1">
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    Result: Hard metrics inserted. Job Title defined. Keywords matched.
+                                </p>
                             </div>
                         </div>
+
                     </div>
                 </div>
             </div>

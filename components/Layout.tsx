@@ -9,6 +9,13 @@ import { UserProfile } from '../types';
 import { AuthModal } from './AuthModal';
 import { PaymentModal } from './DonationModal';
 
+// Extend window for Google Analytics
+declare global {
+  interface Window {
+    gtag?: (command: string, targetId: string, config?: any) => void;
+  }
+}
+
 export const Layout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -34,6 +41,18 @@ export const Layout: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Google Analytics Page View Tracking
+  useEffect(() => {
+    if (window.gtag) {
+      window.gtag('config', 'G-216SJPZ17Y', {
+        page_path: location.pathname + location.search
+      });
+    }
+    // Scroll to top on route change
+    window.scrollTo(0, 0);
+    setIsMenuOpen(false);
+  }, [location]);
+
   useEffect(() => {
     const fetchCount = async () => {
         const cv = await getUsageCount(user?.id);
@@ -43,12 +62,6 @@ export const Layout: React.FC = () => {
     window.addEventListener('focus', fetchCount);
     return () => window.removeEventListener('focus', fetchCount);
   }, [user]);
-
-  // Scroll to top on route change
-  useEffect(() => {
-    window.scrollTo(0, 0);
-    setIsMenuOpen(false);
-  }, [location.pathname]);
 
   const checkUserSession = async () => {
     const profile = await authService.getCurrentProfile();
@@ -123,6 +136,7 @@ export const Layout: React.FC = () => {
   };
 
   const isActive = (path: string) => location.pathname === path ? 'text-indigo-600 font-bold' : 'text-slate-600 hover:text-indigo-600';
+  const isActiveParent = (path: string) => location.pathname.startsWith(path) ? 'text-indigo-600 font-bold' : 'text-slate-600 hover:text-indigo-600';
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
@@ -143,7 +157,7 @@ export const Layout: React.FC = () => {
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center gap-8">
                  <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/')}`}>Home</Link>
-                 <Link to="/blog" className={`text-sm font-medium transition-colors ${isActive('/blog')}`}>Blog</Link>
+                 <Link to="/content" className={`text-sm font-medium transition-colors ${isActiveParent('/content')}`}>Content</Link>
                  <Link to="/pricing" className={`text-sm font-medium transition-colors ${isActive('/pricing')}`}>Pricing</Link>
                  
                  {/* Auth Dependent Links */}
@@ -198,7 +212,7 @@ export const Layout: React.FC = () => {
          {isMenuOpen && (
              <div className="md:hidden bg-white border-b border-slate-200 px-4 py-6 space-y-4 shadow-lg animate-fade-in">
                  <Link to="/" className="block text-base font-medium text-slate-600">Home</Link>
-                 <Link to="/blog" className="block text-base font-medium text-slate-600">Blog</Link>
+                 <Link to="/content" className="block text-base font-medium text-slate-600">Content</Link>
                  <Link to="/pricing" className="block text-base font-medium text-slate-600">Pricing</Link>
                  {user ? (
                      <>
@@ -241,9 +255,9 @@ export const Layout: React.FC = () => {
                    <div>
                        <h4 className="font-bold text-slate-900 mb-4">Resources</h4>
                        <ul className="space-y-2 text-sm text-slate-500">
-                           <li><Link to="/blog" className="hover:text-indigo-600">Career Blog</Link></li>
-                           <li><Link to="/blog/how-to-prep-for-interviews" className="hover:text-indigo-600">Interview Prep</Link></li>
-                           <li><Link to="/blog/make-cv-from-scratch" className="hover:text-indigo-600">CV Building Guide</Link></li>
+                           <li><Link to="/content" className="hover:text-indigo-600">Content Hub</Link></li>
+                           <li><Link to="/content/how-to-prep-for-interviews" className="hover:text-indigo-600">Interview Prep</Link></li>
+                           <li><Link to="/content/make-cv-from-scratch" className="hover:text-indigo-600">CV Building Guide</Link></li>
                        </ul>
                    </div>
                    <div>
