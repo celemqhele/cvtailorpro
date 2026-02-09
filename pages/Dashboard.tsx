@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import JSZip from 'jszip';
@@ -13,6 +12,7 @@ import { SupportModal } from '../components/SupportModal';
 import { HistoryModal } from '../components/HistoryModal';
 import { LimitReachedModal } from '../components/LimitReachedModal';
 import CVTemplate from '../components/CVTemplate'; 
+import CoverLetterTemplate from '../components/CoverLetterTemplate';
 import { ProPlusFeatureCard } from '../components/ProPlusFeatureCard';
 
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from '../services/geminiService';
@@ -355,16 +355,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       setShowSupportModal(true);
   };
 
-  const markdownComponents = {
-      h1: ({node, ...props}: any) => <h1 className="text-4xl font-extrabold text-[#2E74B5] text-center border-b-2 border-[#2E74B5] pb-4 mb-8 mt-2 tracking-tight" {...props} />,
-      h2: ({node, ...props}: any) => <h2 className="text-xl font-bold text-[#2E74B5] uppercase border-b border-gray-300 pb-2 mb-4 mt-8 tracking-wide" {...props} />,
-      h3: ({node, ...props}: any) => <h3 className="text-lg font-bold text-slate-900 mb-2 mt-6" {...props} />,
-      p: ({node, ...props}: any) => <p className="mb-3 leading-relaxed text-justify text-slate-700" {...props} />,
-      ul: ({node, ...props}: any) => <ul className="list-disc pl-5 space-y-2 mb-6 text-slate-700" {...props} />,
-      li: ({node, ...props}: any) => <li className="pl-1" {...props} />,
-      strong: ({node, ...props}: any) => <strong className="font-bold text-[#2E74B5]" {...props} />,
-  };
-  
+  // Helper for rendering analysis box
   const AnalysisDashboard = () => {
       if (!analysis) return null;
       const isPositive = analysis.decision === 'APPLY';
@@ -414,7 +405,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
             )}
 
             <div className="space-y-8 animate-fade-in">
-                    {/* INPUT SECTION OMITTED FOR BREVITY - FULL REIMPLEMENTATION INCLUDED BELOW */}
+                    {/* INPUT SECTION */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* 1. CV INPUT */}
                         <div className="space-y-4">
@@ -494,7 +485,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                     
                     {!isPaidUser && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-8 items-center">
-                            <AdBanner />
+                            <AdBanner variant="display" />
                             <ProPlusFeatureCard onUpgrade={triggerPayment} />
                         </div>
                     )}
@@ -516,9 +507,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="p-12 max-w-3xl mx-auto prose prose-slate">
-                                        <div id="cl-preview-content">
-                                            <ReactMarkdown components={markdownComponents}>{result.coverLetter?.content || ''}</ReactMarkdown>
+                                    <div className="overflow-x-auto bg-slate-100 p-8 flex justify-center">
+                                        <div id="cl-preview-content" className="bg-white shadow-lg origin-top scale-90 md:scale-100">
+                                             {/* Using the new template instead of ReactMarkdown */}
+                                             <CoverLetterTemplate content={result.coverLetter?.content || ''} userData={result.cvData!} />
                                         </div>
                                     </div>
                                 )}
@@ -537,7 +529,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
             <div className="absolute top-0 left-0 -z-50 opacity-0 pointer-events-none">
                  {result?.cvData && <div id="hidden-cv-content" style={{ width: '816px', backgroundColor: 'white' }}><CVTemplate data={result.cvData} /></div>}
-                 {result?.coverLetter?.content && <div id="hidden-cl-content" style={{ width: '816px', padding: '72px', backgroundColor: 'white', fontFamily: 'Calibri, sans-serif' }}><ReactMarkdown components={markdownComponents}>{result.coverLetter.content}</ReactMarkdown></div>}
+                 {/* Updated hidden container to use CoverLetterTemplate for consistent PDF generation */}
+                 {result?.coverLetter?.content && <div id="hidden-cl-content" style={{ width: '816px', backgroundColor: 'white' }}><CoverLetterTemplate content={result.coverLetter.content} userData={result.cvData!} /></div>}
             </div>
 
             <RewardedAdModal isOpen={showRewardedModal} onClose={() => setShowRewardedModal(false)} onComplete={handleAdComplete} />

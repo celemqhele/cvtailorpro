@@ -4,20 +4,18 @@ import { Link } from 'react-router-dom';
 
 interface AdBannerProps {
   className?: string;
+  variant?: 'display' | 'in-feed' | 'multiplex' | 'internal';
   suffix?: string;
-  format?: 'horizontal' | 'rectangle';
-  type?: 'external' | 'internal'; // New prop to switch between Ad networks and Self-promo
 }
 
 export const AdBanner: React.FC<AdBannerProps> = ({ 
   className = '', 
-  suffix = '', 
-  format = 'horizontal',
-  type = 'external' 
+  variant = 'display',
+  suffix
 }) => {
   
-  // Internal Ad (Promoting Pro Plan)
-  if (type === 'internal') {
+  // 1. Internal Ad (Promoting Pro Plan)
+  if (variant === 'internal') {
     return (
       <div className={`w-full max-w-4xl mx-auto my-8 ${className}`}>
         <div className="bg-gradient-to-r from-slate-900 to-indigo-900 rounded-xl p-6 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6 border border-indigo-500/30">
@@ -41,40 +39,57 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     );
   }
 
-  // External Ad (Google AdSense)
+  // 2. Google AdSense Units
   useEffect(() => {
       try {
-          // Initialize AdSense
+          // Initialize AdSense push
           // @ts-ignore
           (window.adsbygoogle = window.adsbygoogle || []).push({});
       } catch (e) {
           // AdBlockers might trigger this, silent fail
       }
-  }, []);
+  }, [suffix]);
+
+  const renderAdUnit = () => {
+      switch (variant) {
+          case 'in-feed':
+              return (
+                /* In-Feed Ad */
+                <ins className="adsbygoogle"
+                     style={{ display: 'block' }}
+                     data-ad-format="fluid"
+                     data-ad-layout-key="-6y+d5+52-1c-7g"
+                     data-ad-client="ca-pub-6881973057585692"
+                     data-ad-slot="1208769022"></ins>
+              );
+          case 'multiplex':
+              return (
+                /* Multiplex Ad */
+                <ins className="adsbygoogle"
+                     style={{ display: 'block' }}
+                     data-ad-format="autorelaxed"
+                     data-ad-client="ca-pub-6881973057585692"
+                     data-ad-slot="2540461759"></ins>
+              );
+          case 'display':
+          default:
+              return (
+                /* Display Ad */
+                <ins className="adsbygoogle"
+                     style={{ display: 'block' }}
+                     data-ad-client="ca-pub-6881973057585692"
+                     data-ad-slot="1418951775"
+                     data-ad-format="auto"
+                     data-full-width-responsive="true"></ins>
+              );
+      }
+  };
 
   return (
-    <div 
-        className={`flex flex-col items-center justify-center my-6 ${className}`}
-        style={{ width: '100%' }}
-    >
+    <div className={`flex flex-col items-center justify-center my-6 w-full ${className}`}>
         <div className="text-[10px] text-slate-300 uppercase tracking-widest mb-1 select-none">Advertisement</div>
-        <div 
-            className="bg-slate-100 border border-slate-200 rounded-lg overflow-hidden flex items-center justify-center"
-            style={{ 
-              width: format === 'rectangle' ? '100%' : '100%', 
-              maxWidth: format === 'rectangle' ? '336px' : '100%', 
-              minHeight: format === 'rectangle' ? '280px' : '100px',
-              display: 'block'
-            }}
-        >
-           {/* Google AdSense Unit */}
-           {/* Note: data-ad-slot needs to be updated with a real ID from your AdSense Dashboard */}
-           <ins className="adsbygoogle"
-                style={{ display: 'block', width: '100%', height: '100%' }}
-                data-ad-client="ca-pub-6881973057585692"
-                data-ad-slot="1234567890" 
-                data-ad-format="auto"
-                data-full-width-responsive="true"></ins>
+        <div className="bg-slate-50 border border-slate-100 rounded-lg overflow-hidden w-full flex justify-center min-h-[100px]" key={suffix}>
+           {renderAdUnit()}
         </div>
     </div>
   );

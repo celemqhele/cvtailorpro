@@ -1,4 +1,3 @@
-
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
 import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY } from "../constants";
@@ -71,7 +70,8 @@ async function extractTextFromFile(file: FileData): Promise<string> {
       const pdfjs = (pdfjsLib as any).default || pdfjsLib;
 
       if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-        const version = pdfjs.version || '3.11.174';
+        // Use a consistent version for worker
+        const version = '3.11.174'; 
         pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
       }
 
@@ -102,7 +102,7 @@ async function extractTextFromFile(file: FileData): Promise<string> {
 }
 
 /**
- * Executes a call to Cerebras API with a specific model.
+ * Executes a call to AI Provider (Cerebras).
  */
 async function callCerebras(modelName: string, systemPrompt: string, userPrompt: string, temperature: number, jsonMode: boolean = false): Promise<string> {
   try {
@@ -126,35 +126,46 @@ async function callCerebras(modelName: string, systemPrompt: string, userPrompt:
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error(`Cerebras API Error (${modelName}):`, response.status, errText);
-      throw new Error(`Cerebras API Error (${modelName}): ${response.status} ${errText}`);
+      console.error(`Provider API Error (${modelName}):`, response.status, errText);
+      throw new Error(`Provider API Error (${modelName}): ${response.status} ${errText}`);
     }
 
     const data = await response.json();
     return data.choices?.[0]?.message?.content || "";
   } catch (e) {
-    console.error(`Cerebras call failed for ${modelName}:`, e);
+    console.error(`Call failed for ${modelName}:`, e);
     throw e;
   }
 }
 
-async function runAIChain(systemInstruction: string, userMessage: string, temperature: number): Promise<string> {
+async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, apiKey: string): Promise<string> {
+    // 1. Default: Llama 3.1 70B (Cerebras)
     try {
-        console.log("Attempting Primary: GPT-OSS-120B (Llama-70b proxy)..."); 
-        return await callCerebras("llama-3.3-70b", systemInstruction, userMessage, temperature, true);
+        console.log("Attempting Primary: Llama 3.1 70B...");
+        return await callCerebras("llama-3.1-70b", systemInstruction, userMessage, temperature, true);
     } catch (e: any) {
         console.warn("Primary Model Failed:", e.message);
     }
 
+    // 2. Fallback 1: GLM-4 (Requested)
     try {
-        console.log("Attempting Secondary: Llama 3.1 70B...");
-        return await callCerebras("llama-3.1-70b", systemInstruction, userMessage, temperature, true);
+        console.log("Attempting Fallback 1: GLM-4...");
+        return await callCerebras("glm-4", systemInstruction, userMessage, temperature, true);
     } catch (e: any) {
-        console.warn("Secondary Model Failed:", e.message);
+        console.warn("Fallback 1 (GLM-4) Failed:", e.message);
     }
 
+    // 3. Fallback 2: Qwen 2.5 72B (Requested)
     try {
-        console.log("Attempting Tertiary: Llama 3.1 8B...");
+        console.log("Attempting Fallback 2: Qwen 2.5 72B...");
+        return await callCerebras("qwen-2.5-72b-instruct", systemInstruction, userMessage, temperature, true);
+    } catch (e: any) {
+        console.warn("Fallback 2 (Qwen 2.5) Failed:", e.message);
+    }
+
+    // 4. Ultimate Fallback: Llama 3.1 8B (Cerebras - High Reliability)
+    try {
+        console.log("Attempting Ultimate Fallback: Llama 3.1 8B...");
         return await callCerebras("llama-3.1-8b", systemInstruction, userMessage, temperature, true);
     } catch (e: any) {
         console.error("All AI services failed.", e);
@@ -177,10 +188,8 @@ export const analyzeMatch = async (
         candidateText = JSON.stringify(manualData);
     }
 
-    // 2. Client-Side Execution (Primary)
+    // 2. Client-Side Execution
     try {
-        // Truncate to prevent context overflow if necessary, but 120B models have large context.
-        // We strictly format the message to ensure clear separation.
         const userMessage = `
         JOB DESCRIPTION:
         ${jobDescription.substring(0, 15000)}
@@ -191,7 +200,7 @@ export const analyzeMatch = async (
         ${candidateText.substring(0, 15000)}
         `;
         
-        const responseText = await runAIChain(ANALYSIS_PROMPT, userMessage, 0.2);
+        const responseText = await runAIChain(ANALYSIS_PROMPT, userMessage, 0.2, apiKey);
         return JSON.parse(responseText) as MatchAnalysis;
 
     } catch (clientError: any) {
@@ -259,7 +268,7 @@ export const generateTailoredApplication = async (
     },
     "coverLetter": {
       "title": "Cover_Letter.docx",
-      "content": "# Markdown content..."
+      "content": "Strictly formatted business letter text..."
     },
     "rejectionDetails": {
       "reason": "Explanation...",
@@ -282,12 +291,33 @@ export const generateTailoredApplication = async (
     ? `MANDATORY LINKEDIN INSTRUCTION: The user provided this LinkedIn URL: ${linkedinUrl}. Insert this into the "linkedin" field in the JSON.`
     : `MANDATORY LINKEDIN INSTRUCTION: The user did NOT provide a LinkedIn URL. If one exists in the CV text, use it. If NOT, set "linkedin" to null. DO NOT invent a URL.`;
 
+  const coverLetterInstruction = `
+    COVER LETTER RULES:
+    1.  Format as a TRADITIONAL BUSINESS LETTER.
+    2.  DO NOT use Markdown headers like '# Introduction'. Use standard paragraphs.
+    3.  DO NOT include the Candidate's Header (Name/Contact) at the top. The UI will render this.
+    4.  START the content strictly with:
+        [Date Today]
+        
+        [Recipient Name (if known, else 'Hiring Manager')]
+        [Company Name]
+        [Company Address/City]
+        
+        Dear [Recipient Name],
+    5.  Write 3-4 paragraphs: Hook, Value Proposition (using metrics from CV), Company Alignment, Call to Action.
+    6.  End with:
+        Sincerely,
+        [Candidate Name]
+  `;
+
   const userMessage = `
       STEP 1: Analyze the Candidate CV. Identify all METRICS, NUMBERS, and SPECIFIC ACHIEVEMENTS.
       STEP 2: Analyze the Target Job. Identify TOP 5 KEYWORDS.
       STEP 3: Rewrite the CV Data into the JSON structure.
+      STEP 4: Write the Cover Letter content following the TRADITIONAL BUSINESS LETTER rules.
       
       ${linkedinInstruction}
+      ${coverLetterInstruction}
 
       ${jobContext}
       
@@ -295,7 +325,7 @@ export const generateTailoredApplication = async (
       
       Perform the generation and return the JSON object.`;
 
-  const responseText = await runAIChain(systemContent, userMessage, 0.6);
+  const responseText = await runAIChain(systemContent, userMessage, 0.6, apiKey);
   return parseAndProcessResponse(responseText);
 };
 
@@ -324,10 +354,9 @@ function parseAndProcessResponse(content: string): GeneratorResponse {
       if (!parsedResponse.coverLetter) parsedResponse.coverLetter = { title: "Cover_Letter.docx", content: "" };
       if (!parsedResponse.coverLetter.content) parsedResponse.coverLetter.content = parsedResponse.coverLetter.body || parsedResponse.coverLetter.text || "";
 
-      const clContent = parsedResponse.coverLetter.content;
-      if (clContent && !clContent.includes('\n\n') && clContent.includes('\n')) {
-          parsedResponse.coverLetter.content = clContent.replace(/\n/g, '\n\n');
-      }
+      // Ensure single newlines are treated as line breaks in the final rendering if needed, 
+      // but for business letters, double newline for paragraphs is standard.
+      // We accept the AI output mostly as is, but ensure no 'undefined' strings.
     }
 
     return {

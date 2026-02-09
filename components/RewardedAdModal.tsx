@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AdBanner } from './AdBanner';
 
@@ -56,12 +57,12 @@ export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({ isOpen, onClos
         </div>
 
         {/* Ad Container */}
-        <div className="w-full bg-black flex flex-col items-center justify-center p-6 min-h-[300px]">
+        <div className="w-full bg-black flex flex-col items-center justify-center p-6 min-h-[350px]">
            <p className="text-slate-400 text-sm mb-4">Your download starts in {timeLeft}s...</p>
            
-           {/* We use a random suffix to force a new ad instance if multiple are loaded */}
-           <div className="bg-white p-2 rounded w-full flex justify-center min-h-[250px] items-center">
-              <AdBanner suffix="reward" /> 
+           {/* Display Ad is most appropriate for a modal/rectangle slot */}
+           <div className="bg-white p-2 rounded w-full flex justify-center items-center min-h-[280px] overflow-hidden">
+              <AdBanner variant="display" suffix="reward" className="!my-0" /> 
            </div>
         </div>
 

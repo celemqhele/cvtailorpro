@@ -8,6 +8,7 @@ import { supabase } from '../services/supabaseClient';
 import { UserProfile } from '../types';
 import { AuthModal } from './AuthModal';
 import { PaymentModal } from './DonationModal';
+import { CookieConsent } from './CookieConsent';
 
 // Extend window for Google Analytics
 declare global {
@@ -292,6 +293,7 @@ export const Layout: React.FC = () => {
             existingOrderId={null} 
             triggerPlanId={paymentTriggerPlan} 
        />
+       <CookieConsent />
     </div>
   );
 };

@@ -55,8 +55,8 @@ export const Content: React.FC = () => {
             </div>
         </section>
 
-        {/* Ad Break */}
-        {!isPaidUser && <AdBanner type="external" className="my-12" />}
+        {/* Ad Break - Multiplex */}
+        {!isPaidUser && <AdBanner variant="multiplex" className="my-12" />}
 
         {/* Written Guides */}
         <section>

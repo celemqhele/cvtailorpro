@@ -1,11 +1,11 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { AdBanner } from '../components/AdBanner';
+import { PlansSection } from '../components/PlansSection';
 
 export const Home: React.FC = () => {
-  const { user, triggerAuth, isPaidUser } = useOutletContext<any>();
+  const { user, triggerAuth, isPaidUser, triggerPayment } = useOutletContext<any>();
 
   return (
     <div className="animate-fade-in font-sans">
@@ -21,15 +21,20 @@ export const Home: React.FC = () => {
                     Stop getting rejected by ATS robots. Our AI analyzes the job description and rewrites your CV to match the keywords perfectly—without inventing facts.
                 </p>
                 <div className="mt-10 flex items-center justify-center gap-x-6">
+                    {/* Primary CTA changes based on auth state */}
                     <Link 
-                        to="/guestuserdashboard" 
+                        to={user ? "/dashboard" : "/guestuserdashboard"} 
                         className="rounded-full bg-indigo-600 px-8 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-transform hover:-translate-y-1"
                     >
-                        Get Free CV
+                        {user ? "Go to Dashboard" : "Get Free CV"}
                     </Link>
-                    <button onClick={triggerAuth} className="text-sm font-semibold leading-6 text-slate-900 hover:text-indigo-600">
-                        Sign In <span aria-hidden="true">→</span>
-                    </button>
+                    
+                    {/* Sign In only appears if NOT logged in */}
+                    {!user && (
+                        <button onClick={triggerAuth} className="text-sm font-semibold leading-6 text-slate-900 hover:text-indigo-600">
+                            Sign In <span aria-hidden="true">→</span>
+                        </button>
+                    )}
                 </div>
             </div>
             
@@ -89,13 +94,6 @@ export const Home: React.FC = () => {
         </div>
       </div>
 
-      {/* External Ad Strip */}
-      {!isPaidUser && (
-        <div className="max-w-7xl mx-auto px-4">
-            <AdBanner type="external" format="horizontal" />
-        </div>
-      )}
-
       {/* Feature Section */}
       <div className="bg-slate-50 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -139,8 +137,14 @@ export const Home: React.FC = () => {
             </div>
         </div>
       </div>
+      
+      {/* Plans Section - Explicitly included to satisfy request */}
+      <PlansSection 
+        onSelectPlan={(planId) => triggerPayment(planId)}
+        userPlanId={user?.plan_id || 'free'}
+      />
 
-      {/* New FAQ Section for Content Density */}
+      {/* FAQ Section */}
       <div className="bg-white py-24 sm:py-32 border-t border-slate-200">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
             <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl mb-12 text-center">Frequently Asked Questions</h2>
@@ -171,15 +175,16 @@ export const Home: React.FC = () => {
         </div>
       </div>
 
-      {/* Internal Ad: Pro Plan Promo */}
+      {/* Internal Ad / Bottom CTA */}
       <div className="bg-slate-50 border-t border-slate-200">
-        {!isPaidUser && <AdBanner type="internal" />}
+        {!isPaidUser && <AdBanner variant="internal" />}
         <div className="px-6 py-12 sm:px-6 sm:py-24 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
                 <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Ready to boost your career?<br />Start applying with confidence today.</h2>
                 <div className="mt-10 flex items-center justify-center gap-x-6">
-                    <Link to="/guestuserdashboard" className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
-                        Get Started for Free
+                    {/* Bottom CTA updated to reflect login state */}
+                    <Link to={user ? "/dashboard" : "/guestuserdashboard"} className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                        {user ? "Go to Dashboard" : "Get Started for Free"}
                     </Link>
                     <Link to="/content" className="text-sm font-semibold leading-6 text-slate-900">
                         Read Career Advice <span aria-hidden="true">→</span>

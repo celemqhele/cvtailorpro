@@ -48,7 +48,7 @@ export const ContentPost: React.FC = () => {
                   </ReactMarkdown>
                   {shouldShowAd && (
                       <div className="my-10 bg-slate-50 border-y border-slate-100 py-6 -mx-6 px-6 md:-mx-12 md:px-12 flex justify-center">
-                          <AdBanner type="external" format="rectangle" />
+                          <AdBanner variant="in-feed" />
                       </div>
                   )}
               </Fragment>
@@ -105,7 +105,7 @@ export const ContentPost: React.FC = () => {
                  {/* Top Ad for Free Users */}
                  {!isPaidUser && (
                      <div className="mb-12 flex justify-center">
-                        <AdBanner type="external" format="horizontal" />
+                        <AdBanner variant="display" />
                      </div>
                  )}
 
@@ -116,7 +116,7 @@ export const ContentPost: React.FC = () => {
                  {/* Bottom Ad for Free Users */}
                  {!isPaidUser && (
                      <div className="mt-12 flex justify-center">
-                        <AdBanner type="external" format="horizontal" />
+                        <AdBanner variant="multiplex" />
                      </div>
                  )}
             </div>
