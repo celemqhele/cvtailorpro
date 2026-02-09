@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 interface AdBannerProps {
@@ -41,30 +41,16 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     );
   }
 
-  // External Ad (Adsterra / PropellerAds)
-  // Dimensions based on format
-  const width = format === 'rectangle' ? '300px' : '100%';
-  const height = format === 'rectangle' ? '250px' : '90px'; // Standard Leaderboard height
-
-  // HTML content for the iframe (Sandboxed Ad)
-  // REPLACE THE SCRIPT BELOW WITH YOUR SPECIFIC ADSTERRA CODE
-  const adHtml = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background-color: transparent; }
-      </style>
-    </head>
-    <body>
-      <!-- PLACE YOUR ADSTERRA / AD NETWORK SCRIPT HERE -->
-      <!-- Example placeholder for existing script -->
-      <div id="container-05a32a6fdab36952196ec714771c7fa8"></div>
-      <script src="https://pl28664313.effectivegatecpm.com/05a32a6fdab36952196ec714771c7fa8/invoke.js" async data-cfasync="false"></script>
-      <!-- END AD SCRIPT -->
-    </body>
-    </html>
-  `;
+  // External Ad (Google AdSense)
+  useEffect(() => {
+      try {
+          // Initialize AdSense
+          // @ts-ignore
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+          // AdBlockers might trigger this, silent fail
+      }
+  }, []);
 
   return (
     <div 
@@ -73,22 +59,22 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     >
         <div className="text-[10px] text-slate-300 uppercase tracking-widest mb-1 select-none">Advertisement</div>
         <div 
-            className="bg-slate-100 border border-slate-200 rounded-lg relative overflow-hidden flex items-center justify-center"
+            className="bg-slate-100 border border-slate-200 rounded-lg overflow-hidden flex items-center justify-center"
             style={{ 
-              width: format === 'rectangle' ? '320px' : '100%', 
-              maxWidth: format === 'rectangle' ? '320px' : '728px', // Leaderboard max width
-              height: format === 'rectangle' ? '280px' : '110px' 
+              width: format === 'rectangle' ? '100%' : '100%', 
+              maxWidth: format === 'rectangle' ? '336px' : '100%', 
+              minHeight: format === 'rectangle' ? '280px' : '100px',
+              display: 'block'
             }}
         >
-           <iframe
-               title={`ad-${suffix}`}
-               srcDoc={adHtml}
-               width="100%"
-               height="100%"
-               scrolling="no"
-               frameBorder="0"
-               style={{ border: 'none', overflow: 'hidden' }}
-           />
+           {/* Google AdSense Unit */}
+           {/* Note: data-ad-slot needs to be updated with a real ID from your AdSense Dashboard */}
+           <ins className="adsbygoogle"
+                style={{ display: 'block', width: '100%', height: '100%' }}
+                data-ad-client="ca-pub-6881973057585692"
+                data-ad-slot="1234567890" 
+                data-ad-format="auto"
+                data-full-width-responsive="true"></ins>
         </div>
     </div>
   );

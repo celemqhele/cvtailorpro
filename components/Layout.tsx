@@ -159,6 +159,7 @@ export const Layout: React.FC = () => {
                  <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/')}`}>Home</Link>
                  <Link to="/content" className={`text-sm font-medium transition-colors ${isActiveParent('/content')}`}>Content</Link>
                  <Link to="/pricing" className={`text-sm font-medium transition-colors ${isActive('/pricing')}`}>Pricing</Link>
+                 <Link to="/about-us" className={`text-sm font-medium transition-colors ${isActive('/about-us')}`}>About</Link>
                  
                  {/* Auth Dependent Links */}
                  {user ? (
@@ -214,6 +215,8 @@ export const Layout: React.FC = () => {
                  <Link to="/" className="block text-base font-medium text-slate-600">Home</Link>
                  <Link to="/content" className="block text-base font-medium text-slate-600">Content</Link>
                  <Link to="/pricing" className="block text-base font-medium text-slate-600">Pricing</Link>
+                 <Link to="/about-us" className="block text-base font-medium text-slate-600">About Us</Link>
+                 <Link to="/contact" className="block text-base font-medium text-slate-600">Contact</Link>
                  {user ? (
                      <>
                         <Link to="/dashboard" className="block text-base font-medium text-indigo-600">Dashboard</Link>
@@ -241,7 +244,7 @@ export const Layout: React.FC = () => {
                    <div className="col-span-1 md:col-span-1">
                        <h3 className="font-bold text-lg text-slate-900 mb-4">CV Tailor Pro</h3>
                        <p className="text-slate-500 text-sm leading-relaxed">
-                           Empowering job seekers with AI-driven tools to land their dream jobs faster.
+                           Empowering job seekers with AI-driven tools to land their dream jobs faster. Built for the modern job market.
                        </p>
                    </div>
                    <div>
@@ -253,25 +256,28 @@ export const Layout: React.FC = () => {
                        </ul>
                    </div>
                    <div>
-                       <h4 className="font-bold text-slate-900 mb-4">Resources</h4>
+                       <h4 className="font-bold text-slate-900 mb-4">Company</h4>
                        <ul className="space-y-2 text-sm text-slate-500">
-                           <li><Link to="/content" className="hover:text-indigo-600">Content Hub</Link></li>
-                           <li><Link to="/content/how-to-prep-for-interviews" className="hover:text-indigo-600">Interview Prep</Link></li>
-                           <li><Link to="/content/make-cv-from-scratch" className="hover:text-indigo-600">CV Building Guide</Link></li>
+                           <li><Link to="/about-us" className="hover:text-indigo-600">About Us</Link></li>
+                           <li><Link to="/contact" className="hover:text-indigo-600">Contact Support</Link></li>
+                           <li><Link to="/content" className="hover:text-indigo-600">Blog & Content</Link></li>
                        </ul>
                    </div>
                    <div>
                        <h4 className="font-bold text-slate-900 mb-4">Legal</h4>
                        <ul className="space-y-2 text-sm text-slate-500">
                            <li><Link to="/privacy-policy" className="hover:text-indigo-600">Privacy Policy</Link></li>
-                           <li><Link to="/privacy-policy" className="hover:text-indigo-600">Terms of Service</Link></li>
-                           <li><a href="mailto:customerservice@goapply.co.za" className="hover:text-indigo-600">Contact Support</a></li>
+                           <li><Link to="/terms-and-conditions" className="hover:text-indigo-600">Terms of Service</Link></li>
+                           <li><Link to="/contact" className="hover:text-indigo-600">Report an Issue</Link></li>
                        </ul>
                    </div>
                </div>
                <div className="border-t border-slate-100 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-slate-400">
                    <p>© {new Date().getFullYear()} CV Tailor Pro by GoApply. All rights reserved.</p>
-                   <p className="mt-2 md:mt-0">Powered by Gemini 3. Made with ❤️ in South Africa.</p>
+                   <div className="flex gap-4 mt-2 md:mt-0">
+                      <Link to="/privacy-policy" className="hover:text-indigo-600">Privacy</Link>
+                      <Link to="/terms-and-conditions" className="hover:text-indigo-600">Terms</Link>
+                   </div>
                </div>
            </div>
        </footer>

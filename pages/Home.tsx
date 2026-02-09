@@ -89,7 +89,7 @@ export const Home: React.FC = () => {
         </div>
       </div>
 
-      {/* External Ad Strip - Non-obtrusive between Hero and Features */}
+      {/* External Ad Strip */}
       {!isPaidUser && (
         <div className="max-w-7xl mx-auto px-4">
             <AdBanner type="external" format="horizontal" />
@@ -140,8 +140,39 @@ export const Home: React.FC = () => {
         </div>
       </div>
 
+      {/* New FAQ Section for Content Density */}
+      <div className="bg-white py-24 sm:py-32 border-t border-slate-200">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl mb-12 text-center">Frequently Asked Questions</h2>
+            <div className="grid md:grid-cols-2 gap-12">
+                <div>
+                    <h3 className="font-bold text-lg text-slate-900 mb-2">Is CV Tailor Pro free?</h3>
+                    <p className="text-slate-600 leading-relaxed mb-6">
+                        Yes! We offer a completely free tier that allows you to generate tailored CVs supported by ads. For power users who need unlimited access and no interruptions, we offer affordable upgrade plans.
+                    </p>
+                    
+                    <h3 className="font-bold text-lg text-slate-900 mb-2">How does the AI optimize my CV?</h3>
+                    <p className="text-slate-600 leading-relaxed mb-6">
+                        Our AI compares your existing resume against the job description you provide. It identifies missing keywords, restructures your bullet points to emphasize relevant experience, and formats the document for maximum readability by Applicant Tracking Systems (ATS).
+                    </p>
+                </div>
+                <div>
+                    <h3 className="font-bold text-lg text-slate-900 mb-2">Is my data safe?</h3>
+                    <p className="text-slate-600 leading-relaxed mb-6">
+                        Absolutely. We process your documents securely and do not sell your personal data to third parties. You can delete your saved applications from your dashboard at any time.
+                    </p>
+
+                    <h3 className="font-bold text-lg text-slate-900 mb-2">Does it work for any industry?</h3>
+                    <p className="text-slate-600 leading-relaxed mb-6">
+                        Yes. Whether you are in Tech, Finance, Healthcare, or Retail, the principles of keyword matching and clear value proposition apply universally. Our tool adapts to the specific language of your target industry.
+                    </p>
+                </div>
+            </div>
+        </div>
+      </div>
+
       {/* Internal Ad: Pro Plan Promo */}
-      <div className="bg-white">
+      <div className="bg-slate-50 border-t border-slate-200">
         {!isPaidUser && <AdBanner type="internal" />}
         <div className="px-6 py-12 sm:px-6 sm:py-24 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
@@ -150,7 +181,7 @@ export const Home: React.FC = () => {
                     <Link to="/guestuserdashboard" className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
                         Get Started for Free
                     </Link>
-                    <Link to="/blog" className="text-sm font-semibold leading-6 text-slate-900">
+                    <Link to="/content" className="text-sm font-semibold leading-6 text-slate-900">
                         Read Career Advice <span aria-hidden="true">→</span>
                     </Link>
                 </div>

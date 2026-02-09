@@ -46,9 +46,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   useEffect(() => {
     if (mode === 'user' && user === null) {
          // If trying to access /dashboard but not logged in, trigger auth or redirect home
-         // Ideally wait a moment to ensure user state is loaded, but for now:
-         // We rely on Layout's auth check. If user is null after load, we show a message or redirect.
-         // A simple check:
          const timeout = setTimeout(() => {
              if (!user) navigate('/'); 
          }, 1000);
@@ -546,7 +543,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
             <RewardedAdModal isOpen={showRewardedModal} onClose={() => setShowRewardedModal(false)} onComplete={handleAdComplete} />
             <SupportModal isOpen={showSupportModal} onClose={() => setShowSupportModal(false)} onConfirmSupport={() => { setShowSupportModal(false); triggerPayment(); }} onContinueFree={() => { setShowSupportModal(false); setAdContext('download'); setShowRewardedModal(true); }} />
             <HistoryModal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} onLoadApplication={handleLoadHistory} />
-            <LimitReachedModal isOpen={showLimitModal} onClose={() => setShowLimitModal(false)} onWatchAd={handleLimitAdWatch} onUpgrade={handleLimitUpgrade} isMaxPlan={isMaxPlan} />
+            <LimitReachedModal 
+                isOpen={showLimitModal} 
+                onClose={() => setShowLimitModal(false)} 
+                onWatchAd={handleLimitAdWatch} 
+                onUpgrade={handleLimitUpgrade} 
+                isMaxPlan={isMaxPlan} 
+                isPaidUser={isPaidUser}
+            />
     </div>
   );
 };

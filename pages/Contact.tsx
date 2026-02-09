@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '../components/Button';
 
@@ -5,76 +6,86 @@ export const Contact: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitted(true);
-    // In a real app, this would send data to a backend
+      e.preventDefault();
+      // In a real app, this would send an email via API
+      setSubmitted(true);
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-12 px-6">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-extrabold text-slate-900 mb-4">Get in Touch</h1>
-        <p className="text-lg text-slate-600">Have questions about your subscription or need help?</p>
-      </div>
+    <div className="max-w-4xl mx-auto px-6 py-16 animate-fade-in">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            
+            {/* Contact Info */}
+            <div>
+                <h1 className="text-4xl font-extrabold text-slate-900 mb-6">Contact Us</h1>
+                <p className="text-lg text-slate-600 mb-8 leading-relaxed">
+                    Have questions about our AI, billing, or just want to say hello? We're here to help you land your dream job.
+                </p>
 
-      <div className="grid md:grid-cols-2 gap-12">
-        {/* Contact Info */}
-        <div className="bg-indigo-50 rounded-2xl p-8 border border-indigo-100">
-           <h3 className="text-2xl font-bold text-slate-900 mb-6">Contact Information</h3>
-           
-           <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                 <div className="bg-white p-3 rounded-full shadow-sm text-indigo-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                 </div>
-                 <div>
-                    <p className="text-sm font-bold text-slate-500 uppercase">Email</p>
-                    <a href="mailto:customerservice@goapply.co.za" className="text-lg font-medium text-slate-900 hover:text-indigo-600">customerservice@goapply.co.za</a>
-                 </div>
-              </div>
+                <div className="space-y-6">
+                    <div className="flex items-start gap-4">
+                        <div className="bg-indigo-100 p-3 rounded-lg text-indigo-600">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-slate-900">Email Support</h3>
+                            <p className="text-slate-500">customerservice@goapply.co.za</p>
+                            <p className="text-xs text-slate-400 mt-1">Response time: 24-48 hours</p>
+                        </div>
+                    </div>
 
-              <div className="flex items-center gap-4">
-                 <div className="bg-white p-3 rounded-full shadow-sm text-indigo-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                 </div>
-                 <div>
-                    <p className="text-sm font-bold text-slate-500 uppercase">Response Time</p>
-                    <p className="text-lg font-medium text-slate-900">Within 24 Hours</p>
-                 </div>
-              </div>
-           </div>
+                    <div className="flex items-start gap-4">
+                        <div className="bg-indigo-100 p-3 rounded-lg text-indigo-600">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-slate-900">Location</h3>
+                            <p className="text-slate-500">Johannesburg, South Africa</p>
+                            <p className="text-xs text-slate-400 mt-1">GoApply HQ</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Contact Form */}
+            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200">
+                {submitted ? (
+                    <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <h3 className="text-2xl font-bold text-slate-900 mb-2">Message Sent!</h3>
+                        <p className="text-slate-600">Thank you for contacting us. We will get back to you shortly.</p>
+                        <button onClick={() => setSubmitted(false)} className="mt-6 text-indigo-600 font-bold hover:underline">Send another message</button>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Your Name</label>
+                            <input required type="text" className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="John Doe" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
+                            <input required type="email" className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="john@example.com" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Subject</label>
+                            <select className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option>General Inquiry</option>
+                                <option>Support / Technical Issue</option>
+                                <option>Billing Question</option>
+                                <option>Feature Request</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Message</label>
+                            <textarea required rows={4} className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="How can we help you?"></textarea>
+                        </div>
+                        <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 shadow-md">Send Message</Button>
+                    </form>
+                )}
+            </div>
         </div>
-
-        {/* Form */}
-        <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
-           {submitted ? (
-             <div className="h-full flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-4">
-                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                </div>
-                <h3 className="text-xl font-bold text-slate-900">Message Sent!</h3>
-                <p className="text-slate-600 mt-2">We'll get back to you shortly.</p>
-                <button onClick={() => setSubmitted(false)} className="mt-6 text-indigo-600 font-bold text-sm hover:underline">Send another message</button>
-             </div>
-           ) : (
-             <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                   <label className="block text-sm font-bold text-slate-700 mb-2">Name</label>
-                   <input required type="text" className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="John Doe" />
-                </div>
-                <div>
-                   <label className="block text-sm font-bold text-slate-700 mb-2">Email</label>
-                   <input required type="email" className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="john@example.com" />
-                </div>
-                <div>
-                   <label className="block text-sm font-bold text-slate-700 mb-2">Message</label>
-                   <textarea required className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none h-32 resize-none" placeholder="How can we help?"></textarea>
-                </div>
-                <Button type="submit" className="w-full bg-slate-800 hover:bg-slate-900">Send Message</Button>
-             </form>
-           )}
-        </div>
-      </div>
     </div>
   );
 };

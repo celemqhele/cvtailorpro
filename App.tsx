@@ -4,11 +4,14 @@ import { Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { Dashboard } from './pages/Dashboard';
-import { Content } from './pages/Blog'; // Imports from renamed Content component file
-import { ContentPost } from './pages/BlogPost'; // Imports from renamed ContentPost component file
+import { Content } from './pages/Blog'; 
+import { ContentPost } from './pages/BlogPost'; 
 import { Pricing } from './pages/Pricing';
 import { Account } from './pages/Account';
 import { Privacy } from './pages/Privacy';
+import { About } from './pages/About';
+import { Contact } from './pages/Contact';
+import { Terms } from './pages/Terms';
 
 export const App: React.FC = () => {
   return (
@@ -17,22 +20,27 @@ export const App: React.FC = () => {
         {/* Public Pages */}
         <Route path="/" element={<Home />} />
         
-        {/* Renamed Content Routes */}
+        {/* Content Routes */}
         <Route path="/content" element={<Content />} />
         <Route path="/content/:slug" element={<ContentPost />} />
         
-        {/* Legacy redirect support could be handled here if needed, but for SPA we just define new paths */}
+        {/* Legacy redirect support */}
         <Route path="/blog" element={<Content />} /> 
         <Route path="/blog/:slug" element={<ContentPost />} />
 
         <Route path="/pricing" element={<Pricing />} />
+        
+        {/* Legal & Support Pages */}
         <Route path="/privacy-policy" element={<Privacy />} />
+        <Route path="/terms-and-conditions" element={<Terms />} />
+        <Route path="/about-us" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
         
         {/* Dashboard Routes */}
         <Route path="/dashboard" element={<Dashboard mode="user" />} />
         <Route path="/guestuserdashboard" element={<Dashboard mode="guest" />} />
         
-        {/* Protected Pages (Layout handles auth state, Account checks user internally) */}
+        {/* Protected Pages */}
         <Route path="/account" element={<Account />} />
       </Route>
     </Routes>
