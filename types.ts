@@ -5,13 +5,10 @@ export enum Status {
   ANALYZING = 'ANALYZING',
   ANALYSIS_COMPLETE = 'ANALYSIS_COMPLETE',
   GENERATING = 'GENERATING',
-  SEARCHING_JOBS = 'SEARCHING_JOBS', // New status
   SUCCESS = 'SUCCESS',
   ERROR = 'ERROR',
   REJECTED = 'REJECTED'
 }
-
-export type AppMode = 'tailor' | 'finder';
 
 export interface UserProfile {
   id: string;
@@ -30,20 +27,6 @@ export interface SavedApplication {
   cl_content: string;
   match_score?: number;
   created_at: string;
-}
-
-export interface JobSearchResult {
-  id?: string; // Optional (if saved to DB)
-  title: string;
-  company: string;
-  location: string;
-  url: string;
-  applyLinks?: { link: string; title: string }[]; // New field for direct apply options
-  datePosted: string; // "2 days ago", "Just now"
-  descriptionSnippet: string;
-  matchScore: number;
-  analysis: string;
-  rankScore: number; // Internal score for sorting
 }
 
 export interface TailoredDocument {
@@ -102,13 +85,33 @@ export interface FileData {
   name: string;
 }
 
+// --- New Manual Entry Types ---
+
+export interface ManualExperienceItem {
+  id: string;
+  title: string;
+  company: string;
+  startDate: string;
+  endDate: string;
+  description: string;
+}
+
+export interface ManualEducationItem {
+  id: string;
+  degree: string;
+  school: string;
+  year: string;
+}
+
 export interface ManualCVData {
   fullName: string;
-  contactInfo: string; 
+  email: string;
+  phone: string;
+  location: string;
   summary: string;
-  experience: string; 
-  education: string;
-  skills: string;
+  experience: ManualExperienceItem[];
+  education: ManualEducationItem[];
+  skills: string[]; // List of strings
 }
 
 export interface MatchAnalysis {

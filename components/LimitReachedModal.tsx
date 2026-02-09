@@ -1,11 +1,9 @@
 
 import React from 'react';
-import { Button } from './Button';
 
 interface LimitReachedModalProps {
   isOpen: boolean;
   onClose: () => void;
-  type: 'cv' | 'search';
   onWatchAd: () => void;
   onUpgrade: () => void;
   isMaxPlan: boolean;
@@ -14,17 +12,11 @@ interface LimitReachedModalProps {
 export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({ 
   isOpen, 
   onClose, 
-  type, 
   onWatchAd, 
   onUpgrade,
   isMaxPlan 
 }) => {
   if (!isOpen) return null;
-
-  const title = type === 'cv' ? 'Out of CV Credits' : 'Out of Job Searches';
-  const message = type === 'cv' 
-    ? 'You have reached your daily limit for generating CVs.' 
-    : 'You have reached your daily limit for job searches.';
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
@@ -44,10 +36,10 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
         </div>
 
         <div className="p-6 text-center space-y-4">
-            <h3 className="text-2xl font-bold text-slate-800">{title}</h3>
+            <h3 className="text-2xl font-bold text-slate-800">Daily Limit Reached</h3>
             
             <p className="text-slate-600 text-sm leading-relaxed">
-                {message}
+                You have used all your CV generations for today.
                 <br/>
                 <span className="font-semibold text-slate-800 mt-2 block">How would you like to proceed?</span>
             </p>

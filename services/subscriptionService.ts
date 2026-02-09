@@ -7,16 +7,15 @@ export interface SubscriptionPlan {
   price: number;
   durationDays: number;
   dailyLimit: number; // For CV Generations
-  jobSearchLimit: number; // New limit for Job Finder
   description: string;
 }
 
 export const PLANS: SubscriptionPlan[] = [
-  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 0, jobSearchLimit: 0, description: 'Watch Ad for CVs + 0 Searches' },
-  { id: 'tier_1', name: 'Starter', price: 19.99, durationDays: 30, dailyLimit: 20, jobSearchLimit: 1, description: '20 CVs + 1 Search / Day' },
-  { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 50, jobSearchLimit: 1, description: '50 CVs + 1 Search / Day' },
-  { id: 'tier_3', name: 'Pro', price: 99.99, durationDays: 30, dailyLimit: 100, jobSearchLimit: 1, description: '100 CVs + 1 Search / Day' },
-  { id: 'tier_4', name: 'Unlimited', price: 199.99, durationDays: 30, dailyLimit: 10000, jobSearchLimit: 5, description: 'Unlimited CVs + 5 Searches' },
+  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 0, description: 'Watch Ad per CV' },
+  { id: 'tier_1', name: 'Starter', price: 19.99, durationDays: 30, dailyLimit: 20, description: '20 CVs / Day' },
+  { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 50, description: '50 CVs / Day' },
+  { id: 'tier_3', name: 'Pro', price: 99.99, durationDays: 30, dailyLimit: 100, description: '100 CVs / Day' },
+  { id: 'tier_4', name: 'Unlimited', price: 199.99, durationDays: 30, dailyLimit: 10000, description: 'Unlimited CVs' },
 ];
 
 export const getPlanDetails = (planId: string) => {

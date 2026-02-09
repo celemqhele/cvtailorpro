@@ -1,108 +1,43 @@
 
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
-import { SYSTEM_PROMPT, ANALYSIS_PROMPT, SERP_API_KEY, CEREBRAS_KEY } from "../constants";
-import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, JobSearchResult } from "../types";
-
-// Reliable Free CORS Proxy
-// corsproxy.io is often blocked on free tier. allorigins is more permissive for simple JSON/Text.
-const PROXY_URL = "https://api.allorigins.win/raw?url=";
+import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY } from "../constants";
+import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData } from "../types";
 
 /**
- * Helper to fetch JSON from a URL with CORS fallback.
- */
-async function fetchJsonWithFallback(targetUrl: string): Promise<any> {
-    // 1. Attempt Direct Fetch (Fastest, but likely blocked by CORS in browser)
-    try {
-        const response = await fetch(targetUrl);
-        if (response.ok) {
-            return await response.json();
-        }
-    } catch (e) {
-        console.warn("Direct fetch blocked (CORS), attempting proxy...");
-    }
-
-    // 2. Attempt via Proxy
-    try {
-        // Add timestamp to prevent caching
-        const proxiedUrl = `${PROXY_URL}${encodeURIComponent(targetUrl)}&_t=${Date.now()}`;
-        const response = await fetch(proxiedUrl);
-        
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`Proxy error: ${response.status} ${text}`);
-        }
-        
-        return await response.json();
-    } catch (e: any) {
-        console.error("Proxy fetch failed:", e);
-        throw new Error("Unable to connect to search service. Please try again or check your internet connection.");
-    }
-}
-
-/**
- * Scrapes job content using SerpApi Google Jobs engine directly.
+ * Scrapes job content using Jina.ai.
  */
 export const scrapeJobFromUrl = async (url: string): Promise<string> => {
-    
-    let scrapedText = "";
-
-    // 1. Try SerpApi (Google Jobs) Direct Fetch
-    if (SERP_API_KEY) {
-        try {
-            console.log("Attempting SerpApi Google Jobs scrape...");
-            // We search for the URL itself to see if Google Jobs indexed it
-            const targetUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(url)}&api_key=${SERP_API_KEY}&hl=en`;
-            
-            const data = await fetchJsonWithFallback(targetUrl);
-            
-            if (data.jobs_results && data.jobs_results.length > 0) {
-                const job = data.jobs_results[0];
-                if (job.description && job.description.length > 100) {
-                    scrapedText = `
-JOB TITLE: ${job.title}
-COMPANY: ${job.company_name}
-LOCATION: ${job.location}
-
-DESCRIPTION:
-${job.description}
-                    `.trim();
-                }
-            }
-        } catch (error) {
-            console.warn("SerpApi scrape attempt failed, initiating fallback.", error);
-        }
-    }
-
-    if (scrapedText) return scrapedText;
-
-    // 2. Fallback to Jina.ai
     console.log("Attempting Jina scrape...");
+    
     let targetUrl = url;
     if (!url.startsWith('http')) {
         targetUrl = 'https://' + url;
     }
 
+    // Use Jina.ai Reader
     const scrapeUrl = `https://r.jina.ai/${targetUrl}`;
 
     try {
         const response = await fetch(scrapeUrl);
+        
         if (!response.ok) {
-            if (response.status === 451 || response.status === 403) {
-                throw new Error("This job board blocks automated scanning. Please copy and paste the job description text manually.");
-            }
-            throw new Error(`Failed to scan job link with Jina (${response.status})`);
+            throw new Error(`Jina error status: ${response.status}`);
         }
+        
         const text = await response.text();
         
-        if (!text || text.length < 100 || text.includes("Please enable cookies") || text.includes("Access Denied")) {
-             throw new Error("Scanned content appears to be blocked or invalid. Please try pasting the text manually.");
+        // Validation check for common blocking responses
+        if (!text || text.length < 50 || text.includes("Access Denied") || text.includes("Cloudflare") || text.includes("Just a moment")) {
+             throw new Error("Content appears to be blocked.");
         }
         
         return text;
+
     } catch (e: any) {
-        console.error("Jina scraping error:", e);
-        throw new Error(e.message || "Failed to scan job link. Please paste the description manually.");
+        console.warn("Jina scraping failed:", e);
+        // Throw specific error message that the UI will recognize to switch modes
+        throw new Error("We couldn't read this link automatically. Please copy and paste the job description text manually.");
     }
 };
 
@@ -191,6 +126,7 @@ async function callCerebras(modelName: string, systemPrompt: string, userPrompt:
 
     if (!response.ok) {
       const errText = await response.text();
+      console.error(`Cerebras API Error (${modelName}):`, response.status, errText);
       throw new Error(`Cerebras API Error (${modelName}): ${response.status} ${errText}`);
     }
 
@@ -226,138 +162,6 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
     }
 }
 
-// --- JOB FINDER LOGIC ---
-
-export const findJobsMatchingCV = async (
-    cvFile: FileData | null,
-    manualData: ManualCVData | null,
-    locationOverride: string = ''
-): Promise<JobSearchResult[]> => {
-
-    // 1. Extract CV Data
-    let candidateText = "";
-    if (cvFile) {
-        candidateText = await extractTextFromFile(cvFile);
-    } else if (manualData) {
-        candidateText = JSON.stringify(manualData);
-    }
-
-    // 2. Identify Search Query via AI
-    const queryPrompt = `
-        Analyze this CV. Extract the top 2 most relevant Job Titles for this candidate and their primary location (city/country).
-        Output JSON: { "query": "Job Title OR Job Title 2", "location": "City, Country" }
-        If user provided location override: "${locationOverride}", use that.
-    `;
-    const criteriaJson = await runAIChain("You are a search query optimizer.", `${queryPrompt}\n\nCV:\n${candidateText.substring(0, 5000)}`, 0.1);
-    
-    let criteria;
-    try {
-        criteria = JSON.parse(criteriaJson);
-    } catch (e) {
-        console.error("Failed to parse criteria JSON", criteriaJson);
-        throw new Error("Failed to analyze CV for search criteria.");
-    }
-
-    // 3. Search via SerpApi (Google Jobs) - With Proxy Fallback
-    const searchQuery = `${criteria.query} ${criteria.location}`;
-    console.log(`Searching for: ${searchQuery}`);
-
-    // Construct SerpApi URL for Google Jobs
-    const serpUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(searchQuery)}&hl=en&num=20&api_key=${SERP_API_KEY}`;
-    
-    let jobs = [];
-    
-    try {
-        const data = await fetchJsonWithFallback(serpUrl);
-        
-        const rawJobs = data.jobs_results || [];
-
-        // 4. Process and Filter Jobs
-        // Rule: Only keep jobs with direct apply options (apply_options)
-        jobs = rawJobs.filter((j: any) => j.apply_options && Array.isArray(j.apply_options) && j.apply_options.length > 0);
-
-        // Extra fallback: If strict filtering returns nothing, relax it
-        if (jobs.length === 0 && rawJobs.length > 0) {
-            console.warn("No jobs with direct apply_options found. Returning filtered raw jobs.");
-            jobs = rawJobs;
-        }
-
-    } catch (error: any) {
-        console.warn("SerpApi Fetch Failed (likely AdBlock/CORS issues). Generating Smart Fallback Links.");
-        // FALLBACK: If API fails, return "Smart Links" so the user still has actionable items
-        return [
-            {
-                title: `Browse ${criteria.query} Roles`,
-                company: "LinkedIn Search",
-                location: criteria.location,
-                url: `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(criteria.query)}&location=${encodeURIComponent(criteria.location)}`,
-                datePosted: "Live Feed",
-                descriptionSnippet: "Direct link to live LinkedIn listings for your profile. Click 'Generate CV' to use this link.",
-                matchScore: 95,
-                analysis: "High match based on your profile keywords.",
-                rankScore: 100
-            },
-            {
-                title: `Remote ${criteria.query} Jobs`,
-                company: "Indeed Search",
-                location: "Remote / " + criteria.location,
-                url: `https://www.indeed.com/jobs?q=${encodeURIComponent(criteria.query)}&l=${encodeURIComponent(criteria.location)}`,
-                datePosted: "Live Feed",
-                descriptionSnippet: "Browse top opportunities on Indeed tailored to your skills.",
-                matchScore: 90,
-                analysis: "Broad search matching your core competencies.",
-                rankScore: 90
-            },
-            {
-                title: `${criteria.query} Opportunities`,
-                company: "Glassdoor",
-                location: criteria.location,
-                url: `https://www.glassdoor.com/Job/jobs.htm?sc.keyword=${encodeURIComponent(criteria.query)}`,
-                datePosted: "Live Feed",
-                descriptionSnippet: "See salaries and company reviews for roles matching your CV.",
-                matchScore: 85,
-                analysis: "Good for researching company culture.",
-                rankScore: 80
-            }
-        ];
-    }
-
-    if (jobs.length === 0) return [];
-
-    // 5. Map to JobSearchResult
-    const results: JobSearchResult[] = jobs.slice(0, 15).map((job: any) => {
-        // Extract Apply Links
-        let applyLinks: any[] = [];
-        if (job.apply_options && Array.isArray(job.apply_options)) {
-             applyLinks = job.apply_options.map((opt: any) => ({
-                link: opt.link,
-                title: opt.title || "Apply Now"
-            }));
-        }
-
-        // Use the first valid link as the primary URL, or Google Jobs URL if none
-        const primaryUrl = applyLinks.length > 0 ? applyLinks[0].link : (job.share_link || "#");
-        
-        // Simple Match Score based on query presence
-        const isExactMatch = job.title.toLowerCase().includes(criteria.query.toLowerCase().split(' ')[0]);
-
-        return {
-            title: job.title,
-            company: job.company_name,
-            location: job.location,
-            url: primaryUrl,
-            applyLinks: applyLinks,
-            datePosted: job.detected_extensions?.posted_at || "Recently",
-            descriptionSnippet: job.description ? job.description.substring(0, 200) + "..." : "Click 'View Job' to see details.",
-            matchScore: isExactMatch ? 90 : 75,
-            analysis: isExactMatch ? "Strong title match." : "Related role found via search.",
-            rankScore: 0
-        };
-    });
-
-    return results;
-};
-
 export const analyzeMatch = async (
     cvFile: FileData | null,
     manualData: ManualCVData | null,
@@ -373,15 +177,26 @@ export const analyzeMatch = async (
         candidateText = JSON.stringify(manualData);
     }
 
-    const userMessage = `JOB DESCRIPTION:\n${jobDescription.substring(0, 15000)}\n\nCANDIDATE CV DATA:\n${candidateText.substring(0, 15000)}`;
-
-    const responseText = await runAIChain(ANALYSIS_PROMPT, userMessage, 0.2);
-    
+    // 2. Client-Side Execution (Primary)
     try {
-        return JSON.parse(responseText);
-    } catch (e) {
-        console.error("JSON Parse Error in AnalyzeMatch:", e);
-        throw new Error("Failed to parse analysis result.");
+        // Truncate to prevent context overflow if necessary, but 120B models have large context.
+        // We strictly format the message to ensure clear separation.
+        const userMessage = `
+        JOB DESCRIPTION:
+        ${jobDescription.substring(0, 15000)}
+        
+        --------------------------------------------------
+        
+        CANDIDATE CV DATA:
+        ${candidateText.substring(0, 15000)}
+        `;
+        
+        const responseText = await runAIChain(ANALYSIS_PROMPT, userMessage, 0.2);
+        return JSON.parse(responseText) as MatchAnalysis;
+
+    } catch (clientError: any) {
+         console.error("Analysis failed:", clientError);
+         throw new Error("Failed to analyze job match. Please try again later or manually check the job description.");
     }
 };
 

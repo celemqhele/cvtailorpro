@@ -24,16 +24,16 @@ const getIdentifier = async (userId?: string): Promise<string> => {
 };
 
 /**
- * Checks if the user has reached their daily limit for a specific action type.
+ * Checks if the user has reached their daily limit for CV generation.
  */
-export const checkUsageLimit = async (userId: string | undefined, limit: number, type: 'cv' | 'search'): Promise<boolean> => {
+export const checkUsageLimit = async (userId: string | undefined, limit: number): Promise<boolean> => {
     try {
         const identifier = await getIdentifier(userId);
         const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
         const { data, error } = await supabase
             .from('daily_usage')
-            .select('cv_count, search_count')
+            .select('cv_count')
             .eq('identifier', identifier)
             .eq('date', dateStr)
             .single();
@@ -41,16 +41,13 @@ export const checkUsageLimit = async (userId: string | undefined, limit: number,
         if (error) {
             // PGRST116 means no row found (count is effectively 0)
             if (error.code === 'PGRST116') {
-                // If limit is 0, 0 < 0 is false. If limit > 0, 0 < limit is true.
                 return 0 < limit;
             }
-            
             console.warn("Usage check error:", error);
-            // On other errors, we might fail open or closed. Failing open for now to avoid blocking on DB hiccups.
             return true; 
         }
 
-        const currentCount = type === 'cv' ? (data?.cv_count || 0) : (data?.search_count || 0);
+        const currentCount = data?.cv_count || 0;
         return currentCount < limit;
     } catch (e) {
         return true;
@@ -58,9 +55,9 @@ export const checkUsageLimit = async (userId: string | undefined, limit: number,
 };
 
 /**
- * Increments the usage counter for the current identifier + date + type.
+ * Increments the CV usage counter.
  */
-export const incrementUsage = async (userId: string | undefined, type: 'cv' | 'search'): Promise<void> => {
+export const incrementUsage = async (userId: string | undefined): Promise<void> => {
     try {
         const identifier = await getIdentifier(userId);
         const dateStr = new Date().toISOString().split('T')[0];
@@ -68,31 +65,23 @@ export const incrementUsage = async (userId: string | undefined, type: 'cv' | 's
         // 1. Try to fetch existing record
         const { data } = await supabase
             .from('daily_usage')
-            .select('cv_count, search_count')
+            .select('cv_count')
             .eq('identifier', identifier)
             .eq('date', dateStr)
             .single();
 
         if (data) {
             // 2. Update existing
-            const updatePayload = type === 'cv' 
-                ? { cv_count: (data.cv_count || 0) + 1 }
-                : { search_count: (data.search_count || 0) + 1 };
-
             await supabase
                 .from('daily_usage')
-                .update(updatePayload)
+                .update({ cv_count: (data.cv_count || 0) + 1 })
                 .eq('identifier', identifier)
                 .eq('date', dateStr);
         } else {
             // 3. Insert new
-            const insertPayload = type === 'cv'
-                ? { identifier, date: dateStr, cv_count: 1, search_count: 0 }
-                : { identifier, date: dateStr, cv_count: 0, search_count: 1 };
-
             await supabase
                 .from('daily_usage')
-                .insert(insertPayload);
+                .insert({ identifier, date: dateStr, cv_count: 1, search_count: 0 });
         }
     } catch (e) {
         console.error("Failed to increment usage:", e);
@@ -100,25 +89,22 @@ export const incrementUsage = async (userId: string | undefined, type: 'cv' | 's
 };
 
 /**
- * Gets the current counts for display purposes
+ * Gets the current CV count for display purposes
  */
-export const getUsageCount = async (userId?: string): Promise<{ cv: number, search: number }> => {
+export const getUsageCount = async (userId?: string): Promise<number> => {
      try {
         const identifier = await getIdentifier(userId);
         const dateStr = new Date().toISOString().split('T')[0];
 
         const { data } = await supabase
             .from('daily_usage')
-            .select('cv_count, search_count')
+            .select('cv_count')
             .eq('identifier', identifier)
             .eq('date', dateStr)
             .single();
         
-        return {
-            cv: data?.cv_count || 0,
-            search: data?.search_count || 0
-        };
+        return data?.cv_count || 0;
     } catch {
-        return { cv: 0, search: 0 };
+        return 0;
     }
 };
