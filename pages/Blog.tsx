@@ -1,10 +1,11 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { CONTENT_ITEMS } from '../data/blogData';
 import { AdBanner } from '../components/AdBanner';
 
 export const Content: React.FC = () => {
+  const { isPaidUser } = useOutletContext<any>();
   const videos = CONTENT_ITEMS.filter(post => post.category === 'Video');
   const articles = CONTENT_ITEMS.filter(post => post.category !== 'Video');
 
@@ -55,7 +56,7 @@ export const Content: React.FC = () => {
         </section>
 
         {/* Ad Break */}
-        <AdBanner type="external" className="my-12" />
+        {!isPaidUser && <AdBanner type="external" className="my-12" />}
 
         {/* Written Guides */}
         <section>

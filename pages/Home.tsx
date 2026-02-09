@@ -5,7 +5,7 @@ import { useOutletContext } from 'react-router-dom';
 import { AdBanner } from '../components/AdBanner';
 
 export const Home: React.FC = () => {
-  const { user, triggerAuth } = useOutletContext<any>();
+  const { user, triggerAuth, isPaidUser } = useOutletContext<any>();
 
   return (
     <div className="animate-fade-in font-sans">
@@ -90,9 +90,11 @@ export const Home: React.FC = () => {
       </div>
 
       {/* External Ad Strip - Non-obtrusive between Hero and Features */}
-      <div className="max-w-7xl mx-auto px-4">
-          <AdBanner type="external" format="horizontal" />
-      </div>
+      {!isPaidUser && (
+        <div className="max-w-7xl mx-auto px-4">
+            <AdBanner type="external" format="horizontal" />
+        </div>
+      )}
 
       {/* Feature Section */}
       <div className="bg-slate-50 py-24 sm:py-32">
@@ -140,7 +142,7 @@ export const Home: React.FC = () => {
 
       {/* Internal Ad: Pro Plan Promo */}
       <div className="bg-white">
-        <AdBanner type="internal" />
+        {!isPaidUser && <AdBanner type="internal" />}
         <div className="px-6 py-12 sm:px-6 sm:py-24 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
                 <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Ready to boost your career?<br />Start applying with confidence today.</h2>
