@@ -86,8 +86,8 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
                 We believe you should only pay when you need us. Most people only need to update their CV intensely for a few weeks while job hunting. 
                 Our plans give you <strong>30 days of power access</strong>, then automatically revert to the free tier. 
                 <br className="hidden md:block" />
-                <span className="inline-block mt-2 bg-green-100 text-green-800 px-3 py-1 rounded-full font-bold text-xs uppercase tracking-wide border border-green-200">
-                   No surprise charges on your card next month.
+                <span className="inline-block mt-4 bg-green-100 text-green-800 px-4 py-2 rounded-full font-bold text-xs md:text-sm uppercase tracking-wide border border-green-200">
+                   Meaning you have all the flexibility in the world.
                 </span>
             </p>
         </div>

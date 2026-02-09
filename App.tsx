@@ -16,6 +16,7 @@ import { AccountSettingsModal } from './components/AccountSettingsModal';
 import { LimitReachedModal } from './components/LimitReachedModal';
 import CVTemplate from './components/CVTemplate';
 import { PlansSection } from './components/PlansSection';
+import { ProPlusFeatureCard } from './components/ProPlusFeatureCard';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from './services/geminiService';
 import { updateUserSubscription, getPlanDetails } from './services/subscriptionService';
 import { authService } from './services/authService';
@@ -773,7 +774,13 @@ export const App: React.FC = () => {
                     </div>
 
                     <AnalysisDashboard />
-                    {!isPaidUser && <AdBanner />}
+                    
+                    {!isPaidUser && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-8 items-center">
+                            <AdBanner />
+                            <ProPlusFeatureCard onUpgrade={() => document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth' })} />
+                        </div>
+                    )}
 
                     {result && status === Status.SUCCESS && (
                         <div ref={previewRef} className="animate-fade-in mt-12">
