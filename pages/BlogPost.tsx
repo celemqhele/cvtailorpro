@@ -3,6 +3,7 @@ import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { BLOG_POSTS } from '../data/blogData';
+import { AdBanner } from '../components/AdBanner';
 
 export const BlogPost: React.FC = () => {
   const { slug } = useParams();
@@ -48,7 +49,12 @@ export const BlogPost: React.FC = () => {
             </div>
         </article>
         
-        <div className="mt-16 bg-indigo-900 rounded-2xl p-8 md:p-12 text-center text-white">
+        {/* Ad Placement: Bottom of Article (High visibility, non-obtrusive) */}
+        <div className="mt-8 mb-8">
+             <AdBanner type="external" format="horizontal" />
+        </div>
+        
+        <div className="mt-8 bg-indigo-900 rounded-2xl p-8 md:p-12 text-center text-white">
             <h3 className="text-2xl font-bold mb-4">Ready to put this advice into action?</h3>
             <p className="text-indigo-200 mb-8 max-w-xl mx-auto">Use our AI-powered tool to scan your CV against job descriptions and get hired faster.</p>
             <Link to="/guestuserdashboard" className="inline-block bg-white text-indigo-900 px-8 py-3 rounded-full font-bold hover:bg-indigo-50 transition-colors">

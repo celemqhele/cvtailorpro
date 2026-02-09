@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { BLOG_POSTS } from '../data/blogData';
+import { AdBanner } from '../components/AdBanner';
 
 export const Blog: React.FC = () => {
   const listicles = BLOG_POSTS.filter(post => post.category === 'Listicle');
@@ -15,7 +16,7 @@ export const Blog: React.FC = () => {
         </div>
 
         {/* Featured / Listicles */}
-        <section className="mb-16">
+        <section className="mb-12">
             <h2 className="text-2xl font-bold text-slate-900 mb-8 border-b border-slate-200 pb-4">Top 5 Quick Reads</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {listicles.map(post => (
@@ -38,6 +39,9 @@ export const Blog: React.FC = () => {
                 ))}
             </div>
         </section>
+
+        {/* Pro Plan Interruption */}
+        <AdBanner type="internal" className="my-16" />
 
         {/* Comprehensive Guides */}
         <section>
