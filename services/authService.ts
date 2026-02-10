@@ -21,6 +21,17 @@ export const authService = {
     return data;
   },
 
+  async resetPasswordForEmail(email: string) {
+    // Redirect to the account page with a query param so we can open the security tab
+    const redirectTo = window.location.origin + '/account?reset=true';
+    
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+    if (error) throw error;
+    return data;
+  },
+
   async signOut() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;

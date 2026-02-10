@@ -1,14 +1,40 @@
 
 import React, { useState } from 'react';
 import { Button } from '../components/Button';
+import { emailService } from '../services/emailService';
 
 export const Contact: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<React.ReactNode | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Form State
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [subject, setSubject] = useState('General Inquiry');
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      // In a real app, this would send an email via API
-      setSubmitted(true);
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        await emailService.sendContactForm(name, email, subject, message);
+        setSubmitted(true);
+      } catch (err: any) {
+        console.error("Contact submission failed:", err);
+        // Fallback: Create a direct mailto link if the server fails
+        const mailtoLink = `mailto:customerservice@goapply.co.za?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`)}`;
+        
+        setError(
+          <span>
+            System is temporarily offline. <a href={mailtoLink} className="underline font-bold text-red-800 hover:text-red-950">Click here to send email directly</a> via your mail app.
+          </span>
+        );
+      } finally {
+        setIsLoading(false);
+      }
   };
 
   return (
@@ -56,21 +82,39 @@ export const Contact: React.FC = () => {
                         </div>
                         <h3 className="text-2xl font-bold text-slate-900 mb-2">Message Sent!</h3>
                         <p className="text-slate-600">Thank you for contacting us. We will get back to you shortly.</p>
-                        <button onClick={() => setSubmitted(false)} className="mt-6 text-indigo-600 font-bold hover:underline">Send another message</button>
+                        <button onClick={() => { setSubmitted(false); setMessage(''); setSubject('General Inquiry'); }} className="mt-6 text-indigo-600 font-bold hover:underline">Send another message</button>
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>}
+                        
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">Your Name</label>
-                            <input required type="text" className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="John Doe" />
+                            <input 
+                                required type="text" 
+                                className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                placeholder="John Doe" 
+                                value={name}
+                                onChange={e => setName(e.target.value)}
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
-                            <input required type="email" className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="john@example.com" />
+                            <input 
+                                required type="email" 
+                                className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                placeholder="john@example.com" 
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">Subject</label>
-                            <select className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <select 
+                                className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                value={subject}
+                                onChange={e => setSubject(e.target.value)}
+                            >
                                 <option>General Inquiry</option>
                                 <option>Support / Technical Issue</option>
                                 <option>Billing Question</option>
@@ -79,9 +123,15 @@ export const Contact: React.FC = () => {
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">Message</label>
-                            <textarea required rows={4} className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="How can we help you?"></textarea>
+                            <textarea 
+                                required rows={4} 
+                                className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                placeholder="How can we help you?"
+                                value={message}
+                                onChange={e => setMessage(e.target.value)}
+                            ></textarea>
                         </div>
-                        <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 shadow-md">Send Message</Button>
+                        <Button type="submit" isLoading={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 shadow-md">Send Message</Button>
                     </form>
                 )}
             </div>

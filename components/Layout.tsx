@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { getUsageCount, syncIpUsageToUser } from '../services/usageService';
 import { getPlanDetails, updateUserSubscription } from '../services/subscriptionService';
+import { emailService } from '../services/emailService';
 import { supabase } from '../services/supabaseClient';
 import { UserProfile } from '../types';
 import { AuthModal } from './AuthModal';
@@ -111,8 +113,20 @@ export const Layout: React.FC = () => {
     if (user) {
         const success = await updateUserSubscription(user.id, planId, paymentDiscount);
         if (success) {
+            // 1. Refresh session
             await checkUserSession();
             alert("Plan Activated! Enjoy increased limits and no ads.");
+
+            // 2. Send Receipt Email via SendGrid (Supabase Edge Function)
+            const plan = getPlanDetails(planId);
+            const amount = paymentDiscount ? Math.round(plan.price * 0.5) : plan.price;
+            
+            emailService.sendReceipt(
+                user.email,
+                user.full_name || 'Valued User',
+                plan.name,
+                amount
+            );
         }
     }
     setPaymentTriggerPlan(null);
@@ -321,7 +335,8 @@ export const Layout: React.FC = () => {
             documentTitle="Pro Plan" 
             existingOrderId={null} 
             triggerPlanId={paymentTriggerPlan}
-            discountActive={paymentDiscount} 
+            discountActive={paymentDiscount}
+            userEmail={user?.email}
        />
        <CookieConsent />
     </div>

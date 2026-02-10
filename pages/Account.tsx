@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { useOutletContext, useNavigate } from 'react-router-dom';
+import { useOutletContext, useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { Button } from '../components/Button';
 
 export const Account: React.FC = () => {
   const { user, checkUserSession, triggerPayment } = useOutletContext<any>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'subscription'>('profile');
   const [fullName, setFullName] = useState('');
@@ -17,12 +18,20 @@ export const Account: React.FC = () => {
 
   useEffect(() => {
     if (!user) {
-        navigate('/'); // Redirect if not logged in
+        // If user is not present but we have reset param, they might still be loading session 
+        // from the recovery link hash. Supabase auth listener in Layout handles the actual session set.
+        // We'll just wait briefly.
         return;
     }
     setFullName(user.full_name || '');
     setNewEmail(user.email || '');
-  }, [user, navigate]);
+
+    // Check if we are here from a password reset link
+    if (searchParams.get('reset') === 'true') {
+        setActiveTab('security');
+        setMessage({ type: 'success', text: 'Please enter your new password below.' });
+    }
+  }, [user, navigate, searchParams]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();

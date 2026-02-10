@@ -10,6 +10,7 @@ interface PaymentModalProps {
   existingOrderId: string | null;
   triggerPlanId?: string | null;
   discountActive?: boolean;
+  userEmail?: string;
 }
 
 declare global {
@@ -20,7 +21,7 @@ declare global {
   }
 }
 
-export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, triggerPlanId, discountActive = false }) => {
+export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, triggerPlanId, discountActive = false, userEmail }) => {
   const PUBLIC_KEY = 'pk_live_9989ae457450be7da1256d8a2c2c0b181d0a2d30'; 
   const [selectedPlanId, setSelectedPlanId] = useState<string>('tier_2'); // Default to middle tier
 
@@ -57,7 +58,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     
     const paystack = window.PaystackPop.setup({
       key: PUBLIC_KEY,
-      email: 'customerservice@goapply.co.za', 
+      email: userEmail || 'customerservice@goapply.co.za', 
       amount: Math.round(finalPrice * 100), // In cents
       currency: 'ZAR',
       ref: ref,
@@ -66,6 +67,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         // User closed modal
       },
       callback: (response: any) => {
+          // This triggers when payment is successful
           onSuccess(planId, true); 
       }
     });
