@@ -54,7 +54,7 @@ export const Privacy: React.FC = () => {
             <h3 className="text-xl font-bold text-slate-800 mb-3">6. Contact Information Officer</h3>
             <p>If you have any questions regarding your personal information or wish to exercise your rights under POPIA, please contact our Information Officer at:</p>
             <p className="mt-2 font-medium"><a href="mailto:customerservice@goapply.co.za" className="text-indigo-600 hover:underline">customerservice@goapply.co.za</a></p>
-            <p className="text-sm text-slate-500 mt-1">Physical Address: Johannesburg, South Africa</p>
+            <p className="text-sm text-slate-500 mt-1">Physical Address: Durban, South Africa</p>
           </section>
         </div>
     </div>

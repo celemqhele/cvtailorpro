@@ -71,6 +71,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
   const [linkedinUrl, setLinkedinUrl] = useState('');
   
+  // Additional Info State (New Feature)
+  const [additionalInfo, setAdditionalInfo] = useState('');
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const additionalFileRef = useRef<HTMLInputElement>(null);
+  
   // --- Manual Form State ---
   const [manualData, setManualData] = useState<ManualCVData>({
     fullName: '', email: '', phone: '', location: '', summary: '', experience: [], education: [], skills: []
@@ -117,6 +122,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
             if (parsed.cvInputMode) setCvInputMode(parsed.cvInputMode);
             if (parsed.manualData) setManualData(parsed.manualData);
             if (parsed.linkedinUrl) setLinkedinUrl(parsed.linkedinUrl);
+            if (parsed.additionalInfo) setAdditionalInfo(parsed.additionalInfo);
             
             if (!location.state?.autofillJobDescription) {
                  if (parsed.targetMode) setTargetMode(parsed.targetMode);
@@ -137,6 +143,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
         cvInputMode,
         manualData,
         linkedinUrl,
+        additionalInfo,
         targetMode,
         jobLink,
         manualJobText,
@@ -149,7 +156,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     }, 500);
 
     return () => clearTimeout(handler);
-  }, [cvInputMode, manualData, linkedinUrl, targetMode, jobLink, manualJobText, jobTitle, directApplyLink]);
+  }, [cvInputMode, manualData, linkedinUrl, additionalInfo, targetMode, jobLink, manualJobText, jobTitle, directApplyLink]);
 
 
   // Check for incoming job data from "Find Jobs"
@@ -236,6 +243,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       if (targetMode === 'text' && !manualJobText.trim()) return false;
       if (targetMode === 'title' && !jobTitle.trim()) return false;
       return true;
+  };
+
+  const handleAdditionalFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setIsProcessingFile(true);
+      try {
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+              const base64Content = (reader.result as string).split(',')[1];
+              const fileData: FileData = {
+                  base64: base64Content,
+                  mimeType: file.type || 'text/plain',
+                  name: file.name
+              };
+              
+              const text = await extractTextFromFile(fileData);
+              // Append to existing text with a clear separator
+              setAdditionalInfo(prev => {
+                  const prefix = prev ? prev + "\n\n" : "";
+                  return prefix + `--- Content from ${file.name} ---\n${text}`;
+              });
+              
+              // Reset file input so same file can be selected again if needed
+              if (additionalFileRef.current) additionalFileRef.current.value = '';
+          };
+          reader.readAsDataURL(file);
+      } catch (err) {
+          console.error("Failed to read additional file", err);
+          alert("Could not read file. Please try copying text manually.");
+      } finally {
+          setIsProcessingFile(false);
+      }
   };
 
   const handleScanAndAnalyze = async () => {
@@ -375,7 +416,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           apiKey, 
           force,
           linkedinUrl,
-          (useSavedCv && savedCvText) ? savedCvText : undefined
+          (useSavedCv && savedCvText) ? savedCvText : undefined,
+          additionalInfo // Pass additional info
       );
       if (response.outcome !== 'REJECT') {
           setResult(response);
@@ -561,6 +603,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                              </div>
                         </div>
                     </div>
+                    
+                    {/* 3. ADDITIONAL INFO (Optional) */}
+                    <div className="mt-6 bg-white p-6 rounded-xl border border-slate-300">
+                         <div className="flex items-center justify-between mb-4">
+                             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide">3. Additional Context (Optional)</h2>
+                         </div>
+                         <p className="text-xs text-slate-500 mb-2">Include extra certifications, cover letter notes, or updated skills that aren't in your main CV.</p>
+                         <div className="relative">
+                             <textarea 
+                                className="w-full p-3 text-sm border border-slate-300 rounded-lg h-24 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="e.g. I recently completed a React Native certification. Also, please emphasize my leadership experience..."
+                                value={additionalInfo}
+                                onChange={(e) => setAdditionalInfo(e.target.value)}
+                             />
+                             <div className="absolute bottom-3 right-3">
+                                 <input 
+                                    type="file" 
+                                    ref={additionalFileRef}
+                                    className="hidden" 
+                                    accept=".pdf,.docx,.txt"
+                                    onChange={handleAdditionalFileUpload}
+                                 />
+                                 <button 
+                                    onClick={() => additionalFileRef.current?.click()}
+                                    disabled={isProcessingFile}
+                                    className="flex items-center gap-1 text-xs font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-slate-200 transition-colors"
+                                 >
+                                    {isProcessingFile ? (
+                                        <span>Processing...</span>
+                                    ) : (
+                                        <>
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                            Attach File
+                                        </>
+                                    )}
+                                 </button>
+                             </div>
+                         </div>
+                    </div>
 
                     <div className="flex flex-col md:flex-row gap-4 pt-4 border-t border-slate-200">
                         {targetMode !== 'title' && (
@@ -594,6 +675,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                 isMaxPlan={isMaxPlan} 
                 isPaidUser={isPaidUser}
                 eligibleForDiscount={discountEligible}
+                limit={dailyLimit}
             />
     </div>
   );

@@ -218,7 +218,8 @@ export const generateTailoredApplication = async (
   apiKey: string,
   force: boolean = false,
   linkedinUrl?: string,
-  savedCvText?: string // New optional param
+  savedCvText?: string,
+  additionalInfo?: string
 ): Promise<GeneratorResponse> => {
   
   // 1. Extract Text
@@ -233,6 +234,12 @@ export const generateTailoredApplication = async (
     } else {
         throw new Error("No candidate data provided.");
     }
+
+    // Append Additional Info if present
+    if (additionalInfo && additionalInfo.trim() !== '') {
+        candidateData += "\n\n=== ADDITIONAL CANDIDATE INFORMATION (New skills, certs, or instructions) ===\n" + additionalInfo;
+    }
+
   } catch (error: any) {
     throw new Error(`File processing error: ${error.message}`);
   }
@@ -315,9 +322,9 @@ export const generateTailoredApplication = async (
   `;
 
   const userMessage = `
-      STEP 1: Analyze the Candidate CV. Identify all METRICS, NUMBERS, and SPECIFIC ACHIEVEMENTS.
+      STEP 1: Analyze the Candidate CV and Additional Information (if any). Identify all METRICS, NUMBERS, and SPECIFIC ACHIEVEMENTS.
       STEP 2: Analyze the Target Job. Identify TOP 5 KEYWORDS.
-      STEP 3: Rewrite the CV Data into the JSON structure.
+      STEP 3: Rewrite the CV Data into the JSON structure. Integrate any relevant details from the "Additional Information" section into the summary, skills, or experience as appropriate.
       STEP 4: Write the Cover Letter content following the TRADITIONAL BUSINESS LETTER rules.
       
       ${linkedinInstruction}

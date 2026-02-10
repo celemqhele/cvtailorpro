@@ -9,6 +9,7 @@ interface LimitReachedModalProps {
   isMaxPlan: boolean;
   isPaidUser: boolean;
   eligibleForDiscount?: boolean;
+  limit: number;
 }
 
 export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({ 
@@ -18,7 +19,8 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
   onUpgrade,
   isMaxPlan,
   isPaidUser,
-  eligibleForDiscount = false
+  eligibleForDiscount = false,
+  limit
 }) => {
   if (!isOpen) return null;
 
@@ -43,7 +45,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
             <h3 className="text-2xl font-bold text-slate-800">Daily Limit Reached</h3>
             
             <p className="text-slate-600 text-sm leading-relaxed">
-                You have used all your free CV generations for today (5/5).
+                You have used all your {isPaidUser ? 'plan' : 'free'} CV generations for today ({limit}/{limit}).
             </p>
 
             {eligibleForDiscount && (
