@@ -21,12 +21,14 @@ export interface UserProfile {
 
 export interface SavedApplication {
   id: string;
+  user_id?: string | null;
   job_title: string;
   company_name: string;
   cv_content: string; 
   cl_content: string;
   match_score?: number;
   created_at: string;
+  expires_at?: string | null;
 }
 
 export interface TailoredDocument {

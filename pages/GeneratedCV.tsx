@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useOutletContext } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { SavedApplication, CVData } from '../types';
 import CVTemplate from '../components/CVTemplate';
@@ -13,11 +13,14 @@ import saveAs from 'file-saver';
 export const GeneratedCV: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user, triggerAuth } = useOutletContext<any>();
+  
   const [application, setApplication] = useState<SavedApplication | null>(null);
   const [cvData, setCvData] = useState<CVData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'cv' | 'cl'>('cv');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -47,6 +50,25 @@ export const GeneratedCV: React.FC = () => {
     } finally {
         setIsLoading(false);
     }
+  };
+
+  const handleClaim = async () => {
+      if (!id || !user) return;
+      setIsClaiming(true);
+      try {
+          const success = await authService.claimApplication(id);
+          if (success) {
+              // Reload application to update UI state
+              loadApplication(id);
+              alert("Application successfully saved to your profile!");
+          } else {
+              alert("Failed to save application.");
+          }
+      } catch (e) {
+          console.error(e);
+      } finally {
+          setIsClaiming(false);
+      }
   };
 
   const downloadBundle = async () => {
@@ -105,13 +127,44 @@ export const GeneratedCV: React.FC = () => {
       );
   }
 
+  const isGuestApplication = !application.user_id;
+
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
+       
+       {/* Guest Expiration Banner */}
+       {isGuestApplication && (
+           <div className="bg-amber-100 border-b border-amber-200 text-amber-800 px-4 py-3 text-center text-sm font-medium">
+                <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-2">
+                    <span className="flex items-center gap-2">
+                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                         This link will expire in 48 hours.
+                    </span>
+                    {user ? (
+                        <button 
+                            onClick={handleClaim} 
+                            disabled={isClaiming}
+                            className="text-indigo-700 hover:text-indigo-900 underline font-bold"
+                        >
+                            {isClaiming ? "Saving..." : "Save to my Profile"}
+                        </button>
+                    ) : (
+                        <button 
+                            onClick={() => triggerAuth()} 
+                            className="text-indigo-700 hover:text-indigo-900 underline font-bold"
+                        >
+                            Log in to Save permanently
+                        </button>
+                    )}
+                </div>
+           </div>
+       )}
+
        {/* Top Bar */}
        <div className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                <div className="flex items-center gap-4">
-                   <Link to="/dashboard" className="text-slate-500 hover:text-slate-800 flex items-center gap-1 text-sm font-medium">
+                   <Link to={user ? "/dashboard" : "/"} className="text-slate-500 hover:text-slate-800 flex items-center gap-1 text-sm font-medium">
                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                        Back
                    </Link>

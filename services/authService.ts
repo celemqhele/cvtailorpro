@@ -76,15 +76,20 @@ export const authService = {
     matchScore: number
   ): Promise<SavedApplication | null> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    
+    // Logic: If user exists, use their ID and no expiration. 
+    // If guest, use null user_id and set expiration to 48 hours.
+    const userId = user ? user.id : null;
+    const expiresAt = user ? null : new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
     const { data, error } = await supabase.from('applications').insert({
-      user_id: user.id,
+      user_id: userId,
       job_title: jobTitle,
       company_name: companyName,
       cv_content: cvContent,
       cl_content: clContent,
-      match_score: matchScore
+      match_score: matchScore,
+      expires_at: expiresAt
     }).select().single();
 
     if (error) {
@@ -92,6 +97,29 @@ export const authService = {
         return null;
     }
     return data as SavedApplication;
+  },
+
+  /**
+   * Assigns a guest application to a logged-in user and removes expiration.
+   */
+  async claimApplication(applicationId: string): Promise<boolean> {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      const { error } = await supabase
+        .from('applications')
+        .update({ 
+            user_id: user.id,
+            expires_at: null 
+        })
+        .eq('id', applicationId)
+        .is('user_id', null); // Safety check: only claim if currently unowned
+
+      if (error) {
+          console.error("Failed to claim application", error);
+          return false;
+      }
+      return true;
   },
 
   async getHistory(): Promise<SavedApplication[]> {
@@ -109,16 +137,13 @@ export const authService = {
   },
 
   async getApplicationById(id: string): Promise<SavedApplication | null> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-
     const { data, error } = await supabase
       .from('applications')
       .select('*')
       .eq('id', id)
       .single();
 
-    if (error) return null; // Handle not found or permission error
+    if (error) return null;
     return data as SavedApplication;
   },
 

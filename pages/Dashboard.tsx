@@ -43,7 +43,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Redirect Logic
+  // Redirect Logic - Only strict for logged-in user dashboard
   useEffect(() => {
     if (mode === 'user' && user === null) {
          const timeout = setTimeout(() => {
@@ -109,12 +109,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           }
       }
   }, [location.state]);
-
-  useEffect(() => {
-    if (user && result && !generatedCvId && status === Status.SUCCESS) {
-        saveCurrentResultToHistory();
-    }
-  }, [user, result, generatedCvId, status]);
 
   useEffect(() => {
     if (status === Status.SUCCESS && result && previewRef.current) {
@@ -270,19 +264,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       }
   };
 
-  const saveCurrentResultToHistory = async () => {
-      if (!result || !result.cvData) return;
+  const saveCurrentResultToHistory = async (resultOverride?: GeneratorResponse) => {
+      const dataToSave = resultOverride || result;
+      if (!dataToSave || !dataToSave.cvData) return null;
       try {
         const { company, role } = extractCompanyAndRole();
+        // saveApplication now handles both guest (null user) and logged in users automatically
         const savedApp = await authService.saveApplication(
-            role, company, JSON.stringify(result.cvData), result.coverLetter?.content || '', analysis?.matchScore || 0
+            role, company, JSON.stringify(dataToSave.cvData), dataToSave.coverLetter?.content || '', analysis?.matchScore || 0
         );
         if (savedApp) {
             setGeneratedCvId(savedApp.id);
+            return savedApp.id;
         }
       } catch (e) {
           console.error("Failed to auto-save to history:", e);
       }
+      return null;
   };
 
   const handleGenerate = async (forceOverride: boolean = false, isDirectTitleMode: boolean = false, bypassLimit: boolean = false) => {
@@ -318,7 +316,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
              await incrementUsage(user?.id);
              setDailyCvCount((prev: number) => prev + 1);
           }
-          if (user) await saveCurrentResultToHistory();
+          
+          // Always save and redirect, whether guest or user
+          const savedId = await saveCurrentResultToHistory(response);
+          if (savedId) {
+              navigate(`/cv-generated/${savedId}`);
+          }
       } else {
           setResult(response);
           setStatus(Status.REJECTED);
@@ -331,8 +334,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   };
 
   const handleLoadHistory = (app: SavedApplication) => {
-      // Intentionally empty or used to redirect if needed, but current usage in Dashboard is mostly just viewing
-      // Logic moved to HistoryModal to navigate to dedicated page
+      // Intentionally empty
   };
 
   const initiateDownloadBundle = () => {
@@ -477,71 +479,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                             <ProPlusFeatureCard onUpgrade={triggerPayment} />
                         </div>
                     )}
-
-                    {result && status === Status.SUCCESS && (
-                        <div ref={previewRef} className="animate-fade-in mt-12">
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-2xl font-bold text-slate-800">Your Application Package</h2>
-                                <div className="flex gap-2">
-                                    {generatedCvId && (
-                                        <Link 
-                                            to={`/cv-generated/${generatedCvId}`}
-                                            className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-bold shadow-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                                            Open Permanent Link
-                                        </Link>
-                                    )}
-                                    <div className="flex bg-slate-200 p-1 rounded-lg">
-                                        <button onClick={() => setPreviewTab('cv')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${previewTab === 'cv' ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}>CV Preview</button>
-                                        <button onClick={() => setPreviewTab('cl')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${previewTab === 'cl' ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}>Cover Letter</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative min-h-[800px]">
-                                {previewTab === 'cv' && result.cvData ? (
-                                    <div className="overflow-x-auto bg-slate-100 p-8 flex justify-center">
-                                        <div id="cv-preview-content" className="bg-white shadow-lg origin-top scale-90 md:scale-100">
-                                            <CVTemplate data={result.cvData} />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="overflow-x-auto bg-slate-100 p-8 flex justify-center">
-                                        <div id="cl-preview-content" className="bg-white shadow-lg origin-top scale-90 md:scale-100">
-                                             {/* Using the new template instead of ReactMarkdown */}
-                                             <CoverLetterTemplate content={result.coverLetter?.content || ''} userData={result.cvData!} />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="sticky bottom-4 z-30 mt-6 mx-auto max-w-lg">
-                                <div className="bg-slate-900 text-white p-2 pl-6 rounded-full shadow-2xl flex items-center justify-between gap-4">
-                                    <span className="font-bold text-sm hidden sm:block">Ready to apply?</span>
-                                    <div className="flex items-center gap-2">
-                                        {directApplyLink && (
-                                            <a 
-                                                href={directApplyLink} 
-                                                target="_blank" 
-                                                rel="noreferrer" 
-                                                className="bg-white text-slate-900 px-4 py-3 rounded-full font-bold transition-all hover:bg-slate-100 text-sm whitespace-nowrap"
-                                            >
-                                                Go to Application
-                                            </a>
-                                        )}
-                                        <button onClick={initiateDownloadBundle} disabled={isZipping} className="bg-green-500 hover:bg-green-400 text-white px-6 py-3 rounded-full font-bold transition-all flex items-center gap-2 transform hover:scale-105 active:scale-95 text-sm whitespace-nowrap">
-                                            {isZipping ? 'Preparing...' : 'Download'}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-            </div>
-
-            <div className="absolute top-0 left-0 -z-50 opacity-0 pointer-events-none">
-                 {result?.cvData && <div id="hidden-cv-content" style={{ width: '816px', backgroundColor: 'white' }}><CVTemplate data={result.cvData} /></div>}
-                 {/* Updated hidden container to use CoverLetterTemplate for consistent PDF generation */}
-                 {result?.coverLetter?.content && <div id="hidden-cl-content" style={{ width: '816px', backgroundColor: 'white' }}><CoverLetterTemplate content={result.coverLetter.content} userData={result.cvData!} /></div>}
             </div>
 
             <RewardedAdModal isOpen={showRewardedModal} onClose={() => setShowRewardedModal(false)} onComplete={handleAdComplete} />
