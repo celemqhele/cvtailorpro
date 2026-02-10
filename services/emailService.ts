@@ -7,27 +7,45 @@ export const emailService = {
    * Uses FormSubmit.co for reliable serverless delivery.
    */
   async sendContactForm(name: string, email: string, subject: string, message: string) {
-    // We use FormSubmit to send the email directly without needing a Supabase Edge Function
-    // Note: The first time this runs, an activation email will be sent to customerservice@goapply.co.za
-    const response = await fetch("https://formsubmit.co/ajax/customerservice@goapply.co.za", {
-        method: "POST",
-        headers: { 
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        },
-        body: JSON.stringify({
-            _subject: `Contact Form: ${subject}`,
-            name: name,
-            email: email, // This sets the Reply-To address automatically
-            message: message,
-            _template: 'table', // Formats the email nicely
-            _captcha: 'false'   // Disables captcha for smoother UX
-        })
-    });
+    try {
+        // We use FormSubmit to send the email directly without needing a Supabase Edge Function
+        // Using user-provided verified endpoint (manual setup)
+        const response = await fetch("https://formsubmit.co/el/himacu", {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({
+                _subject: `Contact Form: ${subject}`,
+                name: name,
+                email: email, // This sets the Reply-To address automatically
+                message: message,
+                _template: 'table', // Formats the email nicely
+                _captcha: 'false'   // Disables captcha for smoother UX
+            })
+        });
 
-    if (!response.ok) {
+        // FormSubmit sometimes returns HTML (success page) instead of JSON if the alias behaves like a redirect.
+        // We capture the text first to avoid JSON.parse crashing on HTML "DOCTYPE".
+        const text = await response.text();
+
+        if (!response.ok) {
+            throw new Error(`FormSubmit failed with status: ${response.status}`);
+        }
+        
+        // Try to parse as JSON. If it fails but response was OK, it's likely the HTML success page.
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            // It returned 200 OK but likely HTML. This counts as success for FormSubmit.
+            return { success: true, message: "Email sent successfully" };
+        }
+
+    } catch (err) {
+        console.warn("FormSubmit failed or returned invalid response, trying Supabase Edge Function...", err);
+        
         // Fallback: If FormSubmit fails, try the Supabase function as backup
-        console.warn("FormSubmit failed, trying Supabase Edge Function...");
         const { data, error } = await supabase.functions.invoke('send-email', {
           body: { type: 'contact', name, email, subject, message }
         });
@@ -37,8 +55,6 @@ export const emailService = {
         }
         return data;
     }
-    
-    return await response.json();
   },
 
   /**

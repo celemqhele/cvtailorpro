@@ -1,7 +1,7 @@
 
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
-import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY } from "../constants";
+import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT } from "../constants";
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData } from "../types";
 
 /**
@@ -401,4 +401,39 @@ export const rewriteJobDescription = async (
     
     const responseText = await runAIChain(systemPrompt, userMessage, 0.5, apiKey);
     return JSON.parse(responseText);
+};
+
+export const chatWithSupport = async (messageHistory: {role: 'user'|'assistant', content: string}[], userMessage: string): Promise<string> => {
+    // Construct the messages array for the API
+    const messages = [
+        { role: "system", content: CHAT_SYSTEM_PROMPT },
+        ...messageHistory,
+        { role: "user", content: userMessage }
+    ];
+
+    try {
+        const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${CEREBRAS_KEY}`
+            },
+            body: JSON.stringify({
+                model: "llama-3.1-8b", // Cheapest/Fastest model for chat
+                messages: messages,
+                temperature: 0.7,
+                max_tokens: 500
+            })
+        });
+
+        if (!response.ok) {
+             throw new Error("Chat service unavailable");
+        }
+
+        const data = await response.json();
+        return data.choices?.[0]?.message?.content || "I apologize, I'm having trouble thinking right now.";
+    } catch (e) {
+        console.error("Chat Error:", e);
+        return "I'm having trouble connecting to the server. Please try again later or email support.";
+    }
 };

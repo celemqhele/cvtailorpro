@@ -11,6 +11,7 @@ import { AuthModal } from './AuthModal';
 import { PaymentModal } from './DonationModal';
 import { CookieConsent } from './CookieConsent';
 import { isPreviewOrAdmin } from '../utils/envHelper';
+import { ChatWidget } from './ChatWidget';
 
 // Extend window for Google Analytics
 declare global {
@@ -339,6 +340,9 @@ export const Layout: React.FC = () => {
             userEmail={user?.email}
        />
        <CookieConsent />
+       
+       {/* AI Support Chat */}
+       <ChatWidget />
     </div>
   );
 };
