@@ -8,16 +8,22 @@ ADD COLUMN IF NOT EXISTS last_cv_filename text;
 ALTER TABLE profiles 
 ADD COLUMN IF NOT EXISTS has_used_discount boolean DEFAULT false;
 
--- 3. Ensure Row Level Security (RLS) allows users to UPDATE their own profile
+-- 3. Add Subscription Management Columns
+ALTER TABLE profiles
+ADD COLUMN IF NOT EXISTS is_pro_plus boolean DEFAULT false,
+ADD COLUMN IF NOT EXISTS plan_id text DEFAULT 'free',
+ADD COLUMN IF NOT EXISTS subscription_end_date timestamptz;
+
+-- 4. Ensure Row Level Security (RLS) allows users to UPDATE their own profile
 CREATE POLICY "Users can update own profile" 
 ON profiles FOR UPDATE 
 TO authenticated 
 USING (auth.uid() = id);
 
--- 4. Enable RLS
+-- 5. Enable RLS
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- 5. ADMIN FUNCTION: Reset all daily credits
+-- 6. ADMIN FUNCTION: Reset all daily credits
 CREATE OR REPLACE FUNCTION reset_all_daily_credits()
 RETURNS void
 LANGUAGE plpgsql
@@ -28,11 +34,11 @@ BEGIN
 END;
 $$;
 
--- 6. ADD original_link to applications table to track job posts
+-- 7. ADD original_link to applications table to track job posts
 ALTER TABLE applications 
 ADD COLUMN IF NOT EXISTS original_link text;
 
--- 7. SECURE USAGE STATS (Prevents Client-Clock Hacking)
+-- 8. SECURE USAGE STATS (Prevents Client-Clock Hacking)
 -- Returns the current count AND the seconds remaining until server midnight
 CREATE OR REPLACE FUNCTION get_user_usage_stats(user_identifier text)
 RETURNS json
@@ -56,7 +62,7 @@ BEGIN
 END;
 $$;
 
--- 8. SECURE INCREMENT (Prevents Client-Date Injection)
+-- 9. SECURE INCREMENT (Prevents Client-Date Injection)
 CREATE OR REPLACE FUNCTION increment_usage_secure(user_identifier text)
 RETURNS void
 LANGUAGE plpgsql
