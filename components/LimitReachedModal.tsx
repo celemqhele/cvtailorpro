@@ -79,7 +79,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
                 )}
                 
                 {isMaxPlan && (
-                  <p className="text-[10px] text-slate-400">You are on the highest tier. Limit reached (10,000).</p>
+                  <p className="text-[10px] text-slate-400">You are on the highest tier. Limit reached.</p>
                 )}
 
                 <button 

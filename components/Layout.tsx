@@ -101,7 +101,7 @@ export const Layout: React.FC = () => {
 
     if (profile) {
         if (profile.email === 'mqhele03@gmail.com') {
-            planLimit = 10000;
+            planLimit = 1000000;
             isPaid = true;
             maxPlan = true;
         } else {
