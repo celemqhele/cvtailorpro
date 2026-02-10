@@ -123,6 +123,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                  if (parsed.jobLink) setJobLink(parsed.jobLink);
                  if (parsed.manualJobText) setManualJobText(parsed.manualJobText);
                  if (parsed.jobTitle) setJobTitle(parsed.jobTitle);
+                 if (parsed.directApplyLink) setDirectApplyLink(parsed.directApplyLink);
             }
         } catch (e) {
             console.error("Failed to restore dashboard state", e);
@@ -139,7 +140,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
         targetMode,
         jobLink,
         manualJobText,
-        jobTitle
+        jobTitle,
+        directApplyLink
     };
     
     const handler = setTimeout(() => {
@@ -147,7 +149,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     }, 500);
 
     return () => clearTimeout(handler);
-  }, [cvInputMode, manualData, linkedinUrl, targetMode, jobLink, manualJobText, jobTitle]);
+  }, [cvInputMode, manualData, linkedinUrl, targetMode, jobLink, manualJobText, jobTitle, directApplyLink]);
 
 
   // Check for incoming job data from "Find Jobs"
@@ -252,6 +254,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
               return;
           } else if (targetMode === 'url') {
               textToAnalyze = await scrapeJobFromUrl(jobLink);
+              // In URL mode, the job link itself is the apply link
+              setDirectApplyLink(jobLink); 
           } else {
               textToAnalyze = manualJobText;
           }
@@ -297,9 +301,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       if (!dataToSave || !dataToSave.cvData) return null;
       try {
         const { company, role } = extractCompanyAndRole();
+        
+        // Pass the directApplyLink to the save function
         const savedApp = await authService.saveApplication(
-            role, company, JSON.stringify(dataToSave.cvData), dataToSave.coverLetter?.content || '', analysis?.matchScore || 0
+            role, 
+            company, 
+            JSON.stringify(dataToSave.cvData), 
+            dataToSave.coverLetter?.content || '', 
+            analysis?.matchScore || 0,
+            directApplyLink 
         );
+        
         if (savedApp) {
             setGeneratedCvId(savedApp.id);
             return savedApp.id;

@@ -16,6 +16,7 @@ import { FindJobs } from './pages/FindJobs';
 import { JobDetails } from './pages/JobDetails';
 import { AdminJobs } from './pages/AdminJobs';
 import { GeneratedCV } from './pages/GeneratedCV';
+import { WhyUs } from './pages/WhyUs';
 
 export const App: React.FC = () => {
   return (
@@ -23,6 +24,7 @@ export const App: React.FC = () => {
       <Route element={<Layout />}>
         {/* Public Pages */}
         <Route path="/" element={<Home />} />
+        <Route path="/why-us" element={<WhyUs />} />
         
         {/* Content Routes */}
         <Route path="/content" element={<Content />} />

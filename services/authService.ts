@@ -1,3 +1,4 @@
+
 import { supabase } from './supabaseClient';
 import { UserProfile, SavedApplication } from '../types';
 
@@ -102,7 +103,8 @@ export const authService = {
     companyName: string, 
     cvContent: string, 
     clContent: string, 
-    matchScore: number
+    matchScore: number,
+    originalLink?: string | null
   ): Promise<SavedApplication | null> {
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -118,7 +120,8 @@ export const authService = {
       cv_content: cvContent,
       cl_content: clContent,
       match_score: matchScore,
-      expires_at: expiresAt
+      expires_at: expiresAt,
+      original_link: originalLink
     }).select().single();
 
     if (error) {

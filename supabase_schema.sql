@@ -29,3 +29,7 @@ BEGIN
   DELETE FROM daily_usage WHERE date = CURRENT_DATE;
 END;
 $$;
+
+-- 6. ADD original_link to applications table to track job posts
+ALTER TABLE applications 
+ADD COLUMN IF NOT EXISTS original_link text;

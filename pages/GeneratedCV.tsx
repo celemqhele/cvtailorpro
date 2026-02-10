@@ -155,7 +155,7 @@ export const GeneratedCV: React.FC = () => {
   const isGuestApplication = !application.user_id;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="min-h-screen bg-slate-50 pb-20 relative">
        
        {/* Guest Expiration Banner */}
        {isGuestApplication && (
@@ -200,9 +200,22 @@ export const GeneratedCV: React.FC = () => {
                    </div>
                </div>
 
-               {/* Download Buttons Group */}
+               {/* Buttons Group */}
                <div className="flex items-center gap-3" ref={menuRef}>
                    
+                   {/* 0. Continue to Application Button */}
+                   {application.original_link && (
+                        <a 
+                            href={application.original_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hidden md:flex px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg shadow-sm items-center gap-2 transition-all"
+                        >
+                            Continue to Application
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                        </a>
+                   )}
+
                    {/* 1. CV Download Button */}
                    <div className="relative">
                        <button 
@@ -284,6 +297,21 @@ export const GeneratedCV: React.FC = () => {
        {/* Main Content */}
        <div className="max-w-5xl mx-auto px-4 py-8">
            
+           {/* Mobile Apply Button (Visible only on small screens) */}
+           {application.original_link && (
+               <div className="md:hidden mb-6">
+                    <a 
+                        href={application.original_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full flex justify-center px-4 py-3 bg-green-600 hover:bg-green-700 text-white text-base font-bold rounded-xl shadow-md items-center gap-2 transition-all"
+                    >
+                        Continue to Application
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    </a>
+               </div>
+           )}
+           
            {/* Controls */}
            <div className="flex justify-center mb-8">
                <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 inline-flex">
@@ -325,6 +353,26 @@ export const GeneratedCV: React.FC = () => {
                </div>
            </div>
        </div>
+
+       {/* Rate Us Floating Button */}
+       <a 
+          href="https://g.page/r/CfP6fwaNpAbCEBE/review"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed right-6 bottom-6 z-40 bg-white border border-slate-200 shadow-xl rounded-full px-4 py-3 flex items-center gap-3 hover:scale-105 transition-transform group"
+       >
+          <svg className="w-5 h-5" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            <path fill="none" d="M0 0h48v48H0z"/>
+          </svg>
+          <div className="text-left">
+              <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">Love the app?</p>
+              <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-600">Rate us on Google</p>
+          </div>
+       </a>
     </div>
   );
 };

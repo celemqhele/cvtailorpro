@@ -166,6 +166,7 @@ export const Layout: React.FC = () => {
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center gap-8">
                  <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/')}`}>Home</Link>
+                 <Link to="/why-us" className={`text-sm font-medium transition-colors ${isActive('/why-us')}`}>Why Us</Link>
                  <Link to="/find-jobs" className={`text-sm font-medium transition-colors ${isActiveParent('/find-jobs')}`}>Find Jobs</Link>
                  <Link to="/content" className={`text-sm font-medium transition-colors ${isActiveParent('/content')}`}>Content</Link>
                  <Link to="/pricing" className={`text-sm font-medium transition-colors ${isActive('/pricing')}`}>Pricing</Link>
@@ -225,6 +226,7 @@ export const Layout: React.FC = () => {
          {isMenuOpen && (
              <div className="md:hidden bg-white border-b border-slate-200 px-4 py-6 space-y-4 shadow-lg animate-fade-in">
                  <Link to="/" className="block text-base font-medium text-slate-600">Home</Link>
+                 <Link to="/why-us" className="block text-base font-medium text-slate-600">Why Us</Link>
                  <Link to="/find-jobs" className="block text-base font-medium text-slate-600">Find Jobs</Link>
                  <Link to="/content" className="block text-base font-medium text-slate-600">Content</Link>
                  <Link to="/pricing" className="block text-base font-medium text-slate-600">Pricing</Link>
@@ -279,6 +281,7 @@ export const Layout: React.FC = () => {
                    <div>
                        <h4 className="font-bold text-slate-900 mb-4">Company</h4>
                        <ul className="space-y-2 text-sm text-slate-500">
+                           <li><Link to="/why-us" className="hover:text-indigo-600">Why Us</Link></li>
                            <li><Link to="/about-us" className="hover:text-indigo-600">About Us</Link></li>
                            <li><Link to="/contact" className="hover:text-indigo-600">Contact Support</Link></li>
                            <li><Link to="/content" className="hover:text-indigo-600">Blog & Content</Link></li>

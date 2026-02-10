@@ -32,6 +32,7 @@ export interface SavedApplication {
   match_score?: number;
   created_at: string;
   expires_at?: string | null;
+  original_link?: string | null; // Added field for tracking the job post
 }
 
 export interface TailoredDocument {

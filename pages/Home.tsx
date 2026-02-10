@@ -1,8 +1,10 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { AdBanner } from '../components/AdBanner';
 import { PlansSection } from '../components/PlansSection';
+import { Testimonials } from '../components/Testimonials';
 
 export const Home: React.FC = () => {
   const { user, triggerAuth, isPaidUser, triggerPayment } = useOutletContext<any>();
@@ -137,6 +139,9 @@ export const Home: React.FC = () => {
             </div>
         </div>
       </div>
+
+      {/* Testimonials Section */}
+      <Testimonials />
       
       {/* Plans Section - Explicitly included to satisfy request */}
       <PlansSection 
