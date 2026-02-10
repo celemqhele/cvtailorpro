@@ -108,3 +108,16 @@ export const getUsageCount = async (userId?: string): Promise<number> => {
         return 0;
     }
 };
+
+/**
+ * ADMIN: Resets all daily usage stats for the current day.
+ * Calls a Postgres function 'reset_all_daily_credits'
+ */
+export const resetAllDailyCredits = async (): Promise<void> => {
+    const { error } = await supabase.rpc('reset_all_daily_credits');
+    
+    if (error) {
+        console.error("RPC Error:", error);
+        throw new Error(error.message);
+    }
+};

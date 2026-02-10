@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { jobService } from '../services/jobService';
 import { rewriteJobDescription } from '../services/geminiService';
+import { resetAllDailyCredits } from '../services/usageService';
 import { JobListing } from '../types';
 import { Button } from '../components/Button';
 import { GEMINI_KEY_1 } from '../constants';
@@ -26,6 +27,7 @@ export const AdminJobs: React.FC = () => {
   const [jobs, setJobs] = useState<JobListing[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastCreatedJob, setLastCreatedJob] = useState<JobListing | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
   
   // Form State
   const [title, setTitle] = useState('');
@@ -104,6 +106,21 @@ export const AdminJobs: React.FC = () => {
     }
   };
 
+  const handleGlobalReset = async () => {
+      const confirmed = window.confirm("⚠️ DANGER: This will reset the daily CV limit for EVERY user (Free and Paid) on the platform to 0 usage for today.\n\nUse this only if there is a system issue.\n\nAre you sure?");
+      if (!confirmed) return;
+
+      setIsResetting(true);
+      try {
+          await resetAllDailyCredits();
+          alert("Success: All usage records for today have been wiped. Everyone has full credits.");
+      } catch (e: any) {
+          alert(`Failed to reset: ${e.message}`);
+      } finally {
+          setIsResetting(false);
+      }
+  };
+
   // Only render if we think we might be admin (to prevent flicker, though redirect handles security)
   const isPotentialAdmin = isPreviewOrAdmin() || user?.email === 'mqhele03@gmail.com';
   if (!isPotentialAdmin) return <div className="p-20 text-center">Checking access...</div>;
@@ -173,32 +190,52 @@ export const AdminJobs: React.FC = () => {
             </div>
 
             {/* List */}
-            <div className="bg-slate-50 p-6 rounded-xl">
-                 <h2 className="text-xl font-bold mb-4">Live Jobs</h2>
-                 <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                    {jobs.map(job => (
-                        <div key={job.id} className="bg-white p-4 rounded-lg shadow-sm border flex flex-col gap-3">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <h3 className="font-bold">{job.title}</h3>
-                                    <p className="text-sm text-slate-500">{job.company}</p>
+            <div className="space-y-8">
+                <div className="bg-slate-50 p-6 rounded-xl">
+                    <h2 className="text-xl font-bold mb-4">Live Jobs</h2>
+                    <div className="space-y-4 max-h-[400px] overflow-y-auto">
+                        {jobs.map(job => (
+                            <div key={job.id} className="bg-white p-4 rounded-lg shadow-sm border flex flex-col gap-3">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <h3 className="font-bold">{job.title}</h3>
+                                        <p className="text-sm text-slate-500">{job.company}</p>
+                                    </div>
+                                    <button onClick={() => handleDelete(job.id)} className="text-red-500 hover:text-red-700 text-sm font-bold">
+                                        Delete
+                                    </button>
                                 </div>
-                                <button onClick={() => handleDelete(job.id)} className="text-red-500 hover:text-red-700 text-sm font-bold">
-                                    Delete
-                                </button>
+                                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                    <span className="text-xs text-slate-400">ID: {job.id.substring(0,8)}...</span>
+                                    <button 
+                                        onClick={() => copyToClipboard(getJobLink(job.id))}
+                                        className="text-indigo-600 hover:text-indigo-800 text-xs font-bold"
+                                    >
+                                        Copy Link
+                                    </button>
+                                </div>
                             </div>
-                            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                                <span className="text-xs text-slate-400">ID: {job.id.substring(0,8)}...</span>
-                                <button 
-                                    onClick={() => copyToClipboard(getJobLink(job.id))}
-                                    className="text-indigo-600 hover:text-indigo-800 text-xs font-bold"
-                                >
-                                    Copy Link
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                 </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* System Controls */}
+                <div className="bg-red-50 p-6 rounded-xl border border-red-200">
+                    <h2 className="text-xl font-bold mb-4 text-red-800 flex items-center gap-2">
+                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                         Danger Zone
+                    </h2>
+                    <p className="text-sm text-red-700 mb-4">
+                        Use this button to fix global limit issues. It will reset the daily counter for ALL users to 0.
+                    </p>
+                    <Button 
+                        onClick={handleGlobalReset} 
+                        isLoading={isResetting}
+                        className="w-full bg-red-600 hover:bg-red-700 shadow-red-200 text-white border-none"
+                    >
+                        Reset All Daily Credits (Today)
+                    </Button>
+                </div>
             </div>
         </div>
     </div>

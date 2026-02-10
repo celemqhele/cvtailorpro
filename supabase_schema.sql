@@ -9,11 +9,23 @@ ALTER TABLE profiles
 ADD COLUMN IF NOT EXISTS has_used_discount boolean DEFAULT false;
 
 -- 3. Ensure Row Level Security (RLS) allows users to UPDATE their own profile
--- Most Supabase starters have this by default, but if not, run this:
 CREATE POLICY "Users can update own profile" 
 ON profiles FOR UPDATE 
 TO authenticated 
 USING (auth.uid() = id);
 
--- 4. (Optional) Verify the profiles table has RLS enabled
+-- 4. Enable RLS
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- 5. ADMIN FUNCTION: Reset all daily credits
+-- Run this block in your SQL Editor
+CREATE OR REPLACE FUNCTION reset_all_daily_credits()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Deleting usage records for the current date effectively resets count to 0 for everyone
+  DELETE FROM daily_usage WHERE date = CURRENT_DATE;
+END;
+$$;

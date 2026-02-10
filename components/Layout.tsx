@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
@@ -25,7 +24,7 @@ export const Layout: React.FC = () => {
   // Global State
   const [user, setUser] = useState<UserProfile | null>(null);
   const [dailyCvCount, setDailyCvCount] = useState<number>(0);
-  const [dailyLimit, setDailyLimit] = useState(1);
+  const [dailyLimit, setDailyLimit] = useState(5); // Default to free limit
   const [isPaidUser, setIsPaidUser] = useState(false);
   const [isMaxPlan, setIsMaxPlan] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false); // Mobile menu state
@@ -36,8 +35,8 @@ export const Layout: React.FC = () => {
   const [paymentTriggerPlan, setPaymentTriggerPlan] = useState<string | null>(null);
   const [paymentDiscount, setPaymentDiscount] = useState(false);
 
-  // Check env
-  const showAdmin = isPreviewOrAdmin();
+  // Check env or specific admin user
+  const showAdmin = isPreviewOrAdmin() || user?.email === 'mqhele03@gmail.com';
 
   useEffect(() => {
     checkUserSession();
@@ -73,7 +72,9 @@ export const Layout: React.FC = () => {
     const profile = await authService.getCurrentProfile();
     setUser(profile);
     
-    let planLimit = 1;
+    // Default to Free Plan details
+    const freePlan = getPlanDetails('free');
+    let planLimit = freePlan.dailyLimit;
     let isPaid = false;
     let maxPlan = false;
 
@@ -169,21 +170,21 @@ export const Layout: React.FC = () => {
                  <Link to="/content" className={`text-sm font-medium transition-colors ${isActiveParent('/content')}`}>Content</Link>
                  <Link to="/pricing" className={`text-sm font-medium transition-colors ${isActive('/pricing')}`}>Pricing</Link>
                  
-                 {/* Admin Link (Only in Preview) */}
+                 {/* Admin Link - Visible if env flag OR specific user */}
                  {showAdmin && <Link to="/admin-jobs" className="text-sm font-bold text-red-500">Admin</Link>}
+
+                 {/* Credits Counter - Visible to all */}
+                 <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+                    <span className={dailyCvCount >= dailyLimit && !isMaxPlan ? 'text-red-500' : 'text-indigo-600'}>
+                        {isMaxPlan ? '∞' : Math.max(0, dailyLimit - dailyCvCount)} Credits
+                    </span>
+                 </div>
 
                  {/* Auth Dependent Links */}
                  {user ? (
                      <>
                         <Link to="/dashboard" className={`text-sm font-medium transition-colors ${isActive('/dashboard')}`}>Dashboard</Link>
                         
-                        {/* Credits Counter */}
-                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
-                            <span className={dailyCvCount >= dailyLimit && !isMaxPlan ? 'text-red-500' : 'text-indigo-600'}>
-                                {isMaxPlan ? '∞' : Math.max(0, dailyLimit - dailyCvCount)} Credits
-                            </span>
-                        </div>
-
                         {/* User Menu */}
                         <div className="relative group">
                             <button className="flex items-center gap-2 text-sm font-bold text-slate-700 hover:text-indigo-600 transition-colors">
@@ -229,6 +230,13 @@ export const Layout: React.FC = () => {
                  <Link to="/pricing" className="block text-base font-medium text-slate-600">Pricing</Link>
                  {showAdmin && <Link to="/admin-jobs" className="block text-base font-bold text-red-500">Admin</Link>}
                  
+                 <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="text-sm font-medium text-slate-600">Daily Credits</span>
+                    <span className={`text-sm font-bold ${dailyCvCount >= dailyLimit && !isMaxPlan ? 'text-red-500' : 'text-indigo-600'}`}>
+                        {isMaxPlan ? '∞' : Math.max(0, dailyLimit - dailyCvCount)} Left
+                    </span>
+                 </div>
+
                  {user ? (
                      <>
                         <Link to="/dashboard" className="block text-base font-medium text-indigo-600">Dashboard</Link>
