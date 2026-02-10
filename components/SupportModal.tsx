@@ -41,7 +41,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose, onC
             <div className="bg-slate-50 p-4 rounded-xl text-left space-y-2 border border-slate-100 shadow-inner">
                  <div className="flex items-center gap-3 text-sm text-slate-700 font-medium">
                     <div className="bg-green-100 p-1 rounded-full"><svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></div>
-                    <span>Download Bundle (PDF + Word)</span>
+                    <span>Download CV & Cover Letter (PDF/Word)</span>
                  </div>
                  <div className="flex items-center gap-3 text-sm text-slate-700 font-medium">
                     <div className="bg-green-100 p-1 rounded-full"><svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></div>

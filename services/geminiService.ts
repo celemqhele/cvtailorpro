@@ -350,6 +350,11 @@ function parseAndProcessResponse(content: string): GeneratorResponse {
 
       if (!parsedResponse.coverLetter) parsedResponse.coverLetter = { title: "Cover_Letter.docx", content: "" };
       if (!parsedResponse.coverLetter.content) parsedResponse.coverLetter.content = parsedResponse.coverLetter.body || parsedResponse.coverLetter.text || "";
+
+      // Sanitization: Remove em dashes to look less like "AI"
+      if (parsedResponse.coverLetter.content) {
+          parsedResponse.coverLetter.content = parsedResponse.coverLetter.content.replace(/—/g, ' - ');
+      }
     }
 
     return {

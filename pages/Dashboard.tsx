@@ -1,8 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import JSZip from 'jszip';
-import saveAs from 'file-saver';
 import { useOutletContext, useNavigate, useLocation, Link } from 'react-router-dom';
 
 import { Button } from '../components/Button';
@@ -12,8 +10,6 @@ import { RewardedAdModal } from '../components/RewardedAdModal';
 import { SupportModal } from '../components/SupportModal';
 import { HistoryModal } from '../components/HistoryModal';
 import { LimitReachedModal } from '../components/LimitReachedModal';
-import CVTemplate from '../components/CVTemplate'; 
-import CoverLetterTemplate from '../components/CoverLetterTemplate';
 import { ProPlusFeatureCard } from '../components/ProPlusFeatureCard';
 
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from '../services/geminiService';
@@ -21,8 +17,6 @@ import { authService } from '../services/authService';
 import { checkUsageLimit, incrementUsage } from '../services/usageService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis, SavedApplication, ManualCVData, ManualExperienceItem, ManualEducationItem } from '../types';
 import { GEMINI_KEY_1 } from '../constants';
-import { createWordBlob } from '../utils/docHelper';
-import { generatePdfFromApi } from '../utils/pdfHelper';
 
 interface DashboardProps {
     mode: 'user' | 'guest';
@@ -97,7 +91,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [generatedCvId, setGeneratedCvId] = useState<string | null>(null);
   const [pendingLimitAction, setPendingLimitAction] = useState<(() => void) | null>(null);
   const [adContext, setAdContext] = useState<'download' | 'limit_reward'>('download');
-  const [previewTab, setPreviewTab] = useState<'cv' | 'cl'>('cv');
   const [isZipping, setIsZipping] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -182,7 +175,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const handleAdComplete = () => {
       setShowRewardedModal(false);
       if (adContext === 'download') {
-          executeZipDownload();
+          // Instead of downloading ZIP, redirect to CV page to use new buttons
+          if (generatedCvId) {
+            navigate(`/cv-generated/${generatedCvId}`);
+          }
       } else if (adContext === 'limit_reward') {
           if (pendingLimitAction) {
               pendingLimitAction();
@@ -208,55 +204,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           }
       }
       return { company, role };
-  };
-
-  const getFilename = (type: 'cv' | 'cl' | 'zip') => {
-      const candidateName = result?.cvData?.name || manualData.fullName || 'Candidate';
-      const { company, role } = extractCompanyAndRole();
-      const safeCandidate = candidateName.replace(/[^a-zA-Z0-9 ]/g, '').trim();
-      const safeRole = role.replace(/[^a-zA-Z0-9 ]/g, '').trim().substring(0, 30);
-      const safeCompany = company.replace(/[^a-zA-Z0-9 ]/g, '').trim().substring(0, 30);
-      const baseName = `${safeCandidate} - ${safeRole} - ${safeCompany}`;
-      if (type === 'zip') return `${baseName}.zip`;
-      if (type === 'cv') return `${baseName} - CV`; 
-      return `${baseName} - Cover Letter`;
-  };
-
-  const executeZipDownload = async () => {
-      if (!result) return;
-      setIsZipping(true);
-      try {
-          const zip = new JSZip();
-          const baseName = getFilename('cv').replace(' - CV', ''); 
-          if (result.cvData) {
-              const cvDocBlob = await createWordBlob('hidden-cv-content');
-              if (cvDocBlob) zip.file(`${baseName} - CV.docx`, cvDocBlob);
-          }
-          if (result.coverLetter) {
-              const clDocBlob = await createWordBlob('hidden-cl-content');
-              if (clDocBlob) zip.file(`${baseName} - Cover Letter.docx`, clDocBlob);
-          }
-          const cvElement = document.getElementById('hidden-cv-content');
-          if (cvElement) {
-              cvElement.classList.remove('no-print');
-              const cvPdfBlob = await generatePdfFromApi('hidden-cv-content');
-              if (cvPdfBlob) zip.file(`${baseName} - CV.pdf`, cvPdfBlob);
-          }
-          const clElement = document.getElementById('hidden-cl-content');
-          if (clElement) {
-              clElement.classList.remove('no-print');
-              const clPdfBlob = await generatePdfFromApi('hidden-cl-content');
-              if (clPdfBlob) zip.file(`${baseName} - Cover Letter.pdf`, clPdfBlob);
-          }
-          const content = await zip.generateAsync({ type: "blob" });
-          saveAs(content, getFilename('zip'));
-      } catch (e) {
-          console.error("Zip failed", e);
-          alert("Failed to create download bundle. Please try again.");
-      } finally {
-          setIsZipping(false);
-          setShowRewardedModal(false);
-      }
   };
 
   const validateInputs = () => {
@@ -384,14 +331,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
   const handleLoadHistory = (app: SavedApplication) => {
       // Intentionally empty
-  };
-
-  const initiateDownloadBundle = () => {
-      if (isPaidUser) {
-          executeZipDownload();
-          return;
-      }
-      setShowSupportModal(true);
   };
 
   // Helper for rendering analysis box
