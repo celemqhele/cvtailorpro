@@ -1,4 +1,3 @@
-
 import { supabase } from './supabaseClient';
 import { UserProfile, SavedApplication } from '../types';
 
@@ -71,6 +70,21 @@ export const authService = {
         .eq('id', user.id);
     
     if (error) console.error("Failed to save CV to profile", error);
+  },
+
+  async clearCVFromProfile() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+        .from('profiles')
+        .update({ 
+            last_cv_filename: null,
+            last_cv_content: null
+        })
+        .eq('id', user.id);
+    
+    if (error) console.error("Failed to clear CV from profile", error);
   },
 
   async updateEmail(newEmail: string) {

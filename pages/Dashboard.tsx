@@ -33,7 +33,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       isMaxPlan, 
       setDailyCvCount, 
       triggerAuth, 
-      triggerPayment 
+      triggerPayment,
+      checkUserSession
   } = useOutletContext<any>();
 
   const navigate = useNavigate();
@@ -196,6 +197,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
               setPendingLimitAction(null);
           }
       }
+  };
+
+  const handleDeleteSavedCV = async () => {
+      if(!confirm("Are you sure you want to remove your saved CV?")) return;
+      await authService.clearCVFromProfile();
+      setSavedCvText(null);
+      setSavedCvFilename(null);
+      setUseSavedCv(false);
+      // Refresh user session in background
+      if (checkUserSession) checkUserSession();
   };
 
   const extractCompanyAndRole = () => {
@@ -451,12 +462,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                                 <h3 className="font-bold text-indigo-900 text-sm">Using Saved CV</h3>
                                                 <p className="text-xs text-indigo-700 font-medium">{savedCvFilename}</p>
                                             </div>
-                                            <button 
-                                                onClick={() => { setUseSavedCv(false); setFile(null); }}
-                                                className="mt-4 text-xs font-bold text-indigo-500 hover:text-indigo-700 underline"
-                                            >
-                                                Upload different file
-                                            </button>
+                                            
+                                            <div className="flex justify-center gap-3 mt-4">
+                                                <button 
+                                                    onClick={() => { setUseSavedCv(false); setFile(null); }}
+                                                    className="text-xs font-bold text-indigo-500 hover:text-indigo-700 underline"
+                                                >
+                                                    Upload different file
+                                                </button>
+                                                <span className="text-slate-300">|</span>
+                                                <button 
+                                                    onClick={handleDeleteSavedCV}
+                                                    className="text-xs font-bold text-red-400 hover:text-red-600 underline"
+                                                >
+                                                    Remove from Cloud
+                                                </button>
+                                            </div>
                                         </div>
                                     ) : (
                                         <div className="relative">
