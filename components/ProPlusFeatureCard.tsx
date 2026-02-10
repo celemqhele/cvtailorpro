@@ -1,8 +1,9 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 interface ProPlusFeatureCardProps {
-  onUpgrade: () => void;
+  onUpgrade?: () => void;
   className?: string;
   minimal?: boolean;
 }
@@ -15,12 +16,12 @@ export const ProPlusFeatureCard: React.FC<ProPlusFeatureCardProps> = ({ onUpgrad
             <h4 className="font-bold text-sm text-indigo-100">Upgrade Plan</h4>
             <p className="text-xs text-indigo-300">Remove ads & increase daily limits.</p>
          </div>
-         <button 
-          onClick={onUpgrade}
+         <Link 
+          to="/pricing"
           className="px-3 py-1.5 bg-white text-indigo-900 text-xs font-bold rounded-lg hover:bg-indigo-50 transition-colors whitespace-nowrap"
         >
           View Plans
-        </button>
+        </Link>
       </div>
     );
   }
@@ -51,13 +52,13 @@ export const ProPlusFeatureCard: React.FC<ProPlusFeatureCardProps> = ({ onUpgrad
             </li>
         </ul>
         
-        <button 
-          onClick={onUpgrade}
+        <Link 
+          to="/pricing"
           className="w-full py-3 bg-white text-indigo-700 font-bold rounded-lg shadow-sm hover:bg-indigo-50 transition-colors text-sm flex items-center justify-center gap-2"
         >
           View Pricing
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-        </button>
+        </Link>
       </div>
     </div>
   );
