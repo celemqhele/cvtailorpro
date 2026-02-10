@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
-import { getUsageCount } from '../services/usageService';
+import { getUsageCount, syncIpUsageToUser } from '../services/usageService';
 import { getPlanDetails, updateUserSubscription } from '../services/subscriptionService';
 import { supabase } from '../services/supabaseClient';
 import { UserProfile } from '../types';
@@ -40,8 +40,15 @@ export const Layout: React.FC = () => {
 
   useEffect(() => {
     checkUserSession();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       checkUserSession();
+      // If a user just signed in or signed up, sync their guest usage to their account
+      if ((event === 'SIGNED_IN' || event === 'ToKEN_REFRESHED') && session?.user) {
+          syncIpUsageToUser(session.user.id).then(() => {
+              // Refresh counts after sync
+              getUsageCount(session.user.id).then(setDailyCvCount);
+          });
+      }
     });
     return () => subscription.unsubscribe();
   }, []);

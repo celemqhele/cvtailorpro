@@ -428,6 +428,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       );
   };
 
+  // Discount rule: Must not have used discount before, and not currently pro
   const discountEligible = !user || (!user.has_used_discount && !user.is_pro_plus);
 
   return (

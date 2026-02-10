@@ -110,6 +110,53 @@ export const getUsageCount = async (userId?: string): Promise<number> => {
 };
 
 /**
+ * CRITICAL: Syncs usage from the User's IP address to their new User ID.
+ * This ensures that if a guest uses 5 credits then signs up, they still have 5 credits used.
+ */
+export const syncIpUsageToUser = async (userId: string): Promise<void> => {
+    try {
+        const ip = await getIpAddress();
+        const dateStr = new Date().toISOString().split('T')[0];
+
+        // 1. Get usage associated with IP
+        const { data: ipData } = await supabase
+            .from('daily_usage')
+            .select('cv_count')
+            .eq('identifier', ip)
+            .eq('date', dateStr)
+            .single();
+
+        // If IP has usage...
+        if (ipData && ipData.cv_count > 0) {
+            
+            // 2. Get usage associated with new User ID
+            const { data: userData } = await supabase
+                .from('daily_usage')
+                .select('cv_count')
+                .eq('identifier', userId)
+                .eq('date', dateStr)
+                .single();
+
+            const userCount = userData?.cv_count || 0;
+
+            // 3. If IP usage is higher (e.g. they just signed up), sync it to the user
+            if (ipData.cv_count > userCount) {
+                await supabase
+                    .from('daily_usage')
+                    .upsert({ 
+                        identifier: userId, 
+                        date: dateStr, 
+                        cv_count: ipData.cv_count,
+                        search_count: 0 
+                    }, { onConflict: 'identifier,date' });
+            }
+        }
+    } catch (e) {
+        console.error("Failed to sync IP usage to user:", e);
+    }
+};
+
+/**
  * ADMIN: Resets all daily usage stats for the current day.
  * Calls a Postgres function 'reset_all_daily_credits'
  */

@@ -79,9 +79,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               <h3 className="text-2xl font-bold text-slate-900">
                   {discountActive ? 'Special Offer Unlocked! 🎉' : 'Upgrade for More Power'}
               </h3>
-              {discountActive && (
+              {discountActive ? (
                   <p className="text-indigo-600 font-bold mt-1 text-sm">
                       50% OFF all plans for your first upgrade.
+                  </p>
+              ) : (
+                  <p className="text-slate-500 mt-1 text-sm">
+                      Get unlimited access and premium features.
                   </p>
               )}
               
