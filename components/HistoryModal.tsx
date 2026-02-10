@@ -1,17 +1,19 @@
 
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SavedApplication } from '../types';
 import { authService } from '../services/authService';
 
 interface HistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoadApplication: (app: SavedApplication) => void;
+  onLoadApplication?: (app: SavedApplication) => void; // Optional now
 }
 
 export const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, onLoadApplication }) => {
   const [history, setHistory] = useState<SavedApplication[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isOpen) {
@@ -44,6 +46,11 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, onL
     }
   };
 
+  const handleOpenCV = (appId: string) => {
+      onClose();
+      navigate(`/cv-generated/${appId}`);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -73,7 +80,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, onL
             <div className="grid gap-4">
               {history.map((app) => (
                 <div key={app.id} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-300 transition-all shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 group">
-                  <div className="flex-1 cursor-pointer" onClick={() => { onLoadApplication(app); onClose(); }}>
+                  <div className="flex-1 cursor-pointer" onClick={() => handleOpenCV(app.id)}>
                     <h4 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{app.job_title || "Untitled Role"}</h4>
                     <p className="text-sm text-slate-500">{app.company_name || "Unknown Company"}</p>
                     <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
@@ -88,7 +95,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, onL
                   
                   <div className="flex items-center gap-2">
                     <button 
-                      onClick={() => { onLoadApplication(app); onClose(); }}
+                      onClick={() => handleOpenCV(app.id)}
                       className="px-4 py-2 bg-indigo-50 text-indigo-700 font-semibold rounded-lg text-sm hover:bg-indigo-100 transition-colors"
                     >
                       View

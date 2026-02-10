@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
-import { useOutletContext, useNavigate, useLocation } from 'react-router-dom';
+import { useOutletContext, useNavigate, useLocation, Link } from 'react-router-dom';
 
 import { Button } from '../components/Button';
 import { FileUpload } from '../components/FileUpload';
@@ -91,7 +92,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [analysis, setAnalysis] = useState<MatchAnalysis | null>(null);
   const [result, setResult] = useState<GeneratorResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [hasSavedCurrentResult, setHasSavedCurrentResult] = useState(false);
+  const [generatedCvId, setGeneratedCvId] = useState<string | null>(null);
   const [pendingLimitAction, setPendingLimitAction] = useState<(() => void) | null>(null);
   const [adContext, setAdContext] = useState<'download' | 'limit_reward'>('download');
   const [previewTab, setPreviewTab] = useState<'cv' | 'cl'>('cv');
@@ -106,15 +107,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           if (location.state.autofillApplyLink) {
               setDirectApplyLink(location.state.autofillApplyLink);
           }
-          // Clear state so refresh doesn't re-trigger if needed, but keeping it simple for now
       }
   }, [location.state]);
 
   useEffect(() => {
-    if (user && result && !hasSavedCurrentResult && status === Status.SUCCESS) {
+    if (user && result && !generatedCvId && status === Status.SUCCESS) {
         saveCurrentResultToHistory();
     }
-  }, [user, result, hasSavedCurrentResult, status]);
+  }, [user, result, generatedCvId, status]);
 
   useEffect(() => {
     if (status === Status.SUCCESS && result && previewRef.current) {
@@ -147,26 +147,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           }
       }
   };
-
-  // --- Manual Entry Functions ---
-  const addExperience = () => {
-      if (!tempExp.title || !tempExp.company) return;
-      setManualData(prev => ({ ...prev, experience: [...prev.experience, { ...tempExp, id: Date.now().toString() }] }));
-      setTempExp({ id: '', title: '', company: '', startDate: '', endDate: '', description: '' });
-  };
-  const removeExperience = (id: string) => setManualData(prev => ({ ...prev, experience: prev.experience.filter(item => item.id !== id) }));
-  const addEducation = () => {
-      if (!tempEdu.degree || !tempEdu.school) return;
-      setManualData(prev => ({ ...prev, education: [...prev.education, { ...tempEdu, id: Date.now().toString() }] }));
-      setTempEdu({ id: '', degree: '', school: '', year: '' });
-  };
-  const removeEducation = (id: string) => setManualData(prev => ({ ...prev, education: prev.education.filter(item => item.id !== id) }));
-  const addSkill = () => {
-      if (!tempSkill.trim()) return;
-      setManualData(prev => ({ ...prev, skills: [...prev.skills, tempSkill.trim()] }));
-      setTempSkill('');
-  };
-  const removeSkill = (skill: string) => setManualData(prev => ({ ...prev, skills: prev.skills.filter(s => s !== skill) }));
 
   const extractCompanyAndRole = () => {
       let company = 'Company';
@@ -254,7 +234,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       setErrorMsg(null);
       setAnalysis(null);
       setJobSpec('');
-      setHasSavedCurrentResult(false);
+      setGeneratedCvId(null);
       try {
           let textToAnalyze = '';
           if (targetMode === 'title') {
@@ -294,10 +274,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       if (!result || !result.cvData) return;
       try {
         const { company, role } = extractCompanyAndRole();
-        await authService.saveApplication(
+        const savedApp = await authService.saveApplication(
             role, company, JSON.stringify(result.cvData), result.coverLetter?.content || '', analysis?.matchScore || 0
         );
-        setHasSavedCurrentResult(true);
+        if (savedApp) {
+            setGeneratedCvId(savedApp.id);
+        }
       } catch (e) {
           console.error("Failed to auto-save to history:", e);
       }
@@ -318,7 +300,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     setStatus(Status.GENERATING);
     setErrorMsg(null);
     setResult(null);
-    setHasSavedCurrentResult(false);
+    setGeneratedCvId(null);
     try {
       const response = await generateTailoredApplication(
           cvInputMode === 'upload' ? file : null,
@@ -349,15 +331,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   };
 
   const handleLoadHistory = (app: SavedApplication) => {
-      try {
-        const parsedCV = JSON.parse(app.cv_content);
-        setResult({ outcome: 'PROCEED', cvData: parsedCV, coverLetter: { title: 'Restored_CL.docx', content: app.cl_content } });
-        setAnalysis({ decision: 'APPLY', matchScore: app.match_score || 0, headline: app.job_title, pros: [], cons: [], reasoning: "Restored from history", jobTitle: app.job_title, company: app.company_name });
-        setStatus(Status.SUCCESS);
-        setHasSavedCurrentResult(true);
-      } catch (e) {
-          alert("Could not load this application.");
-      }
+      // Intentionally empty or used to redirect if needed, but current usage in Dashboard is mostly just viewing
+      // Logic moved to HistoryModal to navigate to dedicated page
   };
 
   const initiateDownloadBundle = () => {
@@ -507,9 +482,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                         <div ref={previewRef} className="animate-fade-in mt-12">
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-2xl font-bold text-slate-800">Your Application Package</h2>
-                                <div className="flex bg-slate-200 p-1 rounded-lg">
-                                    <button onClick={() => setPreviewTab('cv')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${previewTab === 'cv' ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}>CV Preview</button>
-                                    <button onClick={() => setPreviewTab('cl')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${previewTab === 'cl' ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}>Cover Letter</button>
+                                <div className="flex gap-2">
+                                    {generatedCvId && (
+                                        <Link 
+                                            to={`/cv-generated/${generatedCvId}`}
+                                            className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-bold shadow-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                            Open Permanent Link
+                                        </Link>
+                                    )}
+                                    <div className="flex bg-slate-200 p-1 rounded-lg">
+                                        <button onClick={() => setPreviewTab('cv')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${previewTab === 'cv' ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}>CV Preview</button>
+                                        <button onClick={() => setPreviewTab('cl')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${previewTab === 'cl' ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}>Cover Letter</button>
+                                    </div>
                                 </div>
                             </div>
                             <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative min-h-[800px]">

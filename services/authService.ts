@@ -74,20 +74,24 @@ export const authService = {
     cvContent: string, 
     clContent: string, 
     matchScore: number
-  ) {
+  ): Promise<SavedApplication | null> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
-    const { error } = await supabase.from('applications').insert({
+    const { data, error } = await supabase.from('applications').insert({
       user_id: user.id,
       job_title: jobTitle,
       company_name: companyName,
       cv_content: cvContent,
       cl_content: clContent,
       match_score: matchScore
-    });
+    }).select().single();
 
-    if (error) console.error("Error saving application:", error);
+    if (error) {
+        console.error("Error saving application:", error);
+        return null;
+    }
+    return data as SavedApplication;
   },
 
   async getHistory(): Promise<SavedApplication[]> {
@@ -102,6 +106,20 @@ export const authService = {
 
     if (error) throw error;
     return data as SavedApplication[];
+  },
+
+  async getApplicationById(id: string): Promise<SavedApplication | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from('applications')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) return null; // Handle not found or permission error
+    return data as SavedApplication;
   },
 
   async deleteApplication(id: string) {
