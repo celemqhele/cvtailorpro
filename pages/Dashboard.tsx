@@ -28,6 +28,8 @@ interface DashboardProps {
     mode: 'user' | 'guest';
 }
 
+const STORAGE_KEY = 'cv_tailor_dashboard_state';
+
 export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   // Context from Layout
   const { 
@@ -99,7 +101,54 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [isZipping, setIsZipping] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
-  // Check for incoming job data from "Find Jobs"
+  // Restore State from Session Storage on Mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            if (parsed.cvInputMode) setCvInputMode(parsed.cvInputMode);
+            if (parsed.file) setFile(parsed.file);
+            if (parsed.manualData) setManualData(parsed.manualData);
+            if (parsed.linkedinUrl) setLinkedinUrl(parsed.linkedinUrl);
+            
+            // Only restore job data if we aren't currently being directed from "Find Jobs"
+            // (Find Jobs passes state via location, which should take precedence)
+            if (!location.state?.autofillJobDescription) {
+                 if (parsed.targetMode) setTargetMode(parsed.targetMode);
+                 if (parsed.jobLink) setJobLink(parsed.jobLink);
+                 if (parsed.manualJobText) setManualJobText(parsed.manualJobText);
+                 if (parsed.jobTitle) setJobTitle(parsed.jobTitle);
+            }
+        } catch (e) {
+            console.error("Failed to restore dashboard state", e);
+        }
+    }
+  }, []); // Run once on mount
+
+  // Save State to Session Storage on Change
+  useEffect(() => {
+    const stateToSave = {
+        cvInputMode,
+        file,
+        manualData,
+        linkedinUrl,
+        targetMode,
+        jobLink,
+        manualJobText,
+        jobTitle
+    };
+    
+    // Debounce saving slightly to avoid heavy writes on every keystroke
+    const handler = setTimeout(() => {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [cvInputMode, file, manualData, linkedinUrl, targetMode, jobLink, manualJobText, jobTitle]);
+
+
+  // Check for incoming job data from "Find Jobs" (overrides session storage for job fields)
   useEffect(() => {
       if (location.state && location.state.autofillJobDescription) {
           setTargetMode('text');
