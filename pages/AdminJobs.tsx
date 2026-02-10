@@ -6,16 +6,22 @@ import { JobListing } from '../types';
 import { Button } from '../components/Button';
 import { GEMINI_KEY_1 } from '../constants';
 import { isPreviewOrAdmin } from '../utils/envHelper';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 
 export const AdminJobs: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useOutletContext<any>();
   
   useEffect(() => {
-    if (!isPreviewOrAdmin()) {
-        navigate('/');
-    }
-  }, [navigate]);
+    // Small timeout to allow user auth to load if it's initial page load
+    const checkAccess = setTimeout(() => {
+        const isAdmin = isPreviewOrAdmin() || user?.email === 'mqhele03@gmail.com';
+        if (!isAdmin) {
+            navigate('/');
+        }
+    }, 1000);
+    return () => clearTimeout(checkAccess);
+  }, [navigate, user]);
 
   const [jobs, setJobs] = useState<JobListing[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -89,11 +95,18 @@ export const AdminJobs: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this job?')) return;
-    await jobService.deleteJob(id);
-    loadJobs();
+    try {
+        await jobService.deleteJob(id);
+        loadJobs();
+    } catch (e: any) {
+        console.error(e);
+        alert(`Failed to delete: ${e.message}`);
+    }
   };
 
-  if (!isPreviewOrAdmin()) return null;
+  // Only render if we think we might be admin (to prevent flicker, though redirect handles security)
+  const isPotentialAdmin = isPreviewOrAdmin() || user?.email === 'mqhele03@gmail.com';
+  if (!isPotentialAdmin) return <div className="p-20 text-center">Checking access...</div>;
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12 animate-fade-in">
