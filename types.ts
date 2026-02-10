@@ -19,6 +19,7 @@ export interface UserProfile {
   subscription_end_date?: string;
   last_cv_content?: string;
   last_cv_filename?: string;
+  has_used_discount?: boolean;
 }
 
 export interface SavedApplication {

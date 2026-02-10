@@ -5,9 +5,10 @@ interface LimitReachedModalProps {
   isOpen: boolean;
   onClose: () => void;
   onWatchAd: () => void;
-  onUpgrade: () => void;
+  onUpgrade: (withDiscount: boolean) => void;
   isMaxPlan: boolean;
   isPaidUser: boolean;
+  eligibleForDiscount?: boolean;
 }
 
 export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({ 
@@ -16,7 +17,8 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
   onWatchAd, 
   onUpgrade,
   isMaxPlan,
-  isPaidUser
+  isPaidUser,
+  eligibleForDiscount = false
 }) => {
   if (!isOpen) return null;
 
@@ -41,37 +43,51 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
             <h3 className="text-2xl font-bold text-slate-800">Daily Limit Reached</h3>
             
             <p className="text-slate-600 text-sm leading-relaxed">
-                You have used all your CV generations for today.
-                <br/>
-                <span className="font-semibold text-slate-800 mt-2 block">How would you like to proceed?</span>
+                You have used all your free CV generations for today (5/5).
             </p>
 
+            {eligibleForDiscount && (
+                <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 my-2 animate-bounce-subtle">
+                    <p className="text-xs font-bold text-indigo-800 uppercase tracking-wide">Limited Time Offer</p>
+                    <p className="text-lg font-extrabold text-indigo-600">Get 50% OFF Pro Plans</p>
+                    <p className="text-xs text-indigo-500">Remove ads & increase limits instantly.</p>
+                </div>
+            )}
+            
+            {!eligibleForDiscount && (
+                 <p className="font-semibold text-slate-800 text-sm">Upgrade now to continue creating.</p>
+            )}
+
             <div className="pt-2 space-y-3">
-                {/* Only show Ad Option if user is NOT a paying user */}
-                {!isPaidUser && (
-                  <button 
-                      onClick={onWatchAd}
-                      className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 transform active:scale-95"
-                  >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      {/* Changed wording to avoid 'incentivized click' violation */}
-                      Continue with Basic Access (Ad Supported)
-                  </button>
-                )}
-                
                 {!isMaxPlan && (
                   <button 
-                      onClick={onUpgrade}
-                      className="w-full py-3 bg-white border-2 border-amber-500 text-amber-600 font-bold rounded-xl hover:bg-amber-50 transition-all text-sm flex items-center justify-center gap-2"
+                      onClick={() => onUpgrade(eligibleForDiscount)}
+                      className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all text-sm flex items-center justify-center gap-2 transform active:scale-95"
                   >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                      {isPaidUser ? 'Upgrade to Higher Tier' : 'Upgrade Plan'}
+                      {eligibleForDiscount ? (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+                            Claim 50% Discount
+                          </>
+                      ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            {isPaidUser ? 'Upgrade to Higher Tier' : 'Upgrade Plan'}
+                          </>
+                      )}
                   </button>
                 )}
                 
                 {isMaxPlan && (
                   <p className="text-[10px] text-slate-400">You are on the highest tier. Limit reached (10,000).</p>
                 )}
+
+                <button 
+                    onClick={onClose}
+                    className="w-full py-2 text-slate-400 hover:text-slate-600 text-sm font-medium"
+                >
+                    Close
+                </button>
             </div>
         </div>
       </div>

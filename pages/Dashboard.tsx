@@ -34,7 +34,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       setDailyCvCount, 
       triggerAuth, 
       triggerPayment,
-      checkUserSession
+      checkUserSession,
+      dailyCvCount
   } = useOutletContext<any>();
 
   const navigate = useNavigate();
@@ -75,11 +76,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     fullName: '', email: '', phone: '', location: '', summary: '', experience: [], education: [], skills: []
   });
 
-  // Temp State
-  const [tempExp, setTempExp] = useState<ManualExperienceItem>({ id: '', title: '', company: '', startDate: '', endDate: '', description: '' });
-  const [tempEdu, setTempEdu] = useState<ManualEducationItem>({ id: '', degree: '', school: '', year: '' });
-  const [tempSkill, setTempSkill] = useState('');
-
   // Job Target Modes
   const [targetMode, setTargetMode] = useState<'url' | 'text' | 'title'>('text');
   const [jobLink, setJobLink] = useState('');
@@ -96,9 +92,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [result, setResult] = useState<GeneratorResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [generatedCvId, setGeneratedCvId] = useState<string | null>(null);
-  const [pendingLimitAction, setPendingLimitAction] = useState<(() => void) | null>(null);
-  const [adContext, setAdContext] = useState<'download' | 'limit_reward'>('download');
-  const [isZipping, setIsZipping] = useState(false);
+  
+  // Pending actions for ad completion
+  const [pendingGenParams, setPendingGenParams] = useState<{force: boolean, isTitle: boolean} | null>(null);
+  const [adContext, setAdContext] = useState<'generation' | 'download'>('generation');
+
   const previewRef = useRef<HTMLDivElement>(null);
 
   // Load Saved CV from User Profile
@@ -117,11 +115,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
         try {
             const parsed = JSON.parse(saved);
             if (parsed.cvInputMode) setCvInputMode(parsed.cvInputMode);
-            // We do NOT restore file binary from session as it's too large, but manual data is fine
             if (parsed.manualData) setManualData(parsed.manualData);
             if (parsed.linkedinUrl) setLinkedinUrl(parsed.linkedinUrl);
             
-            // Only restore job data if we aren't currently being directed from "Find Jobs"
             if (!location.state?.autofillJobDescription) {
                  if (parsed.targetMode) setTargetMode(parsed.targetMode);
                  if (parsed.jobLink) setJobLink(parsed.jobLink);
@@ -174,27 +170,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   }, [status, result]);
 
   // --- Handlers ---
-  const handleLimitAdWatch = () => {
-      setShowLimitModal(false);
-      setAdContext('limit_reward');
-      setShowRewardedModal(true);
-  };
 
-  const handleLimitUpgrade = () => {
+  const handleLimitUpgrade = (withDiscount: boolean) => {
       setShowLimitModal(false);
-      triggerPayment();
+      triggerPayment(undefined, withDiscount);
   };
 
   const handleAdComplete = () => {
       setShowRewardedModal(false);
-      if (adContext === 'download') {
+      
+      if (adContext === 'generation' && pendingGenParams) {
+          // Resume generation after ad
+          handleGenerate(pendingGenParams.force, pendingGenParams.isTitle, true); // true = bypassAd
+          setPendingGenParams(null);
+      } else if (adContext === 'download') {
           if (generatedCvId) {
             navigate(`/cv-generated/${generatedCvId}`);
-          }
-      } else if (adContext === 'limit_reward') {
-          if (pendingLimitAction) {
-              pendingLimitAction();
-              setPendingLimitAction(null);
           }
       }
   };
@@ -205,7 +196,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       setSavedCvText(null);
       setSavedCvFilename(null);
       setUseSavedCv(false);
-      // Refresh user session in background
       if (checkUserSession) checkUserSession();
   };
 
@@ -229,7 +219,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   };
 
   const validateInputs = () => {
-      // Validate CV Input: Either file selected, saved CV used, or manual mode filled
       if (cvInputMode === 'upload') {
           if (useSavedCv && savedCvText) {
               // Valid
@@ -241,7 +230,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           if (manualData.experience.length === 0) return false;
       }
       
-      // Validate Job Input
       if (targetMode === 'url' && !jobLink) return false;
       if (targetMode === 'text' && !manualJobText.trim()) return false;
       if (targetMode === 'title' && !jobTitle.trim()) return false;
@@ -272,20 +260,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           
           // 2. Process CV and Autosave if new
           if (cvInputMode === 'upload' && !useSavedCv && file) {
-             // If this is a fresh upload, extract and save before analysis
              const extractedText = await extractTextFromFile(file);
              await authService.saveCVToProfile(file.name, extractedText);
-             // Update local state to reflect saved status for next time
              setSavedCvText(extractedText);
              setSavedCvFilename(file.name);
              setUseSavedCv(true); 
-             setFile(null); // Clear file input as we now have text
+             setFile(null);
           }
 
           // 3. Analyze
           setStatus(Status.ANALYZING);
           const analysisResult = await analyzeMatch(
-              file, // This might be null if using saved text, which is fine
+              file, 
               cvInputMode === 'scratch' ? manualData : null,
               textToAnalyze, 
               apiKey,
@@ -324,14 +310,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       return null;
   };
 
-  const handleGenerate = async (forceOverride: boolean = false, isDirectTitleMode: boolean = false, bypassLimit: boolean = false) => {
-    const canProceed = bypassLimit || await checkUsageLimit(user?.id, dailyLimit);
+  const handleGenerate = async (forceOverride: boolean = false, isDirectTitleMode: boolean = false, bypassAd: boolean = false) => {
+    // 1. Check if user is free and needs to watch ad or is blocked
+    if (!isPaidUser && !bypassAd) {
+        // If they hit the limit (5), they are done. No more ads. Must upgrade.
+        const atLimit = await checkUsageLimit(user?.id, dailyLimit);
+        if (!atLimit) {
+            setShowLimitModal(true); // Block them
+            return;
+        }
+
+        // If not at limit, they must watch an ad for this generation
+        setPendingGenParams({ force: forceOverride, isTitle: isDirectTitleMode });
+        setAdContext('generation');
+        setShowRewardedModal(true);
+        return;
+    }
+
+    // 2. Double check limit just in case (for paid users too)
+    const canProceed = bypassAd || await checkUsageLimit(user?.id, dailyLimit);
     const isAdmin = user?.email === 'mqhele03@gmail.com';
+
     if (!canProceed && !isAdmin) {
-        setPendingLimitAction(() => () => handleGenerate(forceOverride, isDirectTitleMode, true));
         setShowLimitModal(true);
         return;
     }
+
     const force = typeof forceOverride === 'boolean' ? forceOverride : false;
     const currentJobSpec = isDirectTitleMode ? jobTitle : jobSpec;
     if (!apiKey.trim()) return;
@@ -342,7 +346,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     setGeneratedCvId(null);
     try {
       
-      // Autosave logic if jumping straight to generate without analyze
       if (cvInputMode === 'upload' && !useSavedCv && file) {
           const extractedText = await extractTextFromFile(file);
           await authService.saveCVToProfile(file.name, extractedText);
@@ -412,6 +415,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
         </div>
       );
   };
+
+  const discountEligible = !user || (!user.has_used_discount && !user.is_pro_plus);
 
   return (
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-8">
@@ -571,10 +576,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
             <LimitReachedModal 
                 isOpen={showLimitModal} 
                 onClose={() => setShowLimitModal(false)} 
-                onWatchAd={handleLimitAdWatch} 
+                onWatchAd={() => {}} // Disabled for hard limit
                 onUpgrade={handleLimitUpgrade} 
                 isMaxPlan={isMaxPlan} 
                 isPaidUser={isPaidUser}
+                eligibleForDiscount={discountEligible}
             />
     </div>
   );

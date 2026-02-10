@@ -9,6 +9,7 @@ interface PaymentModalProps {
   documentTitle: string;
   existingOrderId: string | null;
   triggerPlanId?: string | null;
+  discountActive?: boolean;
 }
 
 declare global {
@@ -19,14 +20,16 @@ declare global {
   }
 }
 
-export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, triggerPlanId }) => {
+export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, triggerPlanId, discountActive = false }) => {
   const PUBLIC_KEY = 'pk_live_9989ae457450be7da1256d8a2c2c0b181d0a2d30'; 
   const [selectedPlanId, setSelectedPlanId] = useState<string>('tier_2'); // Default to middle tier
 
   useEffect(() => {
     if (isOpen && triggerPlanId) {
        setSelectedPlanId(triggerPlanId);
-       handlePayment(triggerPlanId);
+       // Optional: Auto-trigger payment if directly clicked, 
+       // but for discount selection seeing the price change is better UX
+       // handlePayment(triggerPlanId); 
     }
   }, [isOpen, triggerPlanId]);
 
@@ -37,19 +40,25 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     const plan = PLANS.find(p => p.id === planId);
     if (!plan || plan.price === 0) return;
     
+    let finalPrice = plan.price;
+    if (discountActive) {
+        finalPrice = Math.round(plan.price * 0.5); // 50% discount
+    }
+
     // Use random Ref
     const ref = 'TXN-' + Math.random().toString(36).substring(2, 12).toUpperCase();
     const metadata = {
         custom_fields: [
           { display_name: "Plan Type", variable_name: "plan_type", value: plan.name },
-          { display_name: "Plan ID", variable_name: "plan_id", value: plan.id }
+          { display_name: "Plan ID", variable_name: "plan_id", value: plan.id },
+          { display_name: "Discount Applied", variable_name: "discount_applied", value: discountActive ? "Yes" : "No" }
         ]
     };
     
     const paystack = window.PaystackPop.setup({
       key: PUBLIC_KEY,
       email: 'customerservice@goapply.co.za', 
-      amount: Math.round(plan.price * 100), // In cents
+      amount: Math.round(finalPrice * 100), // In cents
       currency: 'ZAR',
       ref: ref,
       metadata: metadata,
@@ -67,7 +76,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
   const renderPlans = () => (
       <div className="space-y-6">
            <div className="text-center">
-              <h3 className="text-2xl font-bold text-slate-900">Upgrade for More Power</h3>
+              <h3 className="text-2xl font-bold text-slate-900">
+                  {discountActive ? 'Special Offer Unlocked! 🎉' : 'Upgrade for More Power'}
+              </h3>
+              {discountActive && (
+                  <p className="text-indigo-600 font-bold mt-1 text-sm">
+                      50% OFF all plans for your first upgrade.
+                  </p>
+              )}
               
               {/* Reassurance Badge */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-4 mb-2 mx-auto max-w-lg shadow-sm">
@@ -86,6 +102,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               {PLANS.filter(p => p.price > 0).map((plan) => {
                   const isSelected = selectedPlanId === plan.id;
                   const isPopular = plan.id === 'tier_2';
+                  
+                  const displayPrice = discountActive ? Math.round(plan.price * 0.5) : plan.price;
 
                   return (
                     <div 
@@ -102,7 +120,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                         )}
                         <div className="text-center space-y-1 mb-4 pt-2">
                             <h4 className="font-bold text-slate-700 text-sm uppercase">{plan.name}</h4>
-                            <div className="text-2xl font-bold text-indigo-700">R{plan.price}</div>
+                            <div className="flex flex-col items-center">
+                                {discountActive && (
+                                    <span className="text-sm text-slate-400 line-through decoration-red-500 decoration-2">R{plan.price}</span>
+                                )}
+                                <div className="text-2xl font-bold text-indigo-700">R{displayPrice}</div>
+                            </div>
                             <div className="text-xs font-bold text-slate-900 bg-white border border-slate-200 rounded-full py-1 px-2 inline-block">
                                 {plan.description}
                             </div>
@@ -123,7 +146,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               onClick={() => handlePayment()}
               className={`w-full py-4 px-4 font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700`}
             >
-              Get {PLANS.find(p => p.id === selectedPlanId)?.name} Access (One-Off)
+              Get {PLANS.find(p => p.id === selectedPlanId)?.name} Access {discountActive && '(50% OFF)'}
             </button>
             
             <div className="text-center">

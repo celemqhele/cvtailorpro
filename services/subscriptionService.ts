@@ -11,7 +11,7 @@ export interface SubscriptionPlan {
 }
 
 export const PLANS: SubscriptionPlan[] = [
-  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 0, description: 'Watch Ad per CV' },
+  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 5, description: '5 CVs / Day (Ads)' },
   { id: 'tier_1', name: 'Starter', price: 19.99, durationDays: 30, dailyLimit: 20, description: '20 CVs / Day' },
   { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 50, description: '50 CVs / Day' },
   { id: 'tier_3', name: 'Pro', price: 99.99, durationDays: 30, dailyLimit: 100, description: '100 CVs / Day' },
@@ -29,7 +29,7 @@ export const createSubscription = async (
   return { success: true };
 };
 
-export const updateUserSubscription = async (userId: string, planId: string): Promise<boolean> => {
+export const updateUserSubscription = async (userId: string, planId: string, discountUsed: boolean = false): Promise<boolean> => {
     const plan = PLANS.find(p => p.id === planId);
     if (!plan || plan.id === 'free') return true; 
 
@@ -49,13 +49,19 @@ export const updateUserSubscription = async (userId: string, planId: string): Pr
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + plan.durationDays);
 
+    const updates: any = { 
+        is_pro_plus: true, 
+        plan_id: plan.id,
+        subscription_end_date: endDate.toISOString()
+    };
+
+    if (discountUsed) {
+        updates.has_used_discount = true;
+    }
+
     const { error } = await supabase
         .from('profiles')
-        .update({ 
-            is_pro_plus: true, 
-            plan_id: plan.id,
-            subscription_end_date: endDate.toISOString()
-        })
+        .update(updates)
         .eq('id', userId);
 
     if (error) {

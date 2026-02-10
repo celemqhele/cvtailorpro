@@ -34,6 +34,7 @@ export const Layout: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentTriggerPlan, setPaymentTriggerPlan] = useState<string | null>(null);
+  const [paymentDiscount, setPaymentDiscount] = useState(false);
 
   // Check env
   const showAdmin = isPreviewOrAdmin();
@@ -100,24 +101,26 @@ export const Layout: React.FC = () => {
 
   const handlePaymentSuccess = async (planId: string, isSubscription: boolean) => {
     if (user) {
-        const success = await updateUserSubscription(user.id, planId);
+        const success = await updateUserSubscription(user.id, planId, paymentDiscount);
         if (success) {
             await checkUserSession();
             alert("Plan Activated! Enjoy increased limits and no ads.");
         }
     }
     setPaymentTriggerPlan(null);
+    setPaymentDiscount(false);
     setShowPaymentModal(false);
   };
 
   const triggerAuth = () => setShowAuthModal(true);
   
-  const triggerPayment = (planId?: string) => {
+  const triggerPayment = (planId?: string, withDiscount: boolean = false) => {
     if (!user) {
         setShowAuthModal(true);
         return;
     }
     if (planId) setPaymentTriggerPlan(planId);
+    setPaymentDiscount(withDiscount);
     setShowPaymentModal(true);
   };
 
@@ -299,7 +302,8 @@ export const Layout: React.FC = () => {
             onSuccess={handlePaymentSuccess} 
             documentTitle="Pro Plan" 
             existingOrderId={null} 
-            triggerPlanId={paymentTriggerPlan} 
+            triggerPlanId={paymentTriggerPlan}
+            discountActive={paymentDiscount} 
        />
        <CookieConsent />
     </div>
