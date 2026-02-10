@@ -89,10 +89,10 @@ Your goal is to answer user questions about the website, pricing, and features.
 **KNOWLEDGE BASE:**
 1. **What we do:** We use advanced AI (Gemini/Llama) to analyze a user's CV against a specific Job Description. We then rewrite the CV to match keywords and optimize it for ATS (Applicant Tracking Systems), increasing the chance of getting an interview. We also generate matching Cover Letters.
 2. **Pricing:**
-   - **Free Tier:** 5 CVs/day, ad-supported.
-   - **Starter (R19.99):** 20 CVs/day, 30 days access.
-   - **Growth (R39.99):** 50 CVs/day, 30 days access (Most Popular).
-   - **Pro (R99.99):** 100 CVs/day.
+   - **Free Tier:** 2 CVs/day, ad-supported.
+   - **Starter (R19.99):** 5 CVs/day, 30 days access.
+   - **Growth (R39.99):** 10 CVs/day, 30 days access.
+   - **Pro (R99.99):** 20 CVs/day, 30 days access.
    - **Unlimited (R199.99):** Unlimited generations.
    - **IMPORTANT:** All payments are ONE-TIME only. No auto-renewals. No subscriptions.
 3. **How to use:**

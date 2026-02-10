@@ -27,7 +27,7 @@ export const Layout: React.FC = () => {
   // Global State
   const [user, setUser] = useState<UserProfile | null>(null);
   const [dailyCvCount, setDailyCvCount] = useState<number>(0);
-  const [dailyLimit, setDailyLimit] = useState(5); // Default to free limit
+  const [dailyLimit, setDailyLimit] = useState(2); // Default to free limit (2)
   const [isPaidUser, setIsPaidUser] = useState(false);
   const [isMaxPlan, setIsMaxPlan] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false); // Mobile menu state
@@ -46,11 +46,22 @@ export const Layout: React.FC = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       checkUserSession();
       // If a user just signed in or signed up, sync their guest usage to their account
+      // CRITICAL: Only do this for NEW accounts (created within last 15 mins) to prevent 
+      // existing users from inheriting usage from shared IPs.
       if ((event === 'SIGNED_IN' || event === 'ToKEN_REFRESHED') && session?.user) {
-          syncIpUsageToUser(session.user.id).then(() => {
-              // Refresh counts after sync
+          const createdAt = new Date(session.user.created_at).getTime();
+          const now = new Date().getTime();
+          const isNewAccount = (now - createdAt) < 15 * 60 * 1000; // 15 minute threshold
+
+          if (isNewAccount) {
+              syncIpUsageToUser(session.user.id).then(() => {
+                  // Refresh counts after sync
+                  getUsageCount(session.user.id).then(setDailyCvCount);
+              });
+          } else {
+              // Just load their existing usage
               getUsageCount(session.user.id).then(setDailyCvCount);
-          });
+          }
       }
     });
     return () => subscription.unsubscribe();
