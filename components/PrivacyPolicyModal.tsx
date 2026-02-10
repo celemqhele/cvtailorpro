@@ -32,9 +32,9 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
         <div className="p-6 overflow-y-auto text-slate-600 space-y-6 text-sm leading-relaxed">
           
           <section>
-            <h4 className="font-bold text-slate-900 mb-2">1. Introduction & Acceptance</h4>
+            <h4 className="font-bold text-slate-900 mb-2">1. Introduction & POPIA</h4>
             <p>
-              By using CV Tailor Pro ("the Service"), you agree to these Terms and Conditions and Privacy Policy. If you do not agree, please do not use the Service.
+              By using CV Tailor Pro ("the Service"), you agree to these Terms and Conditions and Privacy Policy. We comply with the <strong>Protection of Personal Information Act (POPIA)</strong> of South Africa.
             </p>
           </section>
 
@@ -43,9 +43,9 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
             <p>We collect and store specific information to provide the Service:</p>
             <ul className="list-disc pl-5 space-y-2 mt-2">
               <li><strong>User Account Data:</strong> Name, email address, and encrypted password authentication data.</li>
-              <li><strong>Usage Data:</strong> Application history, including Job Titles, Company Names, and the generated CV/Cover Letter content, is stored in our database to allow you to view and restore your history.</li>
-              <li><strong>uploaded Documents:</strong> Original files uploaded for analysis are processed in temporary memory. However, the text extracted from them is stored as part of the "Generated Content" in your history logs.</li>
-              <li><strong>Transaction Data:</strong> We store Order IDs and Subscription status linked to your account. We do NOT store credit card numbers.</li>
+              <li><strong>CV Data:</strong> We store the <strong>extracted text content</strong> of your most recently uploaded CV to facilitate auto-filling on your dashboard. We do not permanently store the original binary file.</li>
+              <li><strong>Usage Data:</strong> Application history, including generated CV/Cover Letter content, is stored to allow you to view and restore your history.</li>
+              <li><strong>Transaction Data:</strong> We store Order IDs and Subscription status. We do NOT store credit card numbers.</li>
             </ul>
           </section>
 
@@ -57,9 +57,9 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
           </section>
 
           <section>
-            <h4 className="font-bold text-slate-900 mb-2">4. User Obligations</h4>
+            <h4 className="font-bold text-slate-900 mb-2">4. Your Rights</h4>
             <p>
-              You agree not to upload sensitive personal data (e.g., ID numbers, health data) irrelevant to a job application. You are responsible for the accuracy of the data you input.
+              Under POPIA, you have the right to access, correct, or request the deletion of your personal data held by us. You may delete your account at any time.
             </p>
           </section>
 

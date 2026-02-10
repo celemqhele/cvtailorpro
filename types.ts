@@ -17,6 +17,8 @@ export interface UserProfile {
   is_pro_plus: boolean; 
   plan_id: string; 
   subscription_end_date?: string;
+  last_cv_content?: string;
+  last_cv_filename?: string;
 }
 
 export interface SavedApplication {

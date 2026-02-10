@@ -12,7 +12,7 @@ import { HistoryModal } from '../components/HistoryModal';
 import { LimitReachedModal } from '../components/LimitReachedModal';
 import { ProPlusFeatureCard } from '../components/ProPlusFeatureCard';
 
-import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch } from '../services/geminiService';
+import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile } from '../services/geminiService';
 import { authService } from '../services/authService';
 import { checkUsageLimit, incrementUsage } from '../services/usageService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis, SavedApplication, ManualCVData, ManualExperienceItem, ManualEducationItem } from '../types';
@@ -61,6 +61,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   // Input Modes
   const [cvInputMode, setCvInputMode] = useState<'upload' | 'scratch'>('upload');
   const [file, setFile] = useState<FileData | null>(null);
+  
+  // Saved CV State
+  const [savedCvText, setSavedCvText] = useState<string | null>(null);
+  const [savedCvFilename, setSavedCvFilename] = useState<string | null>(null);
+  const [useSavedCv, setUseSavedCv] = useState(false);
+
   const [linkedinUrl, setLinkedinUrl] = useState('');
   
   // --- Manual Form State ---
@@ -94,6 +100,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [isZipping, setIsZipping] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
+  // Load Saved CV from User Profile
+  useEffect(() => {
+    if (user && user.last_cv_content && user.last_cv_filename) {
+        setSavedCvText(user.last_cv_content);
+        setSavedCvFilename(user.last_cv_filename);
+        setUseSavedCv(true); // Default to using saved CV if available
+    }
+  }, [user]);
+
   // Restore State from Session Storage on Mount
   useEffect(() => {
     const saved = sessionStorage.getItem(STORAGE_KEY);
@@ -101,12 +116,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
         try {
             const parsed = JSON.parse(saved);
             if (parsed.cvInputMode) setCvInputMode(parsed.cvInputMode);
-            if (parsed.file) setFile(parsed.file);
+            // We do NOT restore file binary from session as it's too large, but manual data is fine
             if (parsed.manualData) setManualData(parsed.manualData);
             if (parsed.linkedinUrl) setLinkedinUrl(parsed.linkedinUrl);
             
             // Only restore job data if we aren't currently being directed from "Find Jobs"
-            // (Find Jobs passes state via location, which should take precedence)
             if (!location.state?.autofillJobDescription) {
                  if (parsed.targetMode) setTargetMode(parsed.targetMode);
                  if (parsed.jobLink) setJobLink(parsed.jobLink);
@@ -117,13 +131,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
             console.error("Failed to restore dashboard state", e);
         }
     }
-  }, []); // Run once on mount
+  }, []); 
 
   // Save State to Session Storage on Change
   useEffect(() => {
     const stateToSave = {
         cvInputMode,
-        file,
         manualData,
         linkedinUrl,
         targetMode,
@@ -132,16 +145,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
         jobTitle
     };
     
-    // Debounce saving slightly to avoid heavy writes on every keystroke
     const handler = setTimeout(() => {
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
     }, 500);
 
     return () => clearTimeout(handler);
-  }, [cvInputMode, file, manualData, linkedinUrl, targetMode, jobLink, manualJobText, jobTitle]);
+  }, [cvInputMode, manualData, linkedinUrl, targetMode, jobLink, manualJobText, jobTitle]);
 
 
-  // Check for incoming job data from "Find Jobs" (overrides session storage for job fields)
+  // Check for incoming job data from "Find Jobs"
   useEffect(() => {
       if (location.state && location.state.autofillJobDescription) {
           setTargetMode('text');
@@ -175,7 +187,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const handleAdComplete = () => {
       setShowRewardedModal(false);
       if (adContext === 'download') {
-          // Instead of downloading ZIP, redirect to CV page to use new buttons
           if (generatedCvId) {
             navigate(`/cv-generated/${generatedCvId}`);
           }
@@ -207,11 +218,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   };
 
   const validateInputs = () => {
-      if (cvInputMode === 'upload' && !file) return false;
-      if (cvInputMode === 'scratch') {
+      // Validate CV Input: Either file selected, saved CV used, or manual mode filled
+      if (cvInputMode === 'upload') {
+          if (useSavedCv && savedCvText) {
+              // Valid
+          } else if (!file) {
+              return false;
+          }
+      } else if (cvInputMode === 'scratch') {
           if (!manualData.fullName) return false;
           if (manualData.experience.length === 0) return false;
       }
+      
+      // Validate Job Input
       if (targetMode === 'url' && !jobLink) return false;
       if (targetMode === 'text' && !manualJobText.trim()) return false;
       if (targetMode === 'title' && !jobTitle.trim()) return false;
@@ -226,6 +245,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       setJobSpec('');
       setGeneratedCvId(null);
       try {
+          // 1. Process Job
           let textToAnalyze = '';
           if (targetMode === 'title') {
               setJobSpec(jobTitle);
@@ -238,12 +258,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           }
           if (!textToAnalyze || textToAnalyze.length < 20) throw new Error("Job description is too short.");
           setJobSpec(textToAnalyze);
+          
+          // 2. Process CV and Autosave if new
+          if (cvInputMode === 'upload' && !useSavedCv && file) {
+             // If this is a fresh upload, extract and save before analysis
+             const extractedText = await extractTextFromFile(file);
+             await authService.saveCVToProfile(file.name, extractedText);
+             // Update local state to reflect saved status for next time
+             setSavedCvText(extractedText);
+             setSavedCvFilename(file.name);
+             setUseSavedCv(true); 
+             setFile(null); // Clear file input as we now have text
+          }
+
+          // 3. Analyze
           setStatus(Status.ANALYZING);
           const analysisResult = await analyzeMatch(
-              cvInputMode === 'upload' ? file : null, 
+              file, // This might be null if using saved text, which is fine
               cvInputMode === 'scratch' ? manualData : null,
               textToAnalyze, 
-              apiKey
+              apiKey,
+              (useSavedCv && savedCvText) ? savedCvText : undefined
           );
           setAnalysis(analysisResult);
           setStatus(Status.ANALYSIS_COMPLETE);
@@ -265,7 +300,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       if (!dataToSave || !dataToSave.cvData) return null;
       try {
         const { company, role } = extractCompanyAndRole();
-        // saveApplication now handles both guest (null user) and logged in users automatically
         const savedApp = await authService.saveApplication(
             role, company, JSON.stringify(dataToSave.cvData), dataToSave.coverLetter?.content || '', analysis?.matchScore || 0
         );
@@ -296,14 +330,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     setResult(null);
     setGeneratedCvId(null);
     try {
+      
+      // Autosave logic if jumping straight to generate without analyze
+      if (cvInputMode === 'upload' && !useSavedCv && file) {
+          const extractedText = await extractTextFromFile(file);
+          await authService.saveCVToProfile(file.name, extractedText);
+          setSavedCvText(extractedText);
+          setSavedCvFilename(file.name);
+          setUseSavedCv(true);
+          setFile(null);
+      }
+
       const response = await generateTailoredApplication(
-          cvInputMode === 'upload' ? file : null,
+          file, 
           cvInputMode === 'scratch' ? manualData : null,
           currentJobSpec,
           targetMode === 'title' ? 'title' : 'specific',
           apiKey, 
           force,
-          linkedinUrl 
+          linkedinUrl,
+          (useSavedCv && savedCvText) ? savedCvText : undefined
       );
       if (response.outcome !== 'REJECT') {
           setResult(response);
@@ -313,7 +359,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
              setDailyCvCount((prev: number) => prev + 1);
           }
           
-          // Always save and redirect, whether guest or user
           const savedId = await saveCurrentResultToHistory(response);
           if (savedId) {
               navigate(`/cv-generated/${savedId}`);
@@ -396,7 +441,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                              </div>
 
                              {cvInputMode === 'upload' ? (
-                                 <FileUpload onFileSelect={setFile} selectedFileName={file?.name} />
+                                 <>
+                                    {useSavedCv && savedCvFilename ? (
+                                        <div className="border-2 border-indigo-200 bg-indigo-50 rounded-xl p-6 text-center relative">
+                                            <div className="flex flex-col items-center justify-center gap-2">
+                                                <div className="bg-white p-3 rounded-full shadow-sm">
+                                                    <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 011.414.586l4 4a1 1 0 01.586 1.414V19a2 2 0 01-2 2z" /></svg>
+                                                </div>
+                                                <h3 className="font-bold text-indigo-900 text-sm">Using Saved CV</h3>
+                                                <p className="text-xs text-indigo-700 font-medium">{savedCvFilename}</p>
+                                            </div>
+                                            <button 
+                                                onClick={() => { setUseSavedCv(false); setFile(null); }}
+                                                className="mt-4 text-xs font-bold text-indigo-500 hover:text-indigo-700 underline"
+                                            >
+                                                Upload different file
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="relative">
+                                            <FileUpload onFileSelect={setFile} selectedFileName={file?.name} />
+                                            {savedCvFilename && (
+                                                <button 
+                                                    onClick={() => { setUseSavedCv(true); setFile(null); }}
+                                                    className="w-full mt-2 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                                                >
+                                                    Use saved: {savedCvFilename}
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                 </>
                              ) : (
                                  <div className="bg-white p-4 rounded-xl border border-slate-300 space-y-4">
                                      <div className="space-y-3 pb-4 border-b border-slate-100">

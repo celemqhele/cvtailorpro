@@ -58,6 +58,21 @@ export const authService = {
     if (authError) console.error("Failed to sync auth metadata", authError);
   },
 
+  async saveCVToProfile(filename: string, extractedText: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+        .from('profiles')
+        .update({ 
+            last_cv_filename: filename,
+            last_cv_content: extractedText
+        })
+        .eq('id', user.id);
+    
+    if (error) console.error("Failed to save CV to profile", error);
+  },
+
   async updateEmail(newEmail: string) {
     const { error } = await supabase.auth.updateUser({ email: newEmail });
     if (error) throw error;

@@ -43,8 +43,9 @@ export const scrapeJobFromUrl = async (url: string): Promise<string> => {
 
 /**
  * Helper to extract raw text from the uploaded file.
+ * Now Exported for use in Dashboard to save text to DB.
  */
-async function extractTextFromFile(file: FileData): Promise<string> {
+export async function extractTextFromFile(file: FileData): Promise<string> {
   const byteCharacters = atob(file.base64);
   const byteNumbers = new Array(byteCharacters.length);
   for (let i = 0; i < byteCharacters.length; i++) {
@@ -174,13 +175,16 @@ export const analyzeMatch = async (
     cvFile: FileData | null,
     manualData: ManualCVData | null,
     jobDescription: string,
-    apiKey: string 
+    apiKey: string,
+    savedCvText?: string // New optional param
 ): Promise<MatchAnalysis> => {
     
     // 1. Extract Text
     let candidateText = "";
     if (cvFile) {
         candidateText = await extractTextFromFile(cvFile);
+    } else if (savedCvText) {
+        candidateText = savedCvText;
     } else if (manualData) {
         candidateText = JSON.stringify(manualData);
     }
@@ -213,7 +217,8 @@ export const generateTailoredApplication = async (
   targetType: 'specific' | 'title',
   apiKey: string,
   force: boolean = false,
-  linkedinUrl?: string
+  linkedinUrl?: string,
+  savedCvText?: string // New optional param
 ): Promise<GeneratorResponse> => {
   
   // 1. Extract Text
@@ -221,6 +226,8 @@ export const generateTailoredApplication = async (
   try {
     if (cvFile) {
         candidateData = "CANDIDATE EXISTING CV:\n" + (await extractTextFromFile(cvFile));
+    } else if (savedCvText) {
+        candidateData = "CANDIDATE EXISTING CV:\n" + savedCvText;
     } else if (manualData) {
         candidateData = "CANDIDATE MANUAL ENTRY:\n" + JSON.stringify(manualData, null, 2);
     } else {
