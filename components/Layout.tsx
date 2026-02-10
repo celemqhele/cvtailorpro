@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
-import { getUsageCount, syncIpUsageToUser } from '../services/usageService';
+import { getUsageStats, syncIpUsageToUser } from '../services/usageService';
 import { getPlanDetails, updateUserSubscription } from '../services/subscriptionService';
 import { emailService } from '../services/emailService';
 import { supabase } from '../services/supabaseClient';
@@ -12,6 +12,7 @@ import { PaymentModal } from './DonationModal';
 import { CookieConsent } from './CookieConsent';
 import { isPreviewOrAdmin } from '../utils/envHelper';
 import { ChatWidget } from './ChatWidget';
+import { CreditCountdown } from './CreditCountdown';
 
 // Extend window for Google Analytics
 declare global {
@@ -27,6 +28,7 @@ export const Layout: React.FC = () => {
   // Global State
   const [user, setUser] = useState<UserProfile | null>(null);
   const [dailyCvCount, setDailyCvCount] = useState<number>(0);
+  const [secondsUntilReset, setSecondsUntilReset] = useState<number>(0);
   const [dailyLimit, setDailyLimit] = useState(2); // Default to free limit (2)
   const [isPaidUser, setIsPaidUser] = useState(false);
   const [isMaxPlan, setIsMaxPlan] = useState(false);
@@ -46,8 +48,6 @@ export const Layout: React.FC = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       checkUserSession();
       // If a user just signed in or signed up, sync their guest usage to their account
-      // CRITICAL: Only do this for NEW accounts (created within last 15 mins) to prevent 
-      // existing users from inheriting usage from shared IPs.
       if ((event === 'SIGNED_IN' || event === 'ToKEN_REFRESHED') && session?.user) {
           const createdAt = new Date(session.user.created_at).getTime();
           const now = new Date().getTime();
@@ -55,12 +55,10 @@ export const Layout: React.FC = () => {
 
           if (isNewAccount) {
               syncIpUsageToUser(session.user.id).then(() => {
-                  // Refresh counts after sync
-                  getUsageCount(session.user.id).then(setDailyCvCount);
+                  fetchStats(session.user.id);
               });
           } else {
-              // Just load their existing usage
-              getUsageCount(session.user.id).then(setDailyCvCount);
+              fetchStats(session.user.id);
           }
       }
     });
@@ -74,20 +72,21 @@ export const Layout: React.FC = () => {
         page_path: location.pathname + location.search
       });
     }
-    // Scroll to top on route change
     window.scrollTo(0, 0);
     setIsMenuOpen(false);
   }, [location]);
 
   useEffect(() => {
-    const fetchCount = async () => {
-        const cv = await getUsageCount(user?.id);
-        setDailyCvCount(cv);
-    };
-    fetchCount();
-    window.addEventListener('focus', fetchCount);
-    return () => window.removeEventListener('focus', fetchCount);
+    fetchStats(user?.id);
+    window.addEventListener('focus', () => fetchStats(user?.id));
+    return () => window.removeEventListener('focus', () => fetchStats(user?.id));
   }, [user]);
+
+  const fetchStats = async (userId?: string) => {
+      const stats = await getUsageStats(userId);
+      setDailyCvCount(stats.count);
+      setSecondsUntilReset(stats.secondsLeft);
+  };
 
   const checkUserSession = async () => {
     const profile = await authService.getCurrentProfile();
@@ -144,6 +143,11 @@ export const Layout: React.FC = () => {
     setPaymentTriggerPlan(null);
     setPaymentDiscount(false);
     setShowPaymentModal(false);
+  };
+
+  const handleDayReset = async () => {
+      setDailyCvCount(0);
+      fetchStats(user?.id);
   };
 
   const triggerAuth = () => setShowAuthModal(true);
@@ -204,14 +208,16 @@ export const Layout: React.FC = () => {
                  <Link to="/content" className={`text-sm font-medium transition-colors ${isActiveParent('/content')}`}>Content</Link>
                  <Link to="/pricing" className={`text-sm font-medium transition-colors ${isActive('/pricing')}`}>Pricing</Link>
                  
-                 {/* Admin Link - Visible if env flag OR specific user */}
                  {showAdmin && <Link to="/admin-jobs" className="text-sm font-bold text-red-500">Admin</Link>}
 
                  {/* Credits Counter - Visible to all */}
-                 <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
-                    <span className={dailyCvCount >= dailyLimit && !isMaxPlan ? 'text-red-500' : 'text-indigo-600'}>
-                        {isMaxPlan ? '∞' : Math.max(0, dailyLimit - dailyCvCount)} Credits
-                    </span>
+                 <div className="flex flex-col items-end">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+                        <span className={dailyCvCount >= dailyLimit && !isMaxPlan ? 'text-red-500' : 'text-indigo-600'}>
+                            {isMaxPlan ? '∞' : Math.max(0, dailyLimit - dailyCvCount)} Credits
+                        </span>
+                    </div>
+                    {!isMaxPlan && <CreditCountdown initialSecondsLeft={secondsUntilReset} onReset={handleDayReset} className="mt-1 mr-1" />}
                  </div>
 
                  {/* Auth Dependent Links */}
@@ -267,9 +273,12 @@ export const Layout: React.FC = () => {
                  
                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
                     <span className="text-sm font-medium text-slate-600">Daily Credits</span>
-                    <span className={`text-sm font-bold ${dailyCvCount >= dailyLimit && !isMaxPlan ? 'text-red-500' : 'text-indigo-600'}`}>
-                        {isMaxPlan ? '∞' : Math.max(0, dailyLimit - dailyCvCount)} Left
-                    </span>
+                    <div className="flex flex-col items-end">
+                        <span className={`text-sm font-bold ${dailyCvCount >= dailyLimit && !isMaxPlan ? 'text-red-500' : 'text-indigo-600'}`}>
+                            {isMaxPlan ? '∞' : Math.max(0, dailyLimit - dailyCvCount)} Left
+                        </span>
+                        {!isMaxPlan && <CreditCountdown initialSecondsLeft={secondsUntilReset} onReset={handleDayReset} />}
+                    </div>
                  </div>
 
                  {user ? (

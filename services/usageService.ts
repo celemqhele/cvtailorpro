@@ -25,29 +25,23 @@ const getIdentifier = async (userId?: string): Promise<string> => {
 
 /**
  * Checks if the user has reached their daily limit for CV generation.
+ * Uses Server-Side truth for count.
  */
 export const checkUsageLimit = async (userId: string | undefined, limit: number): Promise<boolean> => {
     try {
         const identifier = await getIdentifier(userId);
-        const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
+        
+        // Secure RPC call
         const { data, error } = await supabase
-            .from('daily_usage')
-            .select('cv_count')
-            .eq('identifier', identifier)
-            .eq('date', dateStr)
-            .single();
+            .rpc('get_user_usage_stats', { user_identifier: identifier });
 
         if (error) {
-            // PGRST116 means no row found (count is effectively 0)
-            if (error.code === 'PGRST116') {
-                return 0 < limit;
-            }
             console.warn("Usage check error:", error);
+            // Fail safe: allow if we can't check, but usually this means network error
             return true; 
         }
 
-        const currentCount = data?.cv_count || 0;
+        const currentCount = data?.count || 0;
         return currentCount < limit;
     } catch (e) {
         return true;
@@ -56,32 +50,18 @@ export const checkUsageLimit = async (userId: string | undefined, limit: number)
 
 /**
  * Increments the CV usage counter.
+ * Uses Secure RPC to prevent date manipulation.
  */
 export const incrementUsage = async (userId: string | undefined): Promise<void> => {
     try {
         const identifier = await getIdentifier(userId);
-        const dateStr = new Date().toISOString().split('T')[0];
+        
+        // Call the secure RPC function
+        const { error } = await supabase
+            .rpc('increment_usage_secure', { user_identifier: identifier });
 
-        // 1. Try to fetch existing record
-        const { data } = await supabase
-            .from('daily_usage')
-            .select('cv_count')
-            .eq('identifier', identifier)
-            .eq('date', dateStr)
-            .single();
-
-        if (data) {
-            // 2. Update existing
-            await supabase
-                .from('daily_usage')
-                .update({ cv_count: (data.cv_count || 0) + 1 })
-                .eq('identifier', identifier)
-                .eq('date', dateStr);
-        } else {
-            // 3. Insert new
-            await supabase
-                .from('daily_usage')
-                .insert({ identifier, date: dateStr, cv_count: 1, search_count: 0 });
+        if (error) {
+            console.error("Failed to increment usage securely:", error);
         }
     } catch (e) {
         console.error("Failed to increment usage:", e);
@@ -89,64 +69,66 @@ export const incrementUsage = async (userId: string | undefined): Promise<void> 
 };
 
 /**
- * Gets the current CV count for display purposes
+ * Gets the current CV count and Time to Refill
+ * Returns { count: number, secondsLeft: number }
  */
-export const getUsageCount = async (userId?: string): Promise<number> => {
+export const getUsageStats = async (userId?: string): Promise<{ count: number, secondsLeft: number }> => {
      try {
         const identifier = await getIdentifier(userId);
-        const dateStr = new Date().toISOString().split('T')[0];
-
-        const { data } = await supabase
-            .from('daily_usage')
-            .select('cv_count')
-            .eq('identifier', identifier)
-            .eq('date', dateStr)
-            .single();
         
-        return data?.cv_count || 0;
+        const { data, error } = await supabase
+            .rpc('get_user_usage_stats', { user_identifier: identifier });
+
+        if (error || !data) {
+            return { count: 0, secondsLeft: 0 };
+        }
+        
+        return { count: data.count, secondsLeft: data.seconds_left };
     } catch {
-        return 0;
+        return { count: 0, secondsLeft: 0 };
     }
 };
 
 /**
+ * Kept for backward compatibility, but uses secure stats
+ */
+export const getUsageCount = async (userId?: string): Promise<number> => {
+    const stats = await getUsageStats(userId);
+    return stats.count;
+};
+
+/**
  * CRITICAL: Syncs usage from the User's IP address to their new User ID.
- * This ensures that if a guest uses 5 credits then signs up, they still have 5 credits used.
  */
 export const syncIpUsageToUser = async (userId: string): Promise<void> => {
     try {
         const ip = await getIpAddress();
-        const dateStr = new Date().toISOString().split('T')[0];
-
-        // 1. Get usage associated with IP
-        const { data: ipData } = await supabase
-            .from('daily_usage')
-            .select('cv_count')
-            .eq('identifier', ip)
-            .eq('date', dateStr)
-            .single();
+        
+        // Get IP usage via secure RPC
+        const { data: ipStats } = await supabase
+            .rpc('get_user_usage_stats', { user_identifier: ip });
 
         // If IP has usage...
-        if (ipData && ipData.cv_count > 0) {
+        if (ipStats && ipStats.count > 0) {
             
-            // 2. Get usage associated with new User ID
-            const { data: userData } = await supabase
-                .from('daily_usage')
-                .select('cv_count')
-                .eq('identifier', userId)
-                .eq('date', dateStr)
-                .single();
+            // Get User usage
+            const { data: userStats } = await supabase
+                 .rpc('get_user_usage_stats', { user_identifier: userId });
 
-            const userCount = userData?.cv_count || 0;
+            const userCount = userStats?.count || 0;
 
-            // 3. If IP usage is higher (e.g. they just signed up), sync it to the user
-            if (ipData.cv_count > userCount) {
-                await supabase
+            // Manual sync is still needed here for the specific transfer logic, 
+            // but we use Current Date from client for the transfer key or rely on DB defaults.
+            // Since this is an edge case (syncing), strict server time is less critical than the main check,
+            // but ideally we'd use an RPC for this too. For now, we assume standard behavior.
+            if (ipStats.count > userCount) {
+                 const dateStr = new Date().toISOString().split('T')[0];
+                 await supabase
                     .from('daily_usage')
                     .upsert({ 
                         identifier: userId, 
                         date: dateStr, 
-                        cv_count: ipData.cv_count,
+                        cv_count: ipStats.count,
                         search_count: 0 
                     }, { onConflict: 'identifier,date' });
             }
@@ -158,7 +140,6 @@ export const syncIpUsageToUser = async (userId: string): Promise<void> => {
 
 /**
  * ADMIN: Resets all daily usage stats for the current day.
- * Calls a Postgres function 'reset_all_daily_credits'
  */
 export const resetAllDailyCredits = async (): Promise<void> => {
     const { error } = await supabase.rpc('reset_all_daily_credits');
