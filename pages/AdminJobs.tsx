@@ -57,6 +57,9 @@ export const AdminJobs: React.FC = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   
+  // Notification State
+  const [showCopyToast, setShowCopyToast] = useState(false);
+  
   // Form State
   const [title, setTitle] = useState('');
   const [company, setCompany] = useState('');
@@ -85,7 +88,8 @@ export const AdminJobs: React.FC = () => {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('Link copied to clipboard!');
+    setShowCopyToast(true);
+    setTimeout(() => setShowCopyToast(false), 2500);
   };
 
   const checkAdminAndRedirect = () => {
@@ -175,6 +179,14 @@ export const AdminJobs: React.FC = () => {
     <div className="max-w-6xl mx-auto px-6 py-12 animate-fade-in relative">
         <h1 className="text-3xl font-bold text-slate-900 mb-8 border-b pb-4">Admin: Manage Jobs</h1>
         
+        {/* Toast Notification */}
+        {showCopyToast && (
+            <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-[150] bg-slate-900 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 animate-bounce-subtle border border-slate-700">
+                <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                <span className="font-bold text-sm">Link Copied!</span>
+            </div>
+        )}
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Upload Form */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -255,7 +267,7 @@ export const AdminJobs: React.FC = () => {
                                     <span className="text-xs text-slate-400">ID: {job.id.substring(0,8)}...</span>
                                     <button 
                                         onClick={() => copyToClipboard(getJobLink(job.id))}
-                                        className="text-indigo-600 hover:text-indigo-800 text-xs font-bold"
+                                        className="text-indigo-600 hover:text-indigo-800 text-xs font-bold bg-indigo-50 px-2 py-1 rounded"
                                     >
                                         Copy Link
                                     </button>
