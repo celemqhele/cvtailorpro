@@ -1,4 +1,8 @@
 
+
+
+
+
 import React, { useState, useRef } from 'react';
 import { Button } from './Button';
 import { CVData } from '../types';
@@ -52,8 +56,8 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
   const [formData, setFormData] = useState<CVData | null>(cvData);
   const [manualCL, setManualCL] = useState(clContent || '');
 
-  // Determine if file upload is allowed (Growth/Tier 2 or Higher)
-  const isReferenceUploadAllowed = ['tier_2', 'tier_3', 'tier_4'].includes(userPlanId || '');
+  // Restrict Reference Uploads to Growth/Pro plans
+  const isReferenceUploadAllowed = userPlanId ? ['tier_2', 'tier_3', 'tier_4'].includes(userPlanId) : false;
 
   // Update form data when props change
   React.useEffect(() => {
@@ -155,8 +159,8 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
               <h3 className="font-bold text-lg flex items-center gap-2">
                   <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                   {viewMode === 'cv' ? 'Edit CV' : 'Edit Cover Letter'}
+                  <span className="bg-amber-400 text-amber-900 text-[10px] px-2 py-0.5 rounded uppercase font-bold tracking-wider ml-2 shadow-sm">Pro</span>
               </h3>
-              <span className="bg-indigo-600 text-[10px] font-bold px-2 py-0.5 rounded uppercase border border-indigo-400">Pro</span>
           </div>
           
           <div className="flex bg-slate-800/50 p-1 rounded-lg">
@@ -292,70 +296,36 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
              </div>
          ) : (
              <div className="space-y-4">
-                 {viewMode === 'cv' && formData ? (
-                     <div className="space-y-3">
-                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Full Name</label>
-                            <input 
-                                className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                value={formData.name}
-                                onChange={(e) => handleManualChange('name', e.target.value)}
-                            />
-                         </div>
-                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Job Title</label>
-                            <input 
-                                className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                value={formData.title}
-                                onChange={(e) => handleManualChange('title', e.target.value)}
-                            />
-                         </div>
-                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label>
-                            <input 
-                                className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                value={formData.email}
-                                onChange={(e) => handleManualChange('email', e.target.value)}
-                            />
-                         </div>
-                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Phone</label>
-                            <input 
-                                className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                value={formData.phone}
-                                onChange={(e) => handleManualChange('phone', e.target.value)}
-                            />
-                         </div>
-                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Summary</label>
-                            <textarea 
-                                className="w-full p-2 border border-slate-300 rounded text-sm h-32 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
-                                value={formData.summary}
-                                onChange={(e) => handleManualChange('summary', e.target.value)}
-                            />
-                         </div>
+                 <p className="text-sm text-slate-600">Manual edits update your CV text directly without AI generation.</p>
+                 
+                 {viewMode === 'cv' ? (
+                     <div className="space-y-4">
+                        {formData && (
+                            <>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Full Name</label>
+                                    <input className="w-full p-2 border rounded text-sm" value={formData.name} onChange={e => handleManualChange('name', e.target.value)} />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Title</label>
+                                    <input className="w-full p-2 border rounded text-sm" value={formData.title} onChange={e => handleManualChange('title', e.target.value)} />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Summary</label>
+                                    <textarea className="w-full p-2 border rounded text-sm h-32" value={formData.summary} onChange={e => handleManualChange('summary', e.target.value)} />
+                                </div>
+                            </>
+                        )}
                      </div>
                  ) : (
-                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cover Letter Body</label>
-                        <textarea 
-                            className="w-full p-3 border border-slate-300 rounded text-sm h-[400px] focus:ring-2 focus:ring-indigo-500 outline-none resize-none font-mono leading-relaxed"
-                            value={manualCL}
-                            onChange={(e) => setManualCL(e.target.value)}
-                        />
+                     <div className="space-y-4">
+                        <textarea className="w-full p-3 border border-slate-300 rounded-lg text-sm h-[400px] focus:ring-2 focus:ring-indigo-500 outline-none leading-relaxed" value={manualCL} onChange={e => setManualCL(e.target.value)} />
                      </div>
                  )}
-                 
-                 <div className="pt-2 border-t border-slate-100">
-                     <p className="text-xs text-slate-400 mb-3 italic">
-                        {viewMode === 'cv' 
-                            ? "Note: For complex edits like bullet points, please use the AI Assistant." 
-                            : "You are editing the full text manually."}
-                     </p>
-                     <Button onClick={handleManualSave} isLoading={isProcessing} className="w-full bg-slate-800 hover:bg-slate-900">
-                        Save Manual Changes
-                     </Button>
-                 </div>
+
+                 <Button onClick={handleManualSave} className="w-full bg-slate-800 hover:bg-slate-900">
+                    Save Manual Edits
+                 </Button>
              </div>
          )}
       </div>

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { CVData } from '../types';
 
@@ -40,7 +41,10 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
     },
     body: {
       textAlign: 'justify' as const,
-      whiteSpace: 'pre-wrap' as const, // Preserves AI generated newlines
+    },
+    paragraph: {
+      marginBottom: '12pt', // Distinct paragraph spacing for Word/PDF
+      minHeight: '12pt', // Ensures empty lines are preserved
     }
   };
 
@@ -54,6 +58,9 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
     hasLinkedIn ? userData.linkedin?.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, 'in/') : null
   ].filter(Boolean);
 
+  // Split content by newlines to create explicit paragraphs for DOCX conversion
+  const paragraphs = content.split('\n');
+
   return (
     <div className="cv-absolute-container" style={styles.container}>
       {/* Consistent Header with CV */}
@@ -66,7 +73,12 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
 
       {/* Main Content (Date, Recipient, Body, Sign-off) */}
       <div style={styles.body}>
-        {content}
+        {paragraphs.map((line, index) => (
+          <div key={index} style={styles.paragraph}>
+            {/* If line is empty, render a non-breaking space to maintain layout structure */}
+            {line.trim() === '' ? '\u00A0' : line}
+          </div>
+        ))}
       </div>
     </div>
   );
