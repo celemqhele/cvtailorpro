@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useOutletContext, useNavigate, useLocation, Link } from 'react-router-dom';
@@ -59,6 +61,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [showRewardedModal, setShowRewardedModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  
+  // Confirmation Modal State
+  const [showRemoveCvModal, setShowRemoveCvModal] = useState(false);
   
   // Input Modes
   const [cvInputMode, setCvInputMode] = useState<'upload' | 'scratch'>('upload');
@@ -199,13 +204,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       }
   };
 
-  const handleDeleteSavedCV = async () => {
-      if(!confirm("Are you sure you want to remove your saved CV?")) return;
+  const handleRemoveCvClick = () => {
+      setShowRemoveCvModal(true);
+  };
+
+  const handleConfirmRemoveCv = async () => {
       await authService.clearCVFromProfile();
       setSavedCvText(null);
       setSavedCvFilename(null);
       setUseSavedCv(false);
       if (checkUserSession) checkUserSession();
+      setShowRemoveCvModal(false);
   };
 
   const extractCompanyAndRole = () => {
@@ -532,7 +541,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                                 </button>
                                                 <span className="text-slate-300">|</span>
                                                 <button 
-                                                    onClick={handleDeleteSavedCV}
+                                                    onClick={handleRemoveCvClick}
                                                     className="text-xs font-bold text-red-400 hover:text-red-600 underline"
                                                 >
                                                     Remove from Cloud
@@ -677,6 +686,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                 eligibleForDiscount={discountEligible}
                 limit={dailyLimit}
             />
+            
+            {showRemoveCvModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center relative border border-slate-200">
+                        <div className="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-900 mb-2">Remove Saved CV?</h3>
+                        <p className="text-slate-600 text-sm mb-6 leading-relaxed">
+                            This will delete the CV text stored in your profile. You will need to upload your file again for your next application.
+                        </p>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setShowRemoveCvModal(false)}
+                                className="flex-1 py-2.5 text-slate-600 font-bold bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors text-sm"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleConfirmRemoveCv}
+                                className="flex-1 py-2.5 text-white font-bold bg-red-600 hover:bg-red-700 rounded-xl shadow-lg shadow-red-200 transition-colors text-sm"
+                            >
+                                Yes, Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
     </div>
   );
 };
