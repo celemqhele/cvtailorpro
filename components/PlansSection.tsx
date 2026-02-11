@@ -24,6 +24,7 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
              const isFree = plan.id === 'free';
              const isCurrent = userPlanId ? userPlanId === plan.id : isFree;
              const isPopular = plan.id === 'tier_2'; // Growth
+             const hasReferenceUpload = ['tier_2', 'tier_3', 'tier_4'].includes(plan.id);
 
              return (
                <div key={plan.id} className={`relative rounded-2xl p-6 flex flex-col transition-all duration-300 ${isPopular ? 'border-2 border-indigo-500 shadow-xl scale-105 z-10 bg-white' : 'border border-slate-200 shadow-sm hover:shadow-lg bg-slate-50'}`}>
@@ -54,8 +55,14 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
                        <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                        <span>{isFree ? 'Standard PDF' : 'Priority Processing'}</span>
                     </li>
+                    {hasReferenceUpload && (
+                        <li className="flex items-center gap-2 text-sm text-slate-700 font-medium">
+                           <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                           <span>Reference Uploads (Style Match)</span>
+                        </li>
+                    )}
                      {!isFree && (
-                        <li className="flex items-center gap-2 text-sm text-indigo-600 font-bold bg-indigo-50 p-1 rounded-md -ml-1">
+                        <li className="flex items-center gap-2 text-sm text-indigo-600 font-bold bg-indigo-50 p-1 rounded-md -ml-1 mt-2">
                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                            Auto-cancels (No risk)
                         </li>

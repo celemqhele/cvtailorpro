@@ -2,7 +2,7 @@
 
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
-import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT } from "../constants";
+import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT } from "../constants";
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, CVData } from "../types";
 
 /**
@@ -151,12 +151,16 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
         "llama-3.1-8b"                    // Priority 6 (Fallback speed)
     ];
 
+    // Determine JSON mode based on prompt content
+    // We explicitly avoid triggering if the prompt is for the CL Smart Edit which forbids JSON
+    const isJsonMode = systemInstruction.includes("JSON") || systemInstruction.includes("json");
+
     for (const model of models) {
         try {
             console.log(`Attempting Model: ${model}...`);
             // Attempt to call the model. If it's invalid/unavailable, callCerebras throws an error, 
             // which is caught here to try the next one.
-            return await callCerebras(model, systemInstruction, userMessage, temperature, true);
+            return await callCerebras(model, systemInstruction, userMessage, temperature, isJsonMode);
         } catch (e: any) {
             console.warn(`Model ${model} failed or is unavailable:`, e.message);
         }
@@ -165,7 +169,7 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
     // Ultimate fallback if even the priority list fails
     try {
         console.log("All priority models failed. Attempting legacy Llama 3.1 70B...");
-        return await callCerebras("llama-3.1-70b", systemInstruction, userMessage, temperature, true);
+        return await callCerebras("llama-3.1-70b", systemInstruction, userMessage, temperature, isJsonMode);
     } catch(e) {
         console.error("All AI services failed.");
         throw new Error("Service Unavailable: All AI models failed to respond. Please try again later.");
@@ -364,6 +368,41 @@ export const smartEditCV = async (
         console.error("Smart Edit Parse Error", e, responseText);
         throw new Error("Failed to process your edit instruction. Please try again.");
     }
+};
+
+export const smartEditCoverLetter = async (
+    currentContent: string,
+    instruction: string,
+    apiKey: string
+): Promise<string> => {
+    const userMessage = `
+    CURRENT COVER LETTER CONTENT:
+    ${currentContent}
+
+    USER INSTRUCTION/PRESET:
+    "${instruction}"
+
+    Rewrite the cover letter body text now. Return strictly raw text.
+    `;
+
+    // Note: Use a higher temperature for creativity in CL
+    const responseText = await runAIChain(SMART_EDIT_CL_PROMPT, userMessage, 0.7, apiKey);
+    
+    // Sanitize markdown code blocks
+    let cleanText = responseText.replace(/```(markdown|text|json)?/g, '').trim();
+
+    // Fallback: If the model returns JSON format (common with some smart models if they see structural clues), parse it.
+    if (cleanText.trim().startsWith('{')) {
+        try {
+            const parsed = JSON.parse(cleanText);
+            return parsed.content || parsed.text || parsed.body || parsed.letter || cleanText;
+        } catch (e) {
+            // If parse fails, just return the text (it might just start with a bracket)
+            return cleanText;
+        }
+    }
+
+    return cleanText;
 };
 
 function parseAndProcessResponse(content: string): GeneratorResponse {

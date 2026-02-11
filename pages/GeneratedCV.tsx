@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link, useOutletContext } from 'react-router-dom';
 import { authService } from '../services/authService';
-import { smartEditCV } from '../services/geminiService';
+import { smartEditCV, smartEditCoverLetter } from '../services/geminiService';
 import { SavedApplication, CVData } from '../types';
 import CVTemplate from '../components/CVTemplate';
 import CoverLetterTemplate from '../components/CoverLetterTemplate';
@@ -101,18 +101,24 @@ export const GeneratedCV: React.FC = () => {
   };
 
   const handleSmartEdit = async (instruction: string) => {
-      if (!cvData || !application) return;
+      if (!application) return;
       setIsSmartEditing(true);
+      
       try {
-          const updatedData = await smartEditCV(cvData, instruction, GEMINI_KEY_1);
-          
-          // Update State
-          setCvData(updatedData);
-          const updatedCvContent = JSON.stringify(updatedData);
-          setApplication(prev => prev ? ({ ...prev, cv_content: updatedCvContent }) : null);
-
-          // Update DB (Silent Save)
-          await authService.updateApplication(application.id, updatedCvContent, application.cl_content);
+          if (viewMode === 'cv') {
+             if (!cvData) return;
+             const updatedData = await smartEditCV(cvData, instruction, GEMINI_KEY_1);
+             setCvData(updatedData);
+             const updatedCvContent = JSON.stringify(updatedData);
+             setApplication(prev => prev ? ({ ...prev, cv_content: updatedCvContent }) : null);
+             await authService.updateApplication(application.id, updatedCvContent, application.cl_content);
+          } else {
+             // Cover Letter Mode
+             if (!application.cl_content) return;
+             const updatedCL = await smartEditCoverLetter(application.cl_content, instruction, GEMINI_KEY_1);
+             setApplication(prev => prev ? ({ ...prev, cl_content: updatedCL }) : null);
+             await authService.updateApplication(application.id, application.cv_content, updatedCL);
+          }
           
           setShowEditSuccess(true);
           setTimeout(() => setShowEditSuccess(false), 3000);
@@ -138,6 +144,22 @@ export const GeneratedCV: React.FC = () => {
           setTimeout(() => setShowEditSuccess(false), 3000);
       } catch (e) {
           console.error("Manual update failed", e);
+      } finally {
+          setIsSmartEditing(false);
+      }
+  };
+
+  const handleManualUpdateCL = async (updatedContent: string) => {
+      if (!application) return;
+      setIsSmartEditing(true);
+      try {
+          setApplication(prev => prev ? ({ ...prev, cl_content: updatedContent }) : null);
+          await authService.updateApplication(application.id, application.cv_content, updatedContent);
+          
+          setShowEditSuccess(true);
+          setTimeout(() => setShowEditSuccess(false), 3000);
+      } catch (e) {
+          console.error("Manual CL update failed", e);
       } finally {
           setIsSmartEditing(false);
       }
@@ -491,11 +513,15 @@ export const GeneratedCV: React.FC = () => {
            <div className="order-1 lg:order-2 sidebar-container lg:h-full">
                <SmartEditor 
                  cvData={cvData}
+                 clContent={application.cl_content}
+                 viewMode={viewMode}
                  onSmartEdit={handleSmartEdit}
                  onManualUpdate={handleManualUpdate}
+                 onManualUpdateCL={handleManualUpdateCL}
                  isLocked={!isPaidUser}
                  onUnlock={() => setShowLockedModal(true)}
                  isProcessing={isSmartEditing}
+                 userPlanId={user?.plan_id}
                />
            </div>
        </div>

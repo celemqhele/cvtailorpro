@@ -27,6 +27,13 @@ export const WhyUs: React.FC = () => {
       icon: (
         <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
       )
+    },
+    {
+      title: "Style & Context Matching",
+      desc: "Want your CV to look like a pro example? Or need to attach extra certifications? Our Growth & Pro plans let you upload reference files to guide the AI's writing style.",
+      icon: (
+        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+      )
     }
   ];
 
@@ -53,14 +60,14 @@ export const WhyUs: React.FC = () => {
 
       {/* Features Grid */}
       <div className="max-w-7xl mx-auto px-6 py-20">
-        <div className="grid md:grid-cols-3 gap-12">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((f, i) => (
                 <div key={i} className="bg-white p-8 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:scale-105 transition-transform duration-300">
                     <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-md shadow-indigo-200">
                         {f.icon}
                     </div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-4">{f.title}</h3>
-                    <p className="text-slate-600 leading-relaxed">{f.desc}</p>
+                    <h3 className="text-lg font-bold text-slate-900 mb-4">{f.title}</h3>
+                    <p className="text-sm text-slate-600 leading-relaxed">{f.desc}</p>
                 </div>
             ))}
         </div>

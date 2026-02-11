@@ -89,15 +89,32 @@ GOAL: Update the User's CV JSON based strictly on their instruction.
 
 INPUTS:
 1. Current CV JSON Data.
-2. User Instruction (e.g., "Change the job title to Senior Dev", "Rewrite the summary to be more punchy", "Add Python to skills").
+2. User Instruction.
+3. [Optional] Attached Reference Content (e.g. specific certification details, or a style guide from another CV).
 
 RULES:
 1. Return ONLY the valid JSON of the updated CV Data.
 2. Maintain the exact same schema structure as the input.
 3. Do not add fields that don't exist in the schema.
 4. If the instruction asks to remove something, remove it.
-5. If the instruction is vague, do your best to improve the content while keeping facts accurate.
-6. Do NOT return any conversational text. JUST THE JSON.
+5. If "Attached Reference Content" is provided, USE IT to enrich the CV or mimic the style as requested in the instruction.
+6. If the instruction is vague, do your best to improve the content while keeping facts accurate.
+7. Do NOT return any conversational text. JUST THE JSON.
+`;
+
+export const SMART_EDIT_CL_PROMPT = `
+ROLE: Expert Cover Letter Writer.
+GOAL: Rewrite the provided cover letter content based on the user's specific instruction or style preset.
+
+INPUTS:
+1. Current Cover Letter Text.
+2. User Instruction (e.g. "Make it creative", "Use Storytelling style").
+
+RULES:
+1. Return ONLY the raw text of the new cover letter. Do not use code blocks.
+2. Maintain the candidate's core details (Company, Role, Name) unless asked to change.
+3. If the instruction implies a specific style (e.g. 'Storytelling'), completely restructure the letter to fit that style.
+4. Keep standard business letter formatting (Date, Salutation, Body, Sign-off) unless the style dictates otherwise (e.g. Email-style).
 `;
 
 export const CHAT_SYSTEM_PROMPT = `

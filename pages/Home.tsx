@@ -107,7 +107,7 @@ export const Home: React.FC = () => {
                 </p>
             </div>
             <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
-                <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-10 lg:max-w-none lg:grid-cols-3">
+                <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-10 lg:max-w-none lg:grid-cols-4">
                     <div className="relative pl-16">
                         <dt className="text-base font-semibold leading-7 text-slate-900">
                             <div className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600">
@@ -134,6 +134,15 @@ export const Home: React.FC = () => {
                             Cover Letters Included
                         </dt>
                         <dd className="mt-2 text-base leading-7 text-slate-600">We automatically generate a matching cover letter that highlights why you are the perfect fit for the specific role.</dd>
+                    </div>
+                    <div className="relative pl-16">
+                        <dt className="text-base font-semibold leading-7 text-slate-900">
+                            <div className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600">
+                                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                            </div>
+                            Context & Style Matching
+                        </dt>
+                        <dd className="mt-2 text-base leading-7 text-slate-600">Upload additional certifications or reference CVs (e.g. from a colleague) to guide the AI's writing style and content.</dd>
                     </div>
                 </dl>
             </div>
