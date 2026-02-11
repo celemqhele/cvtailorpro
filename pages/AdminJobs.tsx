@@ -8,21 +8,45 @@ import { Button } from '../components/Button';
 import { GEMINI_KEY_1 } from '../constants';
 import { isPreviewOrAdmin } from '../utils/envHelper';
 import { useNavigate, useOutletContext } from 'react-router-dom';
+import { supabase } from '../services/supabaseClient';
 
 export const AdminJobs: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useOutletContext<any>();
-  
+  const [isChecking, setIsChecking] = useState(true);
+
+  // Robust Admin Check on Mount
   useEffect(() => {
-    // Small timeout to allow user auth to load if it's initial page load
-    const checkAccess = setTimeout(() => {
-        const isAdmin = isPreviewOrAdmin() || user?.email === 'mqhele03@gmail.com';
-        if (!isAdmin) {
+    const verifyAdmin = async () => {
+        // 1. Check if we are in a safe preview environment (localhost/stackblitz)
+        if (isPreviewOrAdmin()) {
+            setIsChecking(false);
+            return;
+        }
+
+        // 2. Check Context User
+        if (user) {
+            if (user.email === 'mqhele03@gmail.com') {
+                setIsChecking(false);
+            } else {
+                // Logged in but not admin -> Redirect immediately
+                navigate('/');
+            }
+            return;
+        }
+
+        // 3. Context User is null (could be loading or guest). Check Session directly.
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.email === 'mqhele03@gmail.com') {
+            setIsChecking(false);
+        } else {
+            // Not logged in or not admin -> Redirect immediately
             navigate('/');
         }
-    }, 1000);
-    return () => clearTimeout(checkAccess);
-  }, [navigate, user]);
+    };
+
+    verifyAdmin();
+  }, [user, navigate]);
 
   const [jobs, setJobs] = useState<JobListing[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,8 +65,10 @@ export const AdminJobs: React.FC = () => {
   const [rawDesc, setRawDesc] = useState('');
 
   useEffect(() => {
-    loadJobs();
-  }, []);
+    if (!isChecking) {
+        loadJobs();
+    }
+  }, [isChecking]);
 
   const loadJobs = async () => {
     try {
@@ -54,7 +80,6 @@ export const AdminJobs: React.FC = () => {
   };
 
   const getJobLink = (id: string) => {
-    // Generate the production-ready link using the specific domain and path structure
     return `https://goapply.co.za/find-jobs/${id}`;
   };
 
@@ -63,8 +88,18 @@ export const AdminJobs: React.FC = () => {
     alert('Link copied to clipboard!');
   };
 
+  const checkAdminAndRedirect = () => {
+    if (user?.email !== 'mqhele03@gmail.com' && !isPreviewOrAdmin()) {
+        navigate('/');
+        return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!checkAdminAndRedirect()) return;
+
     setIsLoading(true);
     setLastCreatedJob(null);
 
@@ -101,6 +136,8 @@ export const AdminJobs: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this job?')) return;
+    if (!checkAdminAndRedirect()) return;
+    
     try {
         await jobService.deleteJob(id);
         loadJobs();
@@ -111,6 +148,8 @@ export const AdminJobs: React.FC = () => {
   };
 
   const performGlobalReset = async () => {
+      if (!checkAdminAndRedirect()) return;
+
       setIsResetting(true);
       try {
           await resetAllDailyCredits();
@@ -124,9 +163,13 @@ export const AdminJobs: React.FC = () => {
       }
   };
 
-  // Only render if we think we might be admin (to prevent flicker, though redirect handles security)
-  const isPotentialAdmin = isPreviewOrAdmin() || user?.email === 'mqhele03@gmail.com';
-  if (!isPotentialAdmin) return <div className="p-20 text-center">Checking access...</div>;
+  if (isChecking) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        </div>
+      );
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12 animate-fade-in relative">

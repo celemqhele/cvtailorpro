@@ -19,9 +19,11 @@ CREATE TABLE IF NOT EXISTS profiles (
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- Allow users to view/edit ONLY their own profile
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile" ON profiles 
   FOR SELECT USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" ON profiles 
   FOR UPDATE USING (auth.uid() = id);
 
@@ -45,10 +47,13 @@ CREATE TABLE IF NOT EXISTS applications (
 ALTER TABLE applications ENABLE ROW LEVEL SECURITY;
 
 -- Users view their own apps
+DROP POLICY IF EXISTS "Users view own applications" ON applications;
 CREATE POLICY "Users view own applications" ON applications
   FOR SELECT USING (auth.uid() = user_id);
 
 -- Creation: Authenticated users insert with their ID. Guests insert with NULL.
+-- FIX: Replaces permissive "true" check with strict ownership check
+DROP POLICY IF EXISTS "Allow insert for creation" ON applications;
 CREATE POLICY "Allow insert for creation" ON applications
   FOR INSERT WITH CHECK (
     (auth.uid() = user_id) OR 
@@ -56,12 +61,14 @@ CREATE POLICY "Allow insert for creation" ON applications
   );
 
 -- Claiming: Users can update rows that belong to them OR rows that are currently Guest (null)
+DROP POLICY IF EXISTS "Allow claim of guest apps" ON applications;
 CREATE POLICY "Allow claim of guest apps" ON applications
   FOR UPDATE USING (
     auth.uid() = user_id OR user_id IS NULL
   );
 
 -- Deletion: Users delete their own.
+DROP POLICY IF EXISTS "Users delete own applications" ON applications;
 CREATE POLICY "Users delete own applications" ON applications
   FOR DELETE USING (auth.uid() = user_id);
 
@@ -83,13 +90,23 @@ CREATE TABLE IF NOT EXISTS job_listings (
 ALTER TABLE job_listings ENABLE ROW LEVEL SECURITY;
 
 -- Public Read
+DROP POLICY IF EXISTS "Public read access to jobs" ON job_listings;
 CREATE POLICY "Public read access to jobs" ON job_listings
   FOR SELECT USING (true);
 
 -- Admin Write (Insert/Update/Delete) - LOCKED DOWN to your specific email
-CREATE POLICY "Admin only modify" ON job_listings
-  FOR ALL USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com')
-  WITH CHECK (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+-- FIX: Replaces permissive "Enable delete/insert for all users" policies
+DROP POLICY IF EXISTS "Admin only insert" ON job_listings;
+CREATE POLICY "Admin only insert" ON job_listings
+  FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
+DROP POLICY IF EXISTS "Admin only update" ON job_listings;
+CREATE POLICY "Admin only update" ON job_listings
+  FOR UPDATE USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
+DROP POLICY IF EXISTS "Admin only delete" ON job_listings;
+CREATE POLICY "Admin only delete" ON job_listings
+  FOR DELETE USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
 
 -- ==========================================
 -- 4. ORDERS & SUBSCRIPTIONS
@@ -106,9 +123,11 @@ CREATE TABLE IF NOT EXISTS orders (
 
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users view own orders" ON orders;
 CREATE POLICY "Users view own orders" ON orders
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users create own orders" ON orders;
 CREATE POLICY "Users create own orders" ON orders
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
@@ -119,6 +138,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 );
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 -- Lock it down completely just in case
+DROP POLICY IF EXISTS "Admin only subscriptions" ON subscriptions;
 CREATE POLICY "Admin only subscriptions" ON subscriptions FOR ALL USING (false); 
 
 -- ==========================================
@@ -136,12 +156,13 @@ CREATE TABLE IF NOT EXISTS daily_usage (
 ALTER TABLE daily_usage ENABLE ROW LEVEL SECURITY;
 
 -- Public Read (So UI can show "2/5 used")
+DROP POLICY IF EXISTS "Allow read usage" ON daily_usage;
 CREATE POLICY "Allow read usage" ON daily_usage
   FOR SELECT USING (true);
 
 -- WRITE SECURITY:
--- We DO NOT add Insert/Update policies here. 
--- This prevents clients from manually editing their usage.
+-- We DO NOT add Insert/Update policies here for public access.
+-- This fixes the "Allow anonymous access for ALL" alert.
 -- All writes must go through the Secure Functions below.
 
 -- ==========================================
