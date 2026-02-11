@@ -1,23 +1,33 @@
 
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link, useOutletContext } from 'react-router-dom';
 import { authService } from '../services/authService';
+import { smartEditCV } from '../services/geminiService';
 import { SavedApplication, CVData } from '../types';
 import CVTemplate from '../components/CVTemplate';
 import CoverLetterTemplate from '../components/CoverLetterTemplate';
+import { SmartEditor } from '../components/SmartEditor';
+import { FeatureLockedModal } from '../components/FeatureLockedModal';
 import { createWordBlob } from '../utils/docHelper';
 import { generatePdfFromApi } from '../utils/pdfHelper';
 import saveAs from 'file-saver';
+import { GEMINI_KEY_1 } from '../constants';
 
 export const GeneratedCV: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, triggerAuth } = useOutletContext<any>();
+  const { user, triggerAuth, triggerPayment, isPaidUser } = useOutletContext<any>();
   
   const [application, setApplication] = useState<SavedApplication | null>(null);
   const [cvData, setCvData] = useState<CVData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'cv' | 'cl'>('cv');
+  
+  // Smart Edit State
+  const [isSmartEditing, setIsSmartEditing] = useState(false);
+  const [showLockedModal, setShowLockedModal] = useState(false);
+  const [showEditSuccess, setShowEditSuccess] = useState(false);
   
   // Download State
   const [activeMenu, setActiveMenu] = useState<'cv' | 'cl' | null>(null);
@@ -90,6 +100,49 @@ export const GeneratedCV: React.FC = () => {
       }
   };
 
+  const handleSmartEdit = async (instruction: string) => {
+      if (!cvData || !application) return;
+      setIsSmartEditing(true);
+      try {
+          const updatedData = await smartEditCV(cvData, instruction, GEMINI_KEY_1);
+          
+          // Update State
+          setCvData(updatedData);
+          const updatedCvContent = JSON.stringify(updatedData);
+          setApplication(prev => prev ? ({ ...prev, cv_content: updatedCvContent }) : null);
+
+          // Update DB (Silent Save)
+          await authService.updateApplication(application.id, updatedCvContent, application.cl_content);
+          
+          setShowEditSuccess(true);
+          setTimeout(() => setShowEditSuccess(false), 3000);
+      } catch (e) {
+          console.error("Smart Edit failed", e);
+          alert("Failed to apply edits. Please try again.");
+      } finally {
+          setIsSmartEditing(false);
+      }
+  };
+
+  const handleManualUpdate = async (updatedData: CVData) => {
+      if (!application) return;
+      setIsSmartEditing(true);
+      try {
+          setCvData(updatedData);
+          const updatedCvContent = JSON.stringify(updatedData);
+          setApplication(prev => prev ? ({ ...prev, cv_content: updatedCvContent }) : null);
+          
+          await authService.updateApplication(application.id, updatedCvContent, application.cl_content);
+          
+          setShowEditSuccess(true);
+          setTimeout(() => setShowEditSuccess(false), 3000);
+      } catch (e) {
+          console.error("Manual update failed", e);
+      } finally {
+          setIsSmartEditing(false);
+      }
+  };
+
   const handlePrint = () => {
       // 1. Ensure correct view is active
       if (activeMenu === 'cv' && viewMode !== 'cv') setViewMode('cv');
@@ -99,12 +152,6 @@ export const GeneratedCV: React.FC = () => {
       setTimeout(() => {
           const printContent = document.getElementById(viewMode === 'cv' ? 'cv-render-target' : 'cl-render-target');
           if (!printContent) return;
-
-          // Native print involves some CSS trickery usually, but since we have a dedicated page,
-          // we can just use window.print() and let the @media print CSS hide the rest.
-          // However, we need to ensure the element we want is marked for printing.
-          
-          // Temporary class addition for print styling if needed
           document.body.classList.add('printing');
           window.print();
           document.body.classList.remove('printing');
@@ -196,8 +243,9 @@ export const GeneratedCV: React.FC = () => {
                     background: white;
                 }
                 
-                /* Hide navbar, controls, buttons */
+                /* Hide navbar, controls, buttons, sidebars */
                 .no-print { display: none !important; }
+                .sidebar-container { display: none !important; }
                 
                 /* Ensure Render Target is visible and reset styles */
                 #cv-render-target, #cl-render-target {
@@ -249,7 +297,7 @@ export const GeneratedCV: React.FC = () => {
 
        {/* Top Bar */}
        <div className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
-           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+           <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                <div className="flex items-center gap-4">
                    <Link to={user ? "/dashboard" : "/guestuserdashboard"} className="text-slate-500 hover:text-slate-800 flex items-center gap-1 text-sm font-medium">
                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -265,7 +313,6 @@ export const GeneratedCV: React.FC = () => {
                {/* Buttons Group */}
                <div className="flex items-center gap-3" ref={menuRef}>
                    
-                   {/* 0. Continue to Application Button */}
                    {application.original_link && (
                         <a 
                             href={application.original_link}
@@ -278,7 +325,7 @@ export const GeneratedCV: React.FC = () => {
                         </a>
                    )}
 
-                   {/* 1. CV Download Button */}
+                   {/* CV Download Button */}
                    <div className="relative">
                        <button 
                          onClick={() => setActiveMenu(activeMenu === 'cv' ? null : 'cv')}
@@ -322,7 +369,7 @@ export const GeneratedCV: React.FC = () => {
                        )}
                    </div>
 
-                   {/* 2. Cover Letter Download Button */}
+                   {/* Cover Letter Download Button */}
                    {application.cl_content && (
                        <div className="relative">
                            <button 
@@ -372,65 +419,95 @@ export const GeneratedCV: React.FC = () => {
            </div>
        </div>
 
-       {/* Main Content */}
-       <div className="max-w-5xl mx-auto px-4 py-8 print-container">
+       {/* Success Toast */}
+       {showEditSuccess && (
+         <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-2 animate-bounce-subtle">
+           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+           <span className="font-bold">Changes Applied Successfully!</span>
+         </div>
+       )}
+
+       {/* Layout with Sidebar */}
+       <div className="max-w-[1400px] mx-auto px-4 py-8 print-container grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-8 items-start">
            
-           {/* Mobile Apply Button (Visible only on small screens) */}
-           {application.original_link && (
-               <div className="md:hidden mb-6 no-print">
-                    <a 
-                        href={application.original_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full flex justify-center px-4 py-3 bg-green-600 hover:bg-green-700 text-white text-base font-bold rounded-xl shadow-md items-center gap-2 transition-all"
-                    >
-                        Continue to Application
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                    </a>
-               </div>
-           )}
-           
-           {/* Controls */}
-           <div className="flex justify-center mb-8 no-print">
-               <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 inline-flex">
-                   <button 
-                     onClick={() => setViewMode('cv')}
-                     className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'cv' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                   >
-                     Curriculum Vitae
-                   </button>
-                   <button 
-                     onClick={() => setViewMode('cl')}
-                     className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'cl' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                   >
-                     Cover Letter
-                   </button>
-               </div>
+           {/* LEFT: Main Preview Area */}
+           <div className="order-2 lg:order-1">
+                {/* Mobile Apply Button */}
+                {application.original_link && (
+                    <div className="md:hidden mb-6 no-print">
+                            <a 
+                                href={application.original_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full flex justify-center px-4 py-3 bg-green-600 hover:bg-green-700 text-white text-base font-bold rounded-xl shadow-md items-center gap-2 transition-all"
+                            >
+                                Continue to Application
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                            </a>
+                    </div>
+                )}
+                
+                {/* Controls */}
+                <div className="flex justify-center mb-8 no-print">
+                    <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 inline-flex">
+                        <button 
+                            onClick={() => setViewMode('cv')}
+                            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'cv' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                            Curriculum Vitae
+                        </button>
+                        <button 
+                            onClick={() => setViewMode('cl')}
+                            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'cl' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                            Cover Letter
+                        </button>
+                    </div>
+                </div>
+
+                {/* Preview Wrapper */}
+                <div className="bg-white rounded-2xl shadow-xl overflow-hidden min-h-[1100px] border border-slate-200 preview-wrapper">
+                    <div className="overflow-x-auto bg-slate-100/50 p-8 md:p-12 flex justify-center preview-wrapper">
+                        {viewMode === 'cv' ? (
+                            <div id="cv-render-target" className="bg-white shadow-2xl origin-top scale-90 md:scale-100 transition-transform duration-200">
+                                <CVTemplate data={cvData} />
+                            </div>
+                        ) : (
+                            <div id="cl-render-target" className="bg-white shadow-2xl origin-top scale-90 md:scale-100 transition-transform duration-200">
+                                {application.cl_content ? (
+                                    <CoverLetterTemplate content={application.cl_content} userData={cvData} />
+                                ) : (
+                                    <div className="w-[816px] h-[1056px] flex items-center justify-center text-slate-400">
+                                        No Cover Letter generated for this application.
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
            </div>
 
-           {/* Preview Area */}
-           <div className="bg-white rounded-2xl shadow-xl overflow-hidden min-h-[1100px] border border-slate-200 preview-wrapper">
-               <div className="overflow-x-auto bg-slate-100/50 p-8 md:p-12 flex justify-center preview-wrapper">
-                   
-                   {viewMode === 'cv' ? (
-                       <div id="cv-render-target" className="bg-white shadow-2xl origin-top scale-90 md:scale-100 transition-transform duration-200">
-                          <CVTemplate data={cvData} />
-                       </div>
-                   ) : (
-                       <div id="cl-render-target" className="bg-white shadow-2xl origin-top scale-90 md:scale-100 transition-transform duration-200">
-                          {application.cl_content ? (
-                             <CoverLetterTemplate content={application.cl_content} userData={cvData} />
-                          ) : (
-                             <div className="w-[816px] h-[1056px] flex items-center justify-center text-slate-400">
-                                No Cover Letter generated for this application.
-                             </div>
-                          )}
-                       </div>
-                   )}
-
-               </div>
+           {/* RIGHT: Smart Editor Sidebar */}
+           <div className="order-1 lg:order-2 sidebar-container lg:h-full">
+               <SmartEditor 
+                 cvData={cvData}
+                 onSmartEdit={handleSmartEdit}
+                 onManualUpdate={handleManualUpdate}
+                 isLocked={!isPaidUser}
+                 onUnlock={() => setShowLockedModal(true)}
+                 isProcessing={isSmartEditing}
+               />
            </div>
        </div>
+
+       {/* Locked Modal */}
+       <FeatureLockedModal 
+          isOpen={showLockedModal}
+          onClose={() => setShowLockedModal(false)}
+          onUpgrade={() => { setShowLockedModal(false); triggerPayment(); }}
+          title="Unlock Smart Editing"
+          description="Pro users can make unlimited AI tweaks and manual edits to their generated CVs. Upgrade now to perfect your application."
+       />
 
        {/* Rate Us Floating Button */}
        <a 

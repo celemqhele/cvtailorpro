@@ -1,8 +1,9 @@
 
+
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
-import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT } from "../constants";
-import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData } from "../types";
+import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT } from "../constants";
+import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, CVData } from "../types";
 
 /**
  * Scrapes job content using Jina.ai.
@@ -338,6 +339,31 @@ export const generateTailoredApplication = async (
 
   const responseText = await runAIChain(systemContent, userMessage, 0.6, apiKey);
   return parseAndProcessResponse(responseText);
+};
+
+export const smartEditCV = async (
+    currentData: CVData,
+    instruction: string,
+    apiKey: string
+): Promise<CVData> => {
+    const userMessage = `
+    CURRENT CV JSON:
+    ${JSON.stringify(currentData)}
+
+    USER INSTRUCTION:
+    "${instruction}"
+
+    Please update the JSON accordingly.
+    `;
+
+    const responseText = await runAIChain(SMART_EDIT_PROMPT, userMessage, 0.4, apiKey);
+    
+    try {
+        return JSON.parse(responseText);
+    } catch (e) {
+        console.error("Smart Edit Parse Error", e, responseText);
+        throw new Error("Failed to process your edit instruction. Please try again.");
+    }
 };
 
 function parseAndProcessResponse(content: string): GeneratorResponse {

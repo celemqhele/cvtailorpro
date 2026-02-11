@@ -1,4 +1,5 @@
 
+
 import { supabase } from './supabaseClient';
 import { UserProfile, SavedApplication } from '../types';
 
@@ -140,6 +141,20 @@ export const authService = {
         return null;
     }
     return data as SavedApplication;
+  },
+
+  /**
+   * Update an existing application (e.g. after AI Smart Edit)
+   */
+  async updateApplication(id: string, cvContent: string, clContent: string) {
+    const { error } = await supabase
+      .from('applications')
+      .update({ 
+        cv_content: cvContent,
+        cl_content: clContent
+      })
+      .eq('id', id);
+    if (error) throw error;
   },
 
   /**

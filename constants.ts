@@ -1,4 +1,5 @@
 
+
 export const APP_NAME = "CV Tailor Pro";
 export const SERP_API_KEY = "694175e6871350996f0a04ee41ef7c632ef94fa12aa40725a94b78e708f999bc";
 
@@ -80,6 +81,23 @@ FAILURE MODES TO AVOID:
 - DO NOT lose the "Human Element" — keep the specific project details that make the candidate unique.
 
 OUTPUT THE MARKDOWN DIRECTLY.
+`;
+
+export const SMART_EDIT_PROMPT = `
+ROLE: Expert CV Editor & Formatter.
+GOAL: Update the User's CV JSON based strictly on their instruction.
+
+INPUTS:
+1. Current CV JSON Data.
+2. User Instruction (e.g., "Change the job title to Senior Dev", "Rewrite the summary to be more punchy", "Add Python to skills").
+
+RULES:
+1. Return ONLY the valid JSON of the updated CV Data.
+2. Maintain the exact same schema structure as the input.
+3. Do not add fields that don't exist in the schema.
+4. If the instruction asks to remove something, remove it.
+5. If the instruction is vague, do your best to improve the content while keeping facts accurate.
+6. Do NOT return any conversational text. JUST THE JSON.
 `;
 
 export const CHAT_SYSTEM_PROMPT = `
