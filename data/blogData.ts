@@ -4,11 +4,10 @@ export interface ContentItem {
   slug: string;
   title: string;
   excerpt: string;
-  category: 'Guide' | 'Listicle' | 'Product' | 'Video';
+  category: 'Guide' | 'Listicle' | 'Product' | 'Career Strategy' | 'Interview Prep';
   date: string;
-  readTime: string; // or Video Duration
+  readTime: string;
   content: string; // Markdown supported
-  videoUrl?: string; // YouTube URL
 }
 
 // Helper to generate long-form content (approx 1000+ words)
@@ -68,57 +67,57 @@ Remember, you are the CEO of your own career. Take control, apply these insights
 `;
 
 export const CONTENT_ITEMS: ContentItem[] = [
-  // --- VIDEO CONTENT ---
+  // --- FORMER VIDEO CONTENT (Now Guides) ---
   {
-    id: 'v1', slug: 'video-how-to-write-cv', title: 'Masterclass: How to Write a CV That Wins Interviews', 
-    excerpt: 'A comprehensive visual guide on structuring your CV for modern recruiters.', 
-    category: 'Video', date: '2024-02-15', readTime: '12 min', videoUrl: 'https://www.youtube.com/watch?v=PAthQKLhBTs',
-    content: generateLongFormContent('Masterclass: How to Write a CV That Wins Interviews', 'CV Writing')
+    id: 'v1', slug: 'how-to-write-cv', title: 'Comprehensive Guide: How to Write a CV That Wins Interviews', 
+    excerpt: 'A comprehensive guide on structuring your CV for modern recruiters and passing ATS filters.', 
+    category: 'Guide', date: '2024-02-15', readTime: '12 min', 
+    content: generateLongFormContent('How to Write a CV That Wins Interviews', 'CV Writing')
   },
   {
-    id: 'v2', slug: 'video-resume-tips', title: '5 Resume Tips You Need to Know in 2024', 
-    excerpt: 'Quick, actionable tips to instantly improve your resume\'s acceptance rate.', 
-    category: 'Video', date: '2024-02-14', readTime: '8 min', videoUrl: 'https://www.youtube.com/watch?v=Tt08KmFfIYQ',
-    content: generateLongFormContent('5 Resume Tips You Need to Know', 'Resume Optimization')
+    id: 'v2', slug: 'resume-tips-2024', title: '5 Essential Resume Tips You Need to Know in 2024', 
+    excerpt: 'Quick, actionable strategies to instantly improve your resume\'s acceptance rate in the current market.', 
+    category: 'Guide', date: '2024-02-14', readTime: '8 min', 
+    content: generateLongFormContent('5 Essential Resume Tips for 2024', 'Resume Optimization')
   },
   {
-    id: 'v3', slug: 'video-job-search-strategy', title: 'The Hidden Job Market: How to Find Roles', 
-    excerpt: 'Learn the networking secrets to finding jobs that are never advertised.', 
-    category: 'Video', date: '2024-02-13', readTime: '15 min', videoUrl: 'https://www.youtube.com/watch?v=Y2E9VqkS6WE',
+    id: 'v3', slug: 'job-search-strategy', title: 'The Hidden Job Market: Finding Unlisted Roles', 
+    excerpt: 'Learn the networking secrets to finding jobs that are never advertised on public boards.', 
+    category: 'Career Strategy', date: '2024-02-13', readTime: '15 min', 
     content: generateLongFormContent('The Hidden Job Market', 'Job Search Strategy')
   },
   {
-    id: 'v4', slug: 'video-interview-prep', title: 'Crush Your Interview: Body Language & Tone', 
-    excerpt: 'It is not just what you say, but how you say it. Master non-verbal communication.', 
-    category: 'Video', date: '2024-02-12', readTime: '10 min', videoUrl: 'https://www.youtube.com/watch?v=V6Z8B7Gk2wM',
+    id: 'v4', slug: 'interview-prep-guide', title: 'Crush Your Interview: Mastering Non-Verbal Communication', 
+    excerpt: 'It is not just what you say, but how you say it. A deep dive into body language and tone.', 
+    category: 'Interview Prep', date: '2024-02-12', readTime: '10 min', 
     content: generateLongFormContent('Crush Your Interview', 'Interview Preparation')
   },
   {
-    id: 'v5', slug: 'video-salary-negotiation', title: 'Negotiate Your Salary Like a Pro', 
-    excerpt: 'Stop leaving money on the table. Watch this before your offer letter arrives.', 
-    category: 'Video', date: '2024-02-11', readTime: '14 min', videoUrl: 'https://www.youtube.com/watch?v=ZQH9m4Q5G2w',
+    id: 'v5', slug: 'salary-negotiation', title: 'The Art of Salary Negotiation', 
+    excerpt: 'Stop leaving money on the table. Read this detailed guide before your offer letter arrives.', 
+    category: 'Career Strategy', date: '2024-02-11', readTime: '14 min', 
     content: generateLongFormContent('Negotiate Your Salary Like a Pro', 'Salary Negotiation')
   },
   {
-    id: 'v6', slug: 'video-career-change', title: 'Pivoting Careers Without Starting Over', 
-    excerpt: 'How to leverage transferable skills to jump industries effectively.', 
-    category: 'Video', date: '2024-02-10', readTime: '11 min', videoUrl: 'https://www.youtube.com/watch?v=E3cJ0wZ9h0M',
+    id: 'v6', slug: 'career-change-guide', title: 'Pivoting Careers Without Starting Over', 
+    excerpt: 'How to leverage transferable skills to jump industries effectively without losing seniority.', 
+    category: 'Career Strategy', date: '2024-02-10', readTime: '11 min', 
     content: generateLongFormContent('Pivoting Careers Without Starting Over', 'Career Transition')
   },
   {
-    id: 'v7', slug: 'video-linkedin-hacks', title: 'LinkedIn Profile Hacks for 2024', 
-    excerpt: 'Turn your LinkedIn profile into a recruiter magnet with these settings.', 
-    category: 'Video', date: '2024-02-09', readTime: '9 min', videoUrl: 'https://www.youtube.com/watch?v=U0xk8y9G8oU',
+    id: 'v7', slug: 'linkedin-profile-optimization', title: 'LinkedIn Profile Hacks for 2024', 
+    excerpt: 'Turn your LinkedIn profile into a recruiter magnet with these specific settings and content strategies.', 
+    category: 'Guide', date: '2024-02-09', readTime: '9 min', 
     content: generateLongFormContent('LinkedIn Profile Hacks', 'LinkedIn Optimization')
   },
   {
-    id: 'v8', slug: 'video-soft-skills', title: 'Why Soft Skills Are the New Hard Skills', 
-    excerpt: 'Employers are hiring for attitude and training for skill. Here is why.', 
-    category: 'Video', date: '2024-02-08', readTime: '13 min', videoUrl: 'https://www.youtube.com/watch?v=1mHjMNZZvFo',
+    id: 'v8', slug: 'soft-skills-guide', title: 'Why Soft Skills Are the New Hard Skills', 
+    excerpt: 'Employers are hiring for attitude and training for skill. Understand the psychology behind this shift.', 
+    category: 'Career Strategy', date: '2024-02-08', readTime: '13 min', 
     content: generateLongFormContent('Why Soft Skills Are the New Hard Skills', 'Soft Skills Development')
   },
 
-  // --- TEXT CONTENT ---
+  // --- EXISTING TEXT CONTENT ---
   {
     id: '1', slug: '5-red-flags-on-cv', title: '5 Red Flags Recruiters Look For on Your CV', 
     excerpt: 'Avoid these common mistakes that get your application rejected in less than 6 seconds.', 

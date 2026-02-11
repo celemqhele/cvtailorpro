@@ -109,7 +109,42 @@ CREATE POLICY "Admin only delete" ON job_listings
   FOR DELETE USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
 
 -- ==========================================
--- 4. ORDERS & SUBSCRIPTIONS
+-- 4. ARTICLES (Dynamic SEO Content)
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS articles (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  slug text NOT NULL UNIQUE,
+  title text NOT NULL,
+  excerpt text,
+  content text,
+  category text,
+  read_time text,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE articles ENABLE ROW LEVEL SECURITY;
+
+-- Public Read
+DROP POLICY IF EXISTS "Public read access to articles" ON articles;
+CREATE POLICY "Public read access to articles" ON articles
+  FOR SELECT USING (true);
+
+-- Admin Write (Strict)
+DROP POLICY IF EXISTS "Admin only insert articles" ON articles;
+CREATE POLICY "Admin only insert articles" ON articles
+  FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
+DROP POLICY IF EXISTS "Admin only update articles" ON articles;
+CREATE POLICY "Admin only update articles" ON articles
+  FOR UPDATE USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
+DROP POLICY IF EXISTS "Admin only delete articles" ON articles;
+CREATE POLICY "Admin only delete articles" ON articles
+  FOR DELETE USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
+-- ==========================================
+-- 5. ORDERS & SUBSCRIPTIONS
 -- ==========================================
 
 CREATE TABLE IF NOT EXISTS orders (
@@ -142,7 +177,7 @@ DROP POLICY IF EXISTS "Admin only subscriptions" ON subscriptions;
 CREATE POLICY "Admin only subscriptions" ON subscriptions FOR ALL USING (false); 
 
 -- ==========================================
--- 5. DAILY USAGE (Strict Logic)
+-- 6. DAILY USAGE (Strict Logic)
 -- ==========================================
 
 CREATE TABLE IF NOT EXISTS daily_usage (
@@ -166,7 +201,7 @@ CREATE POLICY "Allow read usage" ON daily_usage
 -- All writes must go through the Secure Functions below.
 
 -- ==========================================
--- 6. SECURE FUNCTIONS (Fixes Mutable Search Path)
+-- 7. SECURE FUNCTIONS (Fixes Mutable Search Path)
 -- ==========================================
 
 -- 1. Reset Credits (Admin)

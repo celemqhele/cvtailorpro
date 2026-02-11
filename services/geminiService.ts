@@ -1,5 +1,4 @@
 
-
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
 import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT } from "../constants";
@@ -508,4 +507,35 @@ export const chatWithSupport = async (messageHistory: {role: 'user'|'assistant',
         console.error("Chat Error:", e);
         return "I'm having trouble connecting to the server. Please try again later or email support.";
     }
+};
+
+/**
+ * Generates an SEO-rich article based on a topic.
+ */
+export const generateArticle = async (topic: string, apiKey: string): Promise<any> => {
+    const systemPrompt = `
+    You are a Senior SEO Content Specialist and Career Coach.
+    Your goal is to write a highly engaging, SEO-optimized, long-form article based on a provided TOPIC.
+    
+    TONE: Professional, Authoritative, Encouraging, Action-Oriented.
+    AUDIENCE: Job Seekers, Professionals, Students.
+    
+    OUTPUT FORMAT:
+    Return strictly valid JSON:
+    {
+       "title": "A Catchy, Click-worthy Title (H1)",
+       "slug": "url-friendly-slug-example",
+       "excerpt": "A meta description (150-160 chars) that hooks the reader.",
+       "category": "One of: Guide, Career Strategy, Interview Prep, Resume Optimization",
+       "readTime": "e.g. 5 min",
+       "content": "Full article content in Markdown. Use H2 (##) and H3 (###) headers. Use bolding for emphasis. Include bullet points. Structure: Introduction, 3-4 Key Sections, Conclusion."
+    }
+    
+    Ensure the content is substantial (min 800 words) and includes relevant keywords naturally.
+    `;
+
+    const userMessage = `TOPIC: ${topic}`;
+
+    const responseText = await runAIChain(systemPrompt, userMessage, 0.7, apiKey);
+    return JSON.parse(responseText);
 };
