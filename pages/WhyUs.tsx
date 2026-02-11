@@ -58,6 +58,53 @@ export const WhyUs: React.FC = () => {
         </div>
       </div>
 
+      {/* Trust / Social Proof Bar */}
+      <div className="bg-white border-b border-slate-200 py-8 relative z-10 shadow-sm">
+          <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12">
+              <div className="flex items-center gap-4">
+                  <div className="bg-white p-2.5 rounded-full shadow-md border border-slate-100 flex items-center justify-center">
+                     <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z" fill="#4285F4"/>
+                        <path d="M12.255 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96h-3.98v3.09C3.515 21.3 7.565 24 12.255 24z" fill="#34A853"/>
+                        <path d="M5.525 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62h-3.98a11.86 11.86 0 000 10.76l3.98-3.09z" fill="#FBBC05"/>
+                        <path d="M12.255 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C18.205 1.19 15.495 0 12.255 0 7.565 0 3.515 2.7 1.545 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z" fill="#EA4335"/>
+                     </svg>
+                  </div>
+                  <div>
+                      <div className="flex items-center gap-1 text-amber-400">
+                           {[1,2,3,4].map(i => (
+                               <svg key={i} className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                           ))}
+                           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <defs>
+                                    <linearGradient id="partialStar">
+                                        <stop offset="80%" stopColor="currentColor"/>
+                                        <stop offset="80%" stopColor="#CBD5E1"/>
+                                    </linearGradient>
+                                </defs>
+                                <path fill="url(#partialStar)" d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                           </svg>
+                      </div>
+                      <p className="text-xs font-bold text-slate-500 mt-1">4.8 Star Rating</p>
+                  </div>
+              </div>
+              <div className="flex flex-col md:flex-row items-center gap-2 text-center md:text-left">
+                  <p className="text-slate-700 font-medium text-sm md:text-base">
+                      Trusted by job seekers across South Africa.
+                  </p>
+                  <a 
+                    href="https://share.google/nn57lEVcIzc7qyjtY" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="flex items-center gap-1 text-indigo-600 font-bold hover:underline group"
+                  >
+                      Read our reviews on Google
+                      <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                  </a>
+              </div>
+          </div>
+      </div>
+
       {/* Features Grid */}
       <div className="max-w-7xl mx-auto px-6 py-20">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
