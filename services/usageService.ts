@@ -99,39 +99,18 @@ export const getUsageCount = async (userId?: string): Promise<number> => {
 
 /**
  * CRITICAL: Syncs usage from the User's IP address to their new User ID.
+ * Uses secure RPC 'sync_usage_from_ip'
  */
 export const syncIpUsageToUser = async (userId: string): Promise<void> => {
     try {
         const ip = await getIpAddress();
         
-        // Get IP usage via secure RPC
-        const { data: ipStats } = await supabase
-            .rpc('get_user_usage_stats', { user_identifier: ip });
+        // Call secure RPC to handle the sync logic on the server
+        const { error } = await supabase
+            .rpc('sync_usage_from_ip', { ip_address: ip });
 
-        // If IP has usage...
-        if (ipStats && ipStats.count > 0) {
-            
-            // Get User usage
-            const { data: userStats } = await supabase
-                 .rpc('get_user_usage_stats', { user_identifier: userId });
-
-            const userCount = userStats?.count || 0;
-
-            // Manual sync is still needed here for the specific transfer logic, 
-            // but we use Current Date from client for the transfer key or rely on DB defaults.
-            // Since this is an edge case (syncing), strict server time is less critical than the main check,
-            // but ideally we'd use an RPC for this too. For now, we assume standard behavior.
-            if (ipStats.count > userCount) {
-                 const dateStr = new Date().toISOString().split('T')[0];
-                 await supabase
-                    .from('daily_usage')
-                    .upsert({ 
-                        identifier: userId, 
-                        date: dateStr, 
-                        cv_count: ipStats.count,
-                        search_count: 0 
-                    }, { onConflict: 'identifier,date' });
-            }
+        if (error) {
+            console.error("Failed to sync IP usage via RPC:", error);
         }
     } catch (e) {
         console.error("Failed to sync IP usage to user:", e);
