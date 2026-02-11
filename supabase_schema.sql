@@ -7,12 +7,10 @@ CREATE TABLE IF NOT EXISTS profiles (
   id uuid REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
   email text,
   full_name text,
-  -- Subscription Columns
   is_pro_plus boolean DEFAULT false,
   plan_id text DEFAULT 'free',
   subscription_end_date timestamptz,
   has_used_discount boolean DEFAULT false,
-  -- CV Storage
   last_cv_content text,
   last_cv_filename text,
   created_at timestamptz DEFAULT now()
@@ -20,11 +18,10 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- Policy: Users can see their own profile
+-- Allow users to view/edit ONLY their own profile
 CREATE POLICY "Users can view own profile" ON profiles 
   FOR SELECT USING (auth.uid() = id);
 
--- Policy: Users can update their own profile (e.g. name, saved cv)
 CREATE POLICY "Users can update own profile" ON profiles 
   FOR UPDATE USING (auth.uid() = id);
 
@@ -34,45 +31,42 @@ CREATE POLICY "Users can update own profile" ON profiles
 
 CREATE TABLE IF NOT EXISTS applications (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id uuid REFERENCES auth.users ON DELETE SET NULL, -- Nullable for Guest Users
+  user_id uuid REFERENCES auth.users ON DELETE SET NULL,
   job_title text,
   company_name text,
   cv_content text,
   cl_content text,
   match_score int,
   original_link text,
-  expires_at timestamptz, -- For guest expiration
+  expires_at timestamptz,
   created_at timestamptz DEFAULT now()
 );
 
 ALTER TABLE applications ENABLE ROW LEVEL SECURITY;
 
--- Policy: Users view their own apps
+-- Users view their own apps
 CREATE POLICY "Users view own applications" ON applications
   FOR SELECT USING (auth.uid() = user_id);
 
--- Policy: Creation. 
--- Authenticated users insert with their ID. 
--- Guests (auth.uid() is null) insert with user_id as null.
+-- Creation: Authenticated users insert with their ID. Guests insert with NULL.
 CREATE POLICY "Allow insert for creation" ON applications
   FOR INSERT WITH CHECK (
     (auth.uid() = user_id) OR 
     (auth.uid() IS NULL AND user_id IS NULL)
   );
 
--- Policy: Claiming.
--- Users can update rows that belong to them OR rows that are currently Guest (null)
+-- Claiming: Users can update rows that belong to them OR rows that are currently Guest (null)
 CREATE POLICY "Allow claim of guest apps" ON applications
   FOR UPDATE USING (
     auth.uid() = user_id OR user_id IS NULL
   );
 
--- Policy: Deletion. Users delete their own.
+-- Deletion: Users delete their own.
 CREATE POLICY "Users delete own applications" ON applications
   FOR DELETE USING (auth.uid() = user_id);
 
 -- ==========================================
--- 3. JOB LISTINGS (Admin Only)
+-- 3. JOB LISTINGS (Strict Admin Only)
 -- ==========================================
 
 CREATE TABLE IF NOT EXISTS job_listings (
@@ -88,23 +82,17 @@ CREATE TABLE IF NOT EXISTS job_listings (
 
 ALTER TABLE job_listings ENABLE ROW LEVEL SECURITY;
 
--- Policy: Public Read
+-- Public Read
 CREATE POLICY "Public read access to jobs" ON job_listings
   FOR SELECT USING (true);
 
--- Policy: Admin Write (Insert/Update/Delete)
--- Replace 'mqhele03@gmail.com' with your actual admin email if different
-CREATE POLICY "Admin only insert" ON job_listings
-  FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
-
-CREATE POLICY "Admin only update" ON job_listings
-  FOR UPDATE USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
-
-CREATE POLICY "Admin only delete" ON job_listings
-  FOR DELETE USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+-- Admin Write (Insert/Update/Delete) - LOCKED DOWN to your specific email
+CREATE POLICY "Admin only modify" ON job_listings
+  FOR ALL USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com')
+  WITH CHECK (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
 
 -- ==========================================
--- 4. ORDERS (Strict Owner Access)
+-- 4. ORDERS & SUBSCRIPTIONS
 -- ==========================================
 
 CREATE TABLE IF NOT EXISTS orders (
@@ -124,8 +112,17 @@ CREATE POLICY "Users view own orders" ON orders
 CREATE POLICY "Users create own orders" ON orders
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+-- Legacy table cleanup (if it exists from previous attempts)
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users
+);
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+-- Lock it down completely just in case
+CREATE POLICY "Admin only subscriptions" ON subscriptions FOR ALL USING (false); 
+
 -- ==========================================
--- 5. DAILY USAGE & SECURE FUNCTIONS
+-- 5. DAILY USAGE (Strict Logic)
 -- ==========================================
 
 CREATE TABLE IF NOT EXISTS daily_usage (
@@ -138,25 +135,31 @@ CREATE TABLE IF NOT EXISTS daily_usage (
 
 ALTER TABLE daily_usage ENABLE ROW LEVEL SECURITY;
 
--- Policy: Public Read (Required for UI to show "2/5 Credits Used")
+-- Public Read (So UI can show "2/5 used")
 CREATE POLICY "Allow read usage" ON daily_usage
   FOR SELECT USING (true);
 
--- NOTE: No INSERT/UPDATE policies here. All writes must go through the Secure RPC functions below.
--- This prevents users from resetting their own credit count via the API.
+-- WRITE SECURITY:
+-- We DO NOT add Insert/Update policies here. 
+-- This prevents clients from manually editing their usage.
+-- All writes must go through the Secure Functions below.
 
--- --- SECURE FUNCTIONS (Fixed Mutable Search Path) ---
+-- ==========================================
+-- 6. SECURE FUNCTIONS (Fixes Mutable Search Path)
+-- ==========================================
 
 -- 1. Reset Credits (Admin)
 CREATE OR REPLACE FUNCTION reset_all_daily_credits()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public -- Fixes Security Alert
+SET search_path = public -- FIX: Security Alert Resolved
 AS $$
 BEGIN
-  -- Optional: Check for admin email here for double security
-  DELETE FROM daily_usage WHERE date = CURRENT_DATE;
+  -- Double check admin status inside function for extra safety
+  IF auth.jwt() ->> 'email' = 'mqhele03@gmail.com' THEN
+    DELETE FROM daily_usage WHERE date = CURRENT_DATE;
+  END IF;
 END;
 $$;
 
@@ -165,7 +168,7 @@ CREATE OR REPLACE FUNCTION get_user_usage_stats(user_identifier text)
 RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public -- Fixes Security Alert
+SET search_path = public -- FIX: Security Alert Resolved
 AS $$
 DECLARE
   usage_val int;
@@ -182,12 +185,12 @@ BEGIN
 END;
 $$;
 
--- 3. Increment Usage
+-- 3. Increment Usage (Secure Write)
 CREATE OR REPLACE FUNCTION increment_usage_secure(user_identifier text)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public -- Fixes Security Alert
+SET search_path = public -- FIX: Security Alert Resolved
 AS $$
 BEGIN
   INSERT INTO daily_usage (identifier, date, cv_count, search_count)
@@ -197,20 +200,18 @@ BEGIN
 END;
 $$;
 
--- 4. Sync IP Usage to User (New: Replaces client-side logic)
--- This allows us to securely transfer credits from a Guest IP to a new User ID without opening the table to public writes.
+-- 4. Sync IP Usage to User (Secure Write)
 CREATE OR REPLACE FUNCTION sync_usage_from_ip(ip_address text)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public -- FIX: Security Alert Resolved
 AS $$
 DECLARE
   ip_count int;
   user_count int;
   current_user_id uuid;
 BEGIN
-  -- Get the ID of the user calling this function
   current_user_id := auth.uid();
   IF current_user_id IS NULL THEN RETURN; END IF;
 
@@ -222,7 +223,7 @@ BEGIN
   SELECT cv_count INTO user_count FROM daily_usage WHERE identifier = current_user_id::text AND date = CURRENT_DATE;
   IF user_count IS NULL THEN user_count := 0; END IF;
 
-  -- 3. If IP has more usage than user (meaning they just signed up after using the tool), update the user's record
+  -- 3. Sync if IP has data
   IF ip_count > user_count THEN
     INSERT INTO daily_usage (identifier, date, cv_count, search_count)
     VALUES (current_user_id::text, CURRENT_DATE, ip_count, 0)
@@ -237,7 +238,7 @@ CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public -- Fixes Security Alert
+SET search_path = public -- FIX: Security Alert Resolved
 AS $$
 BEGIN
   INSERT INTO public.profiles (id, email, full_name)

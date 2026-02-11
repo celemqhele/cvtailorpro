@@ -25,7 +25,6 @@ const getIdentifier = async (userId?: string): Promise<string> => {
 
 /**
  * Checks if the user has reached their daily limit for CV generation.
- * Uses Server-Side truth for count.
  */
 export const checkUsageLimit = async (userId: string | undefined, limit: number): Promise<boolean> => {
     try {
@@ -50,7 +49,7 @@ export const checkUsageLimit = async (userId: string | undefined, limit: number)
 
 /**
  * Increments the CV usage counter.
- * Uses Secure RPC to prevent date manipulation.
+ * Uses Secure RPC to prevent client-side manipulation.
  */
 export const incrementUsage = async (userId: string | undefined): Promise<void> => {
     try {
@@ -70,7 +69,6 @@ export const incrementUsage = async (userId: string | undefined): Promise<void> 
 
 /**
  * Gets the current CV count and Time to Refill
- * Returns { count: number, secondsLeft: number }
  */
 export const getUsageStats = async (userId?: string): Promise<{ count: number, secondsLeft: number }> => {
      try {
@@ -89,23 +87,20 @@ export const getUsageStats = async (userId?: string): Promise<{ count: number, s
     }
 };
 
-/**
- * Kept for backward compatibility, but uses secure stats
- */
 export const getUsageCount = async (userId?: string): Promise<number> => {
     const stats = await getUsageStats(userId);
     return stats.count;
 };
 
 /**
- * CRITICAL: Syncs usage from the User's IP address to their new User ID.
- * Uses secure RPC 'sync_usage_from_ip'
+ * Syncs usage from the User's IP address to their new User ID.
+ * Uses secure RPC 'sync_usage_from_ip'.
  */
 export const syncIpUsageToUser = async (userId: string): Promise<void> => {
     try {
         const ip = await getIpAddress();
         
-        // Call secure RPC to handle the sync logic on the server
+        // Call secure RPC
         const { error } = await supabase
             .rpc('sync_usage_from_ip', { ip_address: ip });
 
