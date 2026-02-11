@@ -90,6 +90,28 @@ export const GeneratedCV: React.FC = () => {
       }
   };
 
+  const handlePrint = () => {
+      // 1. Ensure correct view is active
+      if (activeMenu === 'cv' && viewMode !== 'cv') setViewMode('cv');
+      if (activeMenu === 'cl' && viewMode !== 'cl') setViewMode('cl');
+      
+      // 2. Small delay to render then print
+      setTimeout(() => {
+          const printContent = document.getElementById(viewMode === 'cv' ? 'cv-render-target' : 'cl-render-target');
+          if (!printContent) return;
+
+          // Native print involves some CSS trickery usually, but since we have a dedicated page,
+          // we can just use window.print() and let the @media print CSS hide the rest.
+          // However, we need to ensure the element we want is marked for printing.
+          
+          // Temporary class addition for print styling if needed
+          document.body.classList.add('printing');
+          window.print();
+          document.body.classList.remove('printing');
+          setActiveMenu(null);
+      }, 300);
+  };
+
   const handleDownload = async (docType: 'cv' | 'cl', format: 'pdf' | 'docx') => {
       if (!application || !cvData) return;
       
@@ -123,7 +145,7 @@ export const GeneratedCV: React.FC = () => {
           if (blob) {
               saveAs(blob, fileName);
           } else {
-              alert("Failed to generate file. Please try again.");
+              alert("Failed to generate file. Please try again or use the Print option.");
           }
 
       } catch (e) {
@@ -156,10 +178,50 @@ export const GeneratedCV: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20 relative">
-       
+        <style>
+            {`
+            @media print {
+                body > *:not(#root) { display: none !important; }
+                /* Hide everything in root except the generated CV page content */
+                #root > div > *:not(.print-container) { display: none !important; }
+                
+                /* Target the main container in GeneratedCV */
+                .print-container { 
+                    position: absolute; 
+                    top: 0; 
+                    left: 0; 
+                    width: 100%; 
+                    margin: 0; 
+                    padding: 0;
+                    background: white;
+                }
+                
+                /* Hide navbar, controls, buttons */
+                .no-print { display: none !important; }
+                
+                /* Ensure Render Target is visible and reset styles */
+                #cv-render-target, #cl-render-target {
+                    transform: none !important;
+                    box-shadow: none !important;
+                    margin: 0 auto !important;
+                    width: 100% !important;
+                    max-width: 816px !important;
+                }
+                
+                /* Hide the preview container background styling */
+                .preview-wrapper {
+                    padding: 0 !important;
+                    background: white !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                }
+            }
+            `}
+        </style>
+
        {/* Guest Expiration Banner */}
        {isGuestApplication && (
-           <div className="bg-amber-100 border-b border-amber-200 text-amber-800 px-4 py-3 text-center text-sm font-medium">
+           <div className="bg-amber-100 border-b border-amber-200 text-amber-800 px-4 py-3 text-center text-sm font-medium no-print">
                 <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-2">
                     <span className="flex items-center gap-2">
                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -186,7 +248,7 @@ export const GeneratedCV: React.FC = () => {
        )}
 
        {/* Top Bar */}
-       <div className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+       <div className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                <div className="flex items-center gap-4">
                    <Link to={user ? "/dashboard" : "/guestuserdashboard"} className="text-slate-500 hover:text-slate-800 flex items-center gap-1 text-sm font-medium">
@@ -233,20 +295,28 @@ export const GeneratedCV: React.FC = () => {
                        </button>
 
                        {activeMenu === 'cv' && (
-                           <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-slate-100 py-1 z-50 animate-fade-in">
+                           <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-xl border border-slate-100 py-1 z-50 animate-fade-in">
                                <button 
                                  onClick={() => handleDownload('cv', 'pdf')}
                                  className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
                                >
-                                   <span className="bg-red-100 text-red-600 p-1 rounded text-xs font-bold w-10 text-center">PDF</span>
+                                   <span className="bg-red-100 text-red-600 p-1 rounded text-xs font-bold w-12 text-center">PDF</span>
                                    Adobe PDF
                                </button>
                                <button 
                                  onClick={() => handleDownload('cv', 'docx')}
                                  className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
                                >
-                                   <span className="bg-blue-100 text-blue-600 p-1 rounded text-xs font-bold w-10 text-center">DOCX</span>
+                                   <span className="bg-blue-100 text-blue-600 p-1 rounded text-xs font-bold w-12 text-center">DOCX</span>
                                    MS Word
+                               </button>
+                               <div className="border-t border-slate-100 my-1"></div>
+                               <button 
+                                 onClick={handlePrint}
+                                 className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
+                               >
+                                   <span className="bg-slate-100 text-slate-600 p-1 rounded text-xs font-bold w-12 text-center">PRINT</span>
+                                   Print / Save PDF
                                </button>
                            </div>
                        )}
@@ -270,20 +340,28 @@ export const GeneratedCV: React.FC = () => {
                            </button>
 
                            {activeMenu === 'cl' && (
-                               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-slate-100 py-1 z-50 animate-fade-in">
+                               <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-xl border border-slate-100 py-1 z-50 animate-fade-in">
                                    <button 
                                      onClick={() => handleDownload('cl', 'pdf')}
                                      className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
                                    >
-                                       <span className="bg-red-100 text-red-600 p-1 rounded text-xs font-bold w-10 text-center">PDF</span>
+                                       <span className="bg-red-100 text-red-600 p-1 rounded text-xs font-bold w-12 text-center">PDF</span>
                                        Adobe PDF
                                    </button>
                                    <button 
                                      onClick={() => handleDownload('cl', 'docx')}
                                      className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
                                    >
-                                       <span className="bg-blue-100 text-blue-600 p-1 rounded text-xs font-bold w-10 text-center">DOCX</span>
+                                       <span className="bg-blue-100 text-blue-600 p-1 rounded text-xs font-bold w-12 text-center">DOCX</span>
                                        MS Word
+                                   </button>
+                                   <div className="border-t border-slate-100 my-1"></div>
+                                   <button 
+                                     onClick={handlePrint}
+                                     className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
+                                   >
+                                       <span className="bg-slate-100 text-slate-600 p-1 rounded text-xs font-bold w-12 text-center">PRINT</span>
+                                       Print / Save PDF
                                    </button>
                                </div>
                            )}
@@ -295,11 +373,11 @@ export const GeneratedCV: React.FC = () => {
        </div>
 
        {/* Main Content */}
-       <div className="max-w-5xl mx-auto px-4 py-8">
+       <div className="max-w-5xl mx-auto px-4 py-8 print-container">
            
            {/* Mobile Apply Button (Visible only on small screens) */}
            {application.original_link && (
-               <div className="md:hidden mb-6">
+               <div className="md:hidden mb-6 no-print">
                     <a 
                         href={application.original_link}
                         target="_blank"
@@ -313,7 +391,7 @@ export const GeneratedCV: React.FC = () => {
            )}
            
            {/* Controls */}
-           <div className="flex justify-center mb-8">
+           <div className="flex justify-center mb-8 no-print">
                <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 inline-flex">
                    <button 
                      onClick={() => setViewMode('cv')}
@@ -331,8 +409,8 @@ export const GeneratedCV: React.FC = () => {
            </div>
 
            {/* Preview Area */}
-           <div className="bg-white rounded-2xl shadow-xl overflow-hidden min-h-[1100px] border border-slate-200">
-               <div className="overflow-x-auto bg-slate-100/50 p-8 md:p-12 flex justify-center">
+           <div className="bg-white rounded-2xl shadow-xl overflow-hidden min-h-[1100px] border border-slate-200 preview-wrapper">
+               <div className="overflow-x-auto bg-slate-100/50 p-8 md:p-12 flex justify-center preview-wrapper">
                    
                    {viewMode === 'cv' ? (
                        <div id="cv-render-target" className="bg-white shadow-2xl origin-top scale-90 md:scale-100 transition-transform duration-200">
@@ -359,7 +437,7 @@ export const GeneratedCV: React.FC = () => {
           href="https://g.page/r/CfP6fwaNpAbCEBE/review"
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed right-6 bottom-6 z-40 bg-white border border-slate-200 shadow-xl rounded-full px-4 py-3 flex items-center gap-3 hover:scale-105 transition-transform group"
+          className="fixed right-6 bottom-6 z-40 bg-white border border-slate-200 shadow-xl rounded-full px-4 py-3 flex items-center gap-3 hover:scale-105 transition-transform group no-print"
        >
           <svg className="w-5 h-5" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
