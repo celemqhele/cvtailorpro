@@ -514,7 +514,7 @@ export const GeneratedCV: React.FC = () => {
           href="https://g.page/r/CfP6fwaNpAbCEBE/review"
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed right-6 bottom-6 z-40 bg-white border border-slate-200 shadow-xl rounded-full px-4 py-3 flex items-center gap-3 hover:scale-105 transition-transform group no-print"
+          className="fixed right-6 bottom-24 z-40 bg-white border border-slate-200 shadow-xl rounded-full px-4 py-3 flex items-center gap-3 hover:scale-105 transition-transform group no-print"
        >
           <svg className="w-5 h-5" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
