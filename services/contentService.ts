@@ -1,4 +1,5 @@
 
+
 import { supabase } from './supabaseClient';
 import { CONTENT_ITEMS, ContentItem } from '../data/blogData';
 import { naturalizeText } from '../utils/textHelpers';
@@ -9,6 +10,7 @@ const transformArticle = (dbArticle: any): ContentItem => ({
     slug: dbArticle.slug,
     title: naturalizeText(dbArticle.title),
     excerpt: naturalizeText(dbArticle.excerpt),
+    summary: naturalizeText(dbArticle.excerpt), // Map excerpt to summary
     category: dbArticle.category,
     date: new Date(dbArticle.created_at).toISOString().split('T')[0],
     readTime: dbArticle.read_time,

@@ -5,6 +5,7 @@ export interface ContentItem {
   slug: string;
   title: string;
   excerpt: string;
+  summary?: string; // Added to support legacy or alternative property access
   category: 'Guide' | 'Listicle' | 'Product' | 'Career Strategy' | 'Interview Prep';
   date: string;
   readTime: string;
@@ -72,48 +73,56 @@ export const CONTENT_ITEMS: ContentItem[] = [
   {
     id: 'v1', slug: 'how-to-write-cv', title: 'Comprehensive Guide: How to Write a CV That Wins Interviews', 
     excerpt: 'A comprehensive guide on structuring your CV for modern recruiters and passing ATS filters.', 
+    summary: 'A comprehensive guide on structuring your CV for modern recruiters and passing ATS filters.',
     category: 'Guide', date: '2024-02-15', readTime: '12 min', 
     content: generateLongFormContent('How to Write a CV That Wins Interviews', 'CV Writing')
   },
   {
     id: 'v2', slug: 'resume-tips-2024', title: '5 Essential Resume Tips You Need to Know in 2024', 
     excerpt: 'Quick, actionable strategies to instantly improve your resume\'s acceptance rate in the current market.', 
+    summary: 'Quick, actionable strategies to instantly improve your resume\'s acceptance rate in the current market.',
     category: 'Guide', date: '2024-02-14', readTime: '8 min', 
     content: generateLongFormContent('5 Essential Resume Tips for 2024', 'Resume Optimization')
   },
   {
     id: 'v3', slug: 'job-search-strategy', title: 'The Hidden Job Market: Finding Unlisted Roles', 
     excerpt: 'Learn the networking secrets to finding jobs that are never advertised on public boards.', 
+    summary: 'Learn the networking secrets to finding jobs that are never advertised on public boards.',
     category: 'Career Strategy', date: '2024-02-13', readTime: '15 min', 
     content: generateLongFormContent('The Hidden Job Market', 'Job Search Strategy')
   },
   {
     id: 'v4', slug: 'interview-prep-guide', title: 'Crush Your Interview: Mastering Non-Verbal Communication', 
     excerpt: 'It is not just what you say, but how you say it. A deep dive into body language and tone.', 
+    summary: 'It is not just what you say, but how you say it. A deep dive into body language and tone.',
     category: 'Interview Prep', date: '2024-02-12', readTime: '10 min', 
     content: generateLongFormContent('Crush Your Interview', 'Interview Preparation')
   },
   {
     id: 'v5', slug: 'salary-negotiation', title: 'The Art of Salary Negotiation', 
     excerpt: 'Stop leaving money on the table. Read this detailed guide before your offer letter arrives.', 
+    summary: 'Stop leaving money on the table. Read this detailed guide before your offer letter arrives.',
     category: 'Career Strategy', date: '2024-02-11', readTime: '14 min', 
     content: generateLongFormContent('Negotiate Your Salary Like a Pro', 'Salary Negotiation')
   },
   {
     id: 'v6', slug: 'career-change-guide', title: 'Pivoting Careers Without Starting Over', 
     excerpt: 'How to leverage transferable skills to jump industries effectively without losing seniority.', 
+    summary: 'How to leverage transferable skills to jump industries effectively without losing seniority.',
     category: 'Career Strategy', date: '2024-02-10', readTime: '11 min', 
     content: generateLongFormContent('Pivoting Careers Without Starting Over', 'Career Transition')
   },
   {
     id: 'v7', slug: 'linkedin-profile-optimization', title: 'LinkedIn Profile Hacks for 2024', 
     excerpt: 'Turn your LinkedIn profile into a recruiter magnet with these specific settings and content strategies.', 
+    summary: 'Turn your LinkedIn profile into a recruiter magnet with these specific settings and content strategies.',
     category: 'Guide', date: '2024-02-09', readTime: '9 min', 
     content: generateLongFormContent('LinkedIn Profile Hacks', 'LinkedIn Optimization')
   },
   {
     id: 'v8', slug: 'soft-skills-guide', title: 'Why Soft Skills Are the New Hard Skills', 
     excerpt: 'Employers are hiring for attitude and training for skill. Understand the psychology behind this shift.', 
+    summary: 'Employers are hiring for attitude and training for skill. Understand the psychology behind this shift.',
     category: 'Career Strategy', date: '2024-02-08', readTime: '13 min', 
     content: generateLongFormContent('Why Soft Skills Are the New Hard Skills', 'Soft Skills Development')
   },
@@ -122,36 +131,43 @@ export const CONTENT_ITEMS: ContentItem[] = [
   {
     id: '1', slug: '5-red-flags-on-cv', title: '5 Red Flags Recruiters Look For on Your CV', 
     excerpt: 'Avoid these common mistakes that get your application rejected in less than 6 seconds.', 
+    summary: 'Avoid these common mistakes that get your application rejected in less than 6 seconds.',
     category: 'Listicle', date: '2024-02-10', readTime: '4 min', content: generateLongFormContent('5 Red Flags Recruiters Look For on Your CV', 'CV Red Flags')
   },
   {
     id: '2', slug: '10-power-words', title: '10 Power Words to Transform Your Resume', 
     excerpt: 'Stop using "Responsible for" and start using words that drive impact and show leadership.', 
+    summary: 'Stop using "Responsible for" and start using words that drive impact and show leadership.',
     category: 'Listicle', date: '2024-02-08', readTime: '3 min', content: generateLongFormContent('10 Power Words to Transform Your Resume', 'Resume Power Words')
   },
   {
     id: '6', slug: 'how-to-prep-for-interviews', title: 'How to Prep for Interviews: The STAR Method', 
     excerpt: 'Master behavioral interview questions using the Situation, Task, Action, Result framework.', 
+    summary: 'Master behavioral interview questions using the Situation, Task, Action, Result framework.',
     category: 'Guide', date: '2024-02-12', readTime: '8 min', content: generateLongFormContent('How to Prep for Interviews: The STAR Method', 'Behavioral Interviews')
   },
   {
     id: '7', slug: 'make-cv-from-scratch', title: 'How to Make Your CV From Scratch', 
     excerpt: 'A step-by-step guide for fresh graduates or career changers building their first professional document.', 
+    summary: 'A step-by-step guide for fresh graduates or career changers building their first professional document.',
     category: 'Guide', date: '2024-02-11', readTime: '10 min', content: generateLongFormContent('How to Make Your CV From Scratch', 'CV Building')
   },
   {
     id: '8', slug: 'why-our-tool-is-great', title: 'Why AI Tailoring Beats Generic Templates', 
     excerpt: 'Generic templates look nice but lack substance. Learn how AI injection helps you rank higher.', 
+    summary: 'Generic templates look nice but lack substance. Learn how AI injection helps you rank higher.',
     category: 'Product', date: '2024-02-09', readTime: '3 min', content: generateLongFormContent('Why AI Tailoring Beats Generic Templates', 'AI Recruitment Tools')
   },
   {
     id: '13', slug: 'linkedin-optimization', title: 'Optimizing Your LinkedIn Profile for Headhunters', 
     excerpt: 'Your CV is outbound marketing; LinkedIn is inbound. Make sure they match.', 
+    summary: 'Your CV is outbound marketing; LinkedIn is inbound. Make sure they match.',
     category: 'Guide', date: '2024-01-30', readTime: '5 min', content: generateLongFormContent('Optimizing Your LinkedIn Profile', 'Personal Branding')
   },
   {
     id: '15', slug: 'tech-cv-guide', title: 'The Ultimate Guide to Technical Resumes', 
     excerpt: 'Developers and Engineers: Here is how to list your stack without cluttering the page.', 
+    summary: 'Developers and Engineers: Here is how to list your stack without cluttering the page.',
     category: 'Guide', date: '2024-01-20', readTime: '6 min', content: generateLongFormContent('The Ultimate Guide to Technical Resumes', 'Technical Careers')
   }
 ];
