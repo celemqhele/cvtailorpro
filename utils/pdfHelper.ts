@@ -45,6 +45,7 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
                     useCORS: true,
                     logging: false,
                     letterRendering: true, // Improves text clarity
+                    backgroundColor: '#ffffff' // Ensure background is white, not transparent/black
                 },
                 margin: 0 // We rely on the CSS padding inside the element
             });
@@ -89,6 +90,7 @@ export const generatePdfFromApi = async (elementId: string): Promise<Blob | null
     `;
 
     try {
+        console.log("Attempting PDF generation via API...");
         const response = await fetch('https://api.html2pdf.app/v1/generate', {
             method: 'POST',
             headers: {
@@ -109,13 +111,13 @@ export const generatePdfFromApi = async (elementId: string): Promise<Blob | null
         });
 
         if (!response.ok) {
-            console.warn(`PDF API Error: ${response.status}, failing over to local.`);
+            console.warn(`PDF API Error: ${response.status} ${response.statusText}. Quota likely exceeded. Switching to client-side fallback.`);
             throw new Error(`PDF API Error: ${response.status}`);
         }
 
         return await response.blob();
     } catch (e) {
-        console.warn("PDF API Generation failed, falling back to client-side", e);
+        console.warn("PDF API Generation failed, falling back to client-side (jsPDF). Reason:", e);
         // Fallback to client-side generation if API fails
         return createPdfBlob(elementId);
     }
