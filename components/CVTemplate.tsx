@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { CVData } from '../types';
 
@@ -239,6 +240,20 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
               {edu.year && <span> ({edu.year})</span>}
             </div>
           ))}
+        </section>
+      )}
+
+      {/* References */}
+      {data.references && data.references.length > 0 && (
+        <section style={styles.section}>
+          <h2 style={styles.sectionTitle}>REFERENCES</h2>
+          <div style={styles.skillsGrid}>
+            {data.references.map((ref, index) => (
+              <div key={index} style={styles.skillItem}>
+                <strong>{ref.name}</strong> — {ref.contact}
+              </div>
+            ))}
+          </div>
         </section>
       )}
     </div>

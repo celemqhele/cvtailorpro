@@ -3,9 +3,11 @@
 
 
 
+
+
 import React, { useState, useRef } from 'react';
 import { Button } from './Button';
-import { CVData } from '../types';
+import { CVData, CVReference } from '../types';
 import { extractTextFromFile } from '../services/geminiService';
 
 interface SmartEditorProps {
@@ -55,13 +57,23 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
   // Manual Form States
   const [formData, setFormData] = useState<CVData | null>(cvData);
   const [manualCL, setManualCL] = useState(clContent || '');
+  
+  // References local string state for textarea
+  const [referencesText, setReferencesText] = useState('');
 
   // Restrict Reference Uploads to Growth/Pro plans
   const isReferenceUploadAllowed = userPlanId ? ['tier_2', 'tier_3', 'tier_4'].includes(userPlanId) : false;
 
   // Update form data when props change
   React.useEffect(() => {
-    if (cvData) setFormData({ ...cvData });
+    if (cvData) {
+        setFormData({ ...cvData });
+        if (cvData.references) {
+            setReferencesText(cvData.references.map(r => `${r.name} - ${r.contact}`).join('\n'));
+        } else {
+            setReferencesText('');
+        }
+    }
   }, [cvData]);
 
   React.useEffect(() => {
@@ -145,7 +157,23 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
         return;
     }
     if (viewMode === 'cv' && formData) {
-        onManualUpdate(formData);
+        // Parse references text
+        const refs: CVReference[] = [];
+        if (referencesText.trim()) {
+            referencesText.split('\n').forEach(line => {
+                if (line.trim()) {
+                    // Try to split name and contact by " - " or just take full line
+                    const parts = line.split(/ - | – |: /); 
+                    if (parts.length > 1) {
+                        refs.push({ name: parts[0].trim(), contact: parts.slice(1).join(' - ').trim() });
+                    } else {
+                        refs.push({ name: line.trim(), contact: '' });
+                    }
+                }
+            });
+        }
+        
+        onManualUpdate({ ...formData, references: refs });
     } else if (viewMode === 'cl') {
         onManualUpdateCL(manualCL);
     }
@@ -313,6 +341,16 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Summary</label>
                                     <textarea className="w-full p-2 border rounded text-sm h-32" value={formData.summary} onChange={e => handleManualChange('summary', e.target.value)} />
+                                </div>
+                                <div className="pt-2 border-t border-slate-100">
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">References (Name - Contact per line)</label>
+                                    <textarea 
+                                        className="w-full p-2 border rounded text-sm h-24 font-mono text-xs" 
+                                        placeholder="John Doe - 555-0199&#10;Jane Smith - jane@example.com"
+                                        value={referencesText} 
+                                        onChange={e => setReferencesText(e.target.value)} 
+                                    />
+                                    <p className="text-[10px] text-slate-400 mt-1">Leave blank to hide References section.</p>
                                 </div>
                             </>
                         )}

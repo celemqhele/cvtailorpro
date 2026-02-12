@@ -1,4 +1,5 @@
 
+
 export enum Status {
   IDLE = 'IDLE',
   SCANNING = 'SCANNING',
@@ -50,6 +51,11 @@ export interface CVSkill {
   items: string;
 }
 
+export interface CVReference {
+  name: string;
+  contact: string;
+}
+
 export interface CVExperience {
   title: string;
   company: string;
@@ -75,6 +81,7 @@ export interface CVData {
   experience: CVExperience[];
   keyAchievements?: string[];
   education: CVEducation[];
+  references?: CVReference[];
 }
 
 export interface GeneratorResponse {

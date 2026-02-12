@@ -1,4 +1,5 @@
 
+
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
 import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT } from "../constants";
@@ -279,6 +280,9 @@ export const generateTailoredApplication = async (
         "keyAchievements": ["Achievement 1", "Achievement 2"],
         "education": [
             {"degree": "Degree/Certification", "institution": "School", "year": "Year"}
+        ],
+        "references": [
+            {"name": "Reference Name", "contact": "Phone/Email or Relationship"}
         ]
     },
     "coverLetter": {
@@ -328,7 +332,8 @@ export const generateTailoredApplication = async (
   const userMessage = `
       STEP 1: Analyze the Candidate CV and Additional Information (if any). Identify all METRICS, NUMBERS, and SPECIFIC ACHIEVEMENTS.
       STEP 2: Analyze the Target Job. Identify TOP 5 KEYWORDS.
-      STEP 3: Rewrite the CV Data into the JSON structure. Integrate any relevant details from the "Additional Information" section into the summary, skills, or experience as appropriate.
+      STEP 3: Rewrite the CV Data into the JSON structure. Integrate any relevant details from the "Additional Information" section into the summary, skills, or experience as appropriate. 
+      NOTE: If References are present in the CV, extract them into the 'references' array. If none are present, leave it empty.
       STEP 4: Write the Cover Letter content following the TRADITIONAL BUSINESS LETTER rules.
       
       ${linkedinInstruction}
