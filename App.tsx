@@ -17,6 +17,7 @@ import { JobDetails } from './pages/JobDetails';
 import { AdminJobs } from './pages/AdminJobs';
 import { GeneratedCV } from './pages/GeneratedCV';
 import { WhyUs } from './pages/WhyUs';
+import { ThankYou } from './pages/ThankYou';
 
 export const App: React.FC = () => {
   return (
@@ -53,6 +54,9 @@ export const App: React.FC = () => {
         
         {/* Generated CV View (Protected by RLS mainly, but route is open) */}
         <Route path="/cv-generated/:id" element={<GeneratedCV />} />
+        
+        {/* Post-Purchase Page */}
+        <Route path="/thank-you" element={<ThankYou />} />
 
         {/* Protected Pages */}
         <Route path="/account" element={<Account />} />

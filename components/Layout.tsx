@@ -142,18 +142,21 @@ export const Layout: React.FC = () => {
         if (success) {
             // 1. Refresh session
             await checkUserSession();
-            alert("Plan Activated! Enjoy increased limits and no ads.");
-
+            
             // 2. Send Receipt Email via SendGrid (Supabase Edge Function)
             const plan = getPlanDetails(planId);
             const amount = paymentDiscount ? Math.round(plan.price * 0.5) : plan.price;
             
+            // Send receipt in background
             emailService.sendReceipt(
                 user.email,
                 user.full_name || 'Valued User',
                 plan.name,
                 amount
-            );
+            ).catch(console.error);
+
+            // 3. Redirect to Thank You page for Tracking
+            navigate('/thank-you', { state: { planId, isUpgrade, amount } });
         }
     }
     setPaymentTriggerPlan(null);
