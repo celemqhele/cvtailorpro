@@ -1,17 +1,18 @@
 
 import { supabase } from './supabaseClient';
 import { CONTENT_ITEMS, ContentItem } from '../data/blogData';
+import { naturalizeText } from '../utils/textHelpers';
 
 // Helper to convert DB snake_case to app camelCase
 const transformArticle = (dbArticle: any): ContentItem => ({
     id: dbArticle.id,
     slug: dbArticle.slug,
-    title: dbArticle.title,
-    excerpt: dbArticle.excerpt,
+    title: naturalizeText(dbArticle.title),
+    excerpt: naturalizeText(dbArticle.excerpt),
     category: dbArticle.category,
     date: new Date(dbArticle.created_at).toISOString().split('T')[0],
     readTime: dbArticle.read_time,
-    content: dbArticle.content
+    content: naturalizeText(dbArticle.content)
 });
 
 export const contentService = {

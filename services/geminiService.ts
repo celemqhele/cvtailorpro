@@ -1,9 +1,9 @@
 
-
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
 import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT } from "../constants";
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, CVData } from "../types";
+import { naturalizeObject, naturalizeText } from "../utils/textHelpers";
 
 /**
  * Scrapes job content using Jina.ai.
@@ -367,7 +367,8 @@ export const smartEditCV = async (
     const responseText = await runAIChain(SMART_EDIT_PROMPT, userMessage, 0.4, apiKey);
     
     try {
-        return JSON.parse(responseText);
+        const result = JSON.parse(responseText);
+        return naturalizeObject(result);
     } catch (e) {
         console.error("Smart Edit Parse Error", e, responseText);
         throw new Error("Failed to process your edit instruction. Please try again.");
@@ -399,14 +400,13 @@ export const smartEditCoverLetter = async (
     if (cleanText.trim().startsWith('{')) {
         try {
             const parsed = JSON.parse(cleanText);
-            return parsed.content || parsed.text || parsed.body || parsed.letter || cleanText;
+            cleanText = parsed.content || parsed.text || parsed.body || parsed.letter || cleanText;
         } catch (e) {
             // If parse fails, just return the text (it might just start with a bracket)
-            return cleanText;
         }
     }
 
-    return cleanText;
+    return naturalizeText(cleanText);
 };
 
 function parseAndProcessResponse(content: string): GeneratorResponse {
@@ -434,10 +434,8 @@ function parseAndProcessResponse(content: string): GeneratorResponse {
       if (!parsedResponse.coverLetter) parsedResponse.coverLetter = { title: "Cover_Letter.docx", content: "" };
       if (!parsedResponse.coverLetter.content) parsedResponse.coverLetter.content = parsedResponse.coverLetter.body || parsedResponse.coverLetter.text || "";
 
-      // Sanitization: Remove em dashes to look less like "AI"
-      if (parsedResponse.coverLetter.content) {
-          parsedResponse.coverLetter.content = parsedResponse.coverLetter.content.replace(/—/g, ' - ');
-      }
+      // Sanitization: Replace em dashes with comma space
+      parsedResponse = naturalizeObject(parsedResponse);
     }
 
     return {
@@ -485,7 +483,8 @@ export const rewriteJobDescription = async (
     `;
     
     const responseText = await runAIChain(systemPrompt, userMessage, 0.5, apiKey);
-    return JSON.parse(responseText);
+    const result = JSON.parse(responseText);
+    return naturalizeObject(result);
 };
 
 export const chatWithSupport = async (messageHistory: {role: 'user'|'assistant', content: string}[], userMessage: string): Promise<string> => {
@@ -516,7 +515,8 @@ export const chatWithSupport = async (messageHistory: {role: 'user'|'assistant',
         }
 
         const data = await response.json();
-        return data.choices?.[0]?.message?.content || "I apologize, I'm having trouble thinking right now.";
+        const content = data.choices?.[0]?.message?.content || "I apologize, I'm having trouble thinking right now.";
+        return naturalizeText(content);
     } catch (e) {
         console.error("Chat Error:", e);
         return "I'm having trouble connecting to the server. Please try again later or email support.";
@@ -551,5 +551,6 @@ export const generateArticle = async (topic: string, apiKey: string): Promise<an
     const userMessage = `TOPIC: ${topic}`;
 
     const responseText = await runAIChain(systemPrompt, userMessage, 0.7, apiKey);
-    return JSON.parse(responseText);
+    const result = JSON.parse(responseText);
+    return naturalizeObject(result);
 };

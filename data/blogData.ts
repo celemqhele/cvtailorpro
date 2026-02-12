@@ -1,4 +1,5 @@
 
+
 export interface ContentItem {
   id: string;
   slug: string;
@@ -154,3 +155,6 @@ export const CONTENT_ITEMS: ContentItem[] = [
     category: 'Guide', date: '2024-01-20', readTime: '6 min', content: generateLongFormContent('The Ultimate Guide to Technical Resumes', 'Technical Careers')
   }
 ];
+
+// Alias export for legacy/stale file compatibility
+export const blogPosts = CONTENT_ITEMS;

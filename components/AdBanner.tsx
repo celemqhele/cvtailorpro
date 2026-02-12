@@ -1,4 +1,5 @@
 
+
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -6,6 +7,7 @@ interface AdBannerProps {
   className?: string;
   variant?: 'display' | 'in-feed' | 'multiplex' | 'internal';
   suffix?: string;
+  format?: string; // Optional prop to support legacy calls in stale files
 }
 
 export const AdBanner: React.FC<AdBannerProps> = ({ 

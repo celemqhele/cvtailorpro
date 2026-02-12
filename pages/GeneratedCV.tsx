@@ -1,8 +1,4 @@
 
-
-
-
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link, useOutletContext } from 'react-router-dom';
 import { authService } from '../services/authService';
@@ -63,11 +59,6 @@ export const GeneratedCV: React.FC = () => {
         const app = await authService.getApplicationById(appId);
         if (!app) {
             throw new Error("Application not found");
-        }
-        
-        // Auto-clean em dashes from cover letter if present
-        if (app.cl_content) {
-            app.cl_content = app.cl_content.replace(/—/g, ' - ');
         }
         
         setApplication(app);

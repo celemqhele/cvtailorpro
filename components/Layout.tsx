@@ -48,7 +48,7 @@ export const Layout: React.FC = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       checkUserSession();
       // If a user just signed in or signed up, sync their guest usage to their account
-      if ((event === 'SIGNED_IN' || event === 'ToKEN_REFRESHED') && session?.user) {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
           const createdAt = new Date(session.user.created_at).getTime();
           const now = new Date().getTime();
           const isNewAccount = (now - createdAt) < 15 * 60 * 1000; // 15 minute threshold
@@ -191,8 +191,17 @@ export const Layout: React.FC = () => {
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
             {/* Logo Area */}
             <Link to="/" className="flex items-center gap-2 group">
-                <div className="bg-indigo-600 text-white p-2 rounded-xl group-hover:scale-110 transition-transform duration-200 shadow-md shadow-indigo-200">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 011.414.586l4 4a1 1 0 01.586 1.414V19a2 2 0 01-2 2z" /></svg>
+                <div className="bg-white p-1 rounded-xl group-hover:scale-110 transition-transform duration-200 shadow-sm shadow-indigo-100 overflow-hidden border border-slate-100">
+                    <img 
+                      src="/apple-touch-icon.png" 
+                      alt="CV Tailor Pro" 
+                      className="w-8 h-8 object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.parentElement?.querySelector('svg')?.classList.remove('hidden');
+                      }}
+                    />
+                    <svg className="w-8 h-8 text-indigo-600 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 011.414.586l4 4a1 1 0 01.586 1.414V19a2 2 0 01-2 2z" /></svg>
                 </div>
                 <div>
                    <h1 className="font-bold text-xl tracking-tight text-slate-800 leading-none">CV Tailor <span className="text-indigo-600">Pro</span></h1>

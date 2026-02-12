@@ -1,6 +1,7 @@
 
 import { supabase } from './supabaseClient';
 import { JobListing } from '../types';
+import { naturalizeObject } from '../utils/textHelpers';
 
 export const jobService = {
   async getJobs(): Promise<JobListing[]> {
@@ -10,7 +11,7 @@ export const jobService = {
       .order('created_at', { ascending: false });
     
     if (error) throw error;
-    return data as JobListing[];
+    return naturalizeObject(data) as JobListing[];
   },
 
   async getJobById(id: string): Promise<JobListing | null> {
@@ -21,7 +22,7 @@ export const jobService = {
       .single();
     
     if (error) throw error;
-    return data as JobListing;
+    return naturalizeObject(data) as JobListing;
   },
 
   async createJob(job: Omit<JobListing, 'id' | 'created_at'>): Promise<JobListing> {

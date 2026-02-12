@@ -1,7 +1,7 @@
 
-
 import { supabase } from './supabaseClient';
 import { UserProfile, SavedApplication } from '../types';
+import { naturalizeText } from '../utils/textHelpers';
 
 export const authService = {
   async signUp(email: string, password: string) {
@@ -191,7 +191,17 @@ export const authService = {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data as SavedApplication[];
+    
+    // Sanitize existing data on read
+    const sanitizedData = data.map((app: any) => ({
+        ...app,
+        cv_content: naturalizeText(app.cv_content),
+        cl_content: naturalizeText(app.cl_content),
+        job_title: naturalizeText(app.job_title),
+        company_name: naturalizeText(app.company_name)
+    }));
+
+    return sanitizedData as SavedApplication[];
   },
 
   async getApplicationById(id: string): Promise<SavedApplication | null> {
@@ -202,7 +212,15 @@ export const authService = {
       .single();
 
     if (error) return null;
-    return data as SavedApplication;
+    
+    // Sanitize existing data on read
+    const app = data as any;
+    app.cv_content = naturalizeText(app.cv_content);
+    app.cl_content = naturalizeText(app.cl_content);
+    app.job_title = naturalizeText(app.job_title);
+    app.company_name = naturalizeText(app.company_name);
+
+    return app as SavedApplication;
   },
 
   async deleteApplication(id: string) {
