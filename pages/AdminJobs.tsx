@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { jobService } from '../services/jobService';
 import { contentService } from '../services/contentService';
@@ -100,9 +101,9 @@ export const AdminJobs: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const aiResult = await rewriteJobDescription(jobRawDesc, GEMINI_KEY_1);
+      const aiResult = await rewriteJobDescription(jobTitle, jobRawDesc, GEMINI_KEY_1);
       const newJob = await jobService.createJob({
-        title: jobTitle,
+        title: aiResult.title, // Use AI standardized title
         company: jobCompany,
         location: jobLocation,
         original_link: jobLink,

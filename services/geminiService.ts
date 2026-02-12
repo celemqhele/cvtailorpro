@@ -447,13 +447,20 @@ function parseAndProcessResponse(content: string): GeneratorResponse {
 }
 
 export const rewriteJobDescription = async (
+  rawTitle: string,
   rawDescription: string,
   apiKey: string
-): Promise<{ description: string; summary: string }> => {
+): Promise<{ title: string; description: string; summary: string }> => {
     
     const systemPrompt = `
-    You are a Professional Job Description Writer. 
+    You are a Professional Job Description Writer and Career Strategist. 
     Your task is to rewrite a raw job posting into a professional, engaging 3rd person narrative.
+
+    CRITICAL TASK - TITLE STANDARDIZATION:
+    Analyze the provided "Raw Job Title" and "Raw Job Description".
+    Convert the Job Title into the widely recognized INDUSTRY STANDARD title.
+    Example: "Grade 4 Admin Assistant" -> "Office Administrator".
+    Example: "Ninja Rockstar Coder" -> "Senior Software Engineer".
     
     RULES:
     1. Write in the THIRD PERSON (e.g. "Google is looking for...", "The company requires...").
@@ -463,13 +470,15 @@ export const rewriteJobDescription = async (
     OUTPUT FORMAT:
     Return strictly valid JSON:
     {
+       "title": "The standardized, recognizable job title",
        "description": "Full rewritten job description in markdown format (use bullet points for requirements).",
-       "summary": "A 2-sentence summary of the role and company for a listing card. STRICTLY write in the third person (e.g. 'The company is looking for...', 'This role involves...'). Do not use 'You will...' or 'We are looking for...'."
+       "summary": "A 2-sentence summary of the role and company for a listing card. STRICTLY write in the third person."
     }
     `;
 
     const userMessage = `
-    RAW JOB DESCRIPTION:
+    RAW TITLE: ${rawTitle}
+    RAW DESCRIPTION:
     ${rawDescription}
     
     Please rewrite this now.
