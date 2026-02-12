@@ -1,19 +1,16 @@
-
-
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 
 interface AdBannerProps {
   className?: string;
   variant?: 'display' | 'in-feed' | 'multiplex' | 'internal';
   suffix?: string;
-  format?: string; // Optional prop to support legacy calls in stale files
+  format?: string;
 }
 
 export const AdBanner: React.FC<AdBannerProps> = ({ 
   className = '', 
-  variant = 'display',
-  suffix
+  variant = 'display'
 }) => {
   
   // 1. Internal Ad (Promoting Pro Plan)
@@ -41,57 +38,34 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     );
   }
 
-  // 2. Google AdSense Units
-  useEffect(() => {
-      try {
-          // Initialize AdSense push
-          // @ts-ignore
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch (e) {
-          // AdBlockers might trigger this, silent fail
-      }
-  }, [suffix]);
-
-  const renderAdUnit = () => {
-      switch (variant) {
-          case 'in-feed':
-              return (
-                /* In-Feed Ad */
-                <ins className="adsbygoogle"
-                     style={{ display: 'block' }}
-                     data-ad-format="fluid"
-                     data-ad-layout-key="-6y+d5+52-1c-7g"
-                     data-ad-client="ca-pub-6881973057585692"
-                     data-ad-slot="1208769022"></ins>
-              );
-          case 'multiplex':
-              return (
-                /* Multiplex Ad */
-                <ins className="adsbygoogle"
-                     style={{ display: 'block' }}
-                     data-ad-format="autorelaxed"
-                     data-ad-client="ca-pub-6881973057585692"
-                     data-ad-slot="2540461759"></ins>
-              );
-          case 'display':
-          default:
-              return (
-                /* Display Ad */
-                <ins className="adsbygoogle"
-                     style={{ display: 'block' }}
-                     data-ad-client="ca-pub-6881973057585692"
-                     data-ad-slot="1418951775"
-                     data-ad-format="auto"
-                     data-full-width-responsive="true"></ins>
-              );
-      }
-  };
+  // 2. Adsterra Native Ad Integration
+  // Using iframe isolation to allow multiple instances of the same zone ID on a single page
+  const adCode = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background-color: transparent; }</style>
+    </head>
+    <body>
+        <script async="async" data-cfasync="false" src="https://pl28664313.effectivegatecpm.com/05a32a6fdab36952196ec714771c7fa8/invoke.js"></script>
+        <div id="container-05a32a6fdab36952196ec714771c7fa8"></div>
+    </body>
+    </html>
+  `;
 
   return (
     <div className={`flex flex-col items-center justify-center my-6 w-full ${className}`}>
         <div className="text-[10px] text-slate-300 uppercase tracking-widest mb-1 select-none">Advertisement</div>
-        <div className="bg-slate-50 border border-slate-100 rounded-lg overflow-hidden w-full flex justify-center min-h-[100px]" key={suffix}>
-           {renderAdUnit()}
+        <div className="bg-slate-50 border border-slate-100 rounded-lg overflow-hidden w-full flex justify-center items-center relative">
+           <iframe 
+             title="Adsterra Native Ad"
+             srcDoc={adCode}
+             className="w-full min-h-[300px]"
+             style={{ border: 'none', overflow: 'hidden' }}
+             scrolling="no"
+           />
         </div>
     </div>
   );

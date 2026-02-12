@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AdBanner } from './AdBanner';
 
@@ -57,11 +56,11 @@ export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({ isOpen, onClos
         </div>
 
         {/* Ad Container */}
-        <div className="w-full bg-black flex flex-col items-center justify-center p-6 min-h-[350px]">
+        <div className="w-full bg-black flex flex-col items-center justify-center p-6 min-h-[380px]">
            <p className="text-slate-400 text-sm mb-4">Your content is unlocking in {timeLeft}s...</p>
            
            {/* Display Ad is most appropriate for a modal/rectangle slot */}
-           <div className="bg-white p-2 rounded w-full flex justify-center items-center min-h-[280px] overflow-hidden">
+           <div className="bg-white p-2 rounded w-full flex justify-center items-center min-h-[300px] overflow-hidden">
               <AdBanner variant="display" suffix="reward" className="!my-0" /> 
            </div>
         </div>
