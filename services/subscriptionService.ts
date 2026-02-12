@@ -1,5 +1,4 @@
 
-
 import { supabase } from './supabaseClient';
 
 export interface SubscriptionPlan {
@@ -30,20 +29,56 @@ export const createSubscription = async (
   return { success: true };
 };
 
-export const updateUserSubscription = async (userId: string, planId: string, discountUsed: boolean = false): Promise<boolean> => {
+/**
+ * Calculates the monetary value of the remaining days on the current plan.
+ * Used for prorating upgrades.
+ */
+export const calculateRemainingValue = (planId: string, endDateStr?: string): number => {
+    if (!endDateStr || planId === 'free') return 0;
+    const plan = getPlanDetails(planId);
+    if (!plan || plan.price === 0) return 0;
+
+    const now = new Date();
+    const end = new Date(endDateStr);
+    
+    // If expired, no value
+    if (end <= now) return 0;
+
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const daysRemaining = (end.getTime() - now.getTime()) / msPerDay;
+    
+    // Cap effective days at plan duration (usually 30) to prevent weird math errors
+    const effectiveDays = Math.min(daysRemaining, plan.durationDays);
+    
+    const dailyRate = plan.price / plan.durationDays;
+    const value = dailyRate * effectiveDays;
+    
+    return Math.max(0, value);
+};
+
+export const updateUserSubscription = async (
+    userId: string, 
+    planId: string, 
+    discountUsed: boolean = false,
+    isUpgrade: boolean = false
+): Promise<boolean> => {
     const plan = PLANS.find(p => p.id === planId);
     if (!plan || plan.id === 'free') return true; 
 
     const now = new Date();
     
-    // First check current profile to see if we should extend
-    const { data: profile } = await supabase.from('profiles').select('subscription_end_date').eq('id', userId).single();
-    
+    // Calculate Start Date
     let startDate = now;
-    if (profile?.subscription_end_date) {
-        const currentEnd = new Date(profile.subscription_end_date);
-        if (currentEnd > now) {
-            startDate = currentEnd;
+    
+    // If it's NOT an upgrade (i.e. renewal or same tier extension), we stack the time.
+    // If it IS an upgrade, we reset the clock to NOW (because they paid for a fresh 30 days minus credit).
+    if (!isUpgrade) {
+        const { data: profile } = await supabase.from('profiles').select('subscription_end_date').eq('id', userId).single();
+        if (profile?.subscription_end_date) {
+            const currentEnd = new Date(profile.subscription_end_date);
+            if (currentEnd > now) {
+                startDate = currentEnd;
+            }
         }
     }
     

@@ -122,7 +122,23 @@ export const Layout: React.FC = () => {
 
   const handlePaymentSuccess = async (planId: string, isSubscription: boolean) => {
     if (user) {
-        const success = await updateUserSubscription(user.id, planId, paymentDiscount);
+        // Detect if this is an upgrade (User has a cheaper plan active, and buys a more expensive one)
+        // Note: PaymentModal already handled the price difference charging logic.
+        // We just need to tell updateUserSubscription to reset the timer (isUpgrade = true) instead of extending.
+        
+        let isUpgrade = false;
+        if (user.plan_id && user.plan_id !== 'free' && user.subscription_end_date) {
+            const currentPlan = getPlanDetails(user.plan_id);
+            const newPlan = getPlanDetails(planId);
+            const isNotExpired = new Date(user.subscription_end_date) > new Date();
+            
+            // If upgrading to higher price tier while active, consider it a reset/upgrade
+            if (isNotExpired && newPlan.price > currentPlan.price) {
+                isUpgrade = true;
+            }
+        }
+
+        const success = await updateUserSubscription(user.id, planId, paymentDiscount, isUpgrade);
         if (success) {
             // 1. Refresh session
             await checkUserSession();
@@ -367,6 +383,8 @@ export const Layout: React.FC = () => {
             triggerPlanId={paymentTriggerPlan}
             discountActive={paymentDiscount}
             userEmail={user?.email}
+            currentPlanId={user?.plan_id}
+            subscriptionEndDate={user?.subscription_end_date}
        />
        <CookieConsent />
        
