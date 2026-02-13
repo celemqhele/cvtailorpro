@@ -174,29 +174,21 @@ export const GeneratedCV: React.FC = () => {
       }
   };
 
-  const handlePrint = () => {
-      // 1. Ensure correct view is active
-      if (activeMenu === 'cv' && viewMode !== 'cv') setViewMode('cv');
-      if (activeMenu === 'cl' && viewMode !== 'cl') setViewMode('cl');
-      
-      // 2. Small delay to render then print
-      setTimeout(() => {
-          const printContent = document.getElementById(viewMode === 'cv' ? 'cv-render-target' : 'cl-render-target');
-          if (!printContent) return;
-          document.body.classList.add('printing');
-          
-          // Remove preview lines temporarily for print
-          const children = printContent.children;
-          if (children.length > 0) children[0].classList.remove('cv-preview-background');
-          
-          window.print();
-          
-          // Add back
-          if (children.length > 0) children[0].classList.add('cv-preview-background');
-          
-          document.body.classList.remove('printing');
-          setActiveMenu(null);
-      }, 300);
+  const triggerFallbackPrint = () => {
+        const printContent = document.getElementById(viewMode === 'cv' ? 'cv-render-target' : 'cl-render-target');
+        if (!printContent) return;
+        
+        // Remove preview lines temporarily for print
+        const children = printContent.children;
+        if (children.length > 0) children[0].classList.remove('cv-preview-background');
+        
+        // Ensure transforms are cleared by global CSS or here specifically
+        // The global @media print should handle .cv-absolute-container transforms
+        
+        window.print();
+        
+        // Add back
+        if (children.length > 0) children[0].classList.add('cv-preview-background');
   };
 
   const handleDownload = async (docType: 'cv' | 'cl', format: 'pdf' | 'docx') => {
@@ -236,7 +228,7 @@ export const GeneratedCV: React.FC = () => {
           if (format === 'docx') {
               blob = await createWordBlob(elementId);
           } else {
-              // Ensure print styles are active if needed or just capture element
+              // Try CloudConvert first
               blob = await generatePdfFromApi(elementId);
           }
 
@@ -247,13 +239,21 @@ export const GeneratedCV: React.FC = () => {
 
           if (blob) {
               saveAs(blob, fileName);
+          } else if (format === 'pdf') {
+              // Fallback to Native Print if CloudConvert returned null
+              console.warn("Falling back to native browser print...");
+              triggerFallbackPrint();
           } else {
-              alert("Failed to generate file. Please try again or use the Print option.");
+              alert("Failed to generate file.");
           }
 
       } catch (e) {
           console.error("Download error:", e);
-          alert("An error occurred during download.");
+          if (format === 'pdf') {
+              triggerFallbackPrint();
+          } else {
+              alert("An error occurred during download.");
+          }
       } finally {
           setProcessingType(null);
       }
@@ -298,10 +298,6 @@ export const GeneratedCV: React.FC = () => {
                     padding: 0;
                     background: white;
                 }
-                
-                /* Hide navbar, controls, buttons, sidebars */
-                .no-print { display: none !important; }
-                .sidebar-container { display: none !important; }
                 
                 /* Ensure Render Target is visible and reset styles */
                 #cv-render-target, #cl-render-target {
@@ -413,14 +409,6 @@ export const GeneratedCV: React.FC = () => {
                                    <span className="bg-blue-100 text-blue-600 p-1 rounded text-xs font-bold w-12 text-center">DOCX</span>
                                    MS Word
                                </button>
-                               <div className="border-t border-slate-100 my-1"></div>
-                               <button 
-                                 onClick={handlePrint}
-                                 className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
-                               >
-                                   <span className="bg-slate-100 text-slate-600 p-1 rounded text-xs font-bold w-12 text-center">PRINT</span>
-                                   Print / Save PDF
-                               </button>
                            </div>
                        )}
                    </div>
@@ -458,14 +446,6 @@ export const GeneratedCV: React.FC = () => {
                                        <span className="bg-blue-100 text-blue-600 p-1 rounded text-xs font-bold w-12 text-center">DOCX</span>
                                        MS Word
                                    </button>
-                                   <div className="border-t border-slate-100 my-1"></div>
-                                   <button 
-                                     onClick={handlePrint}
-                                     className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
-                                   >
-                                       <span className="bg-slate-100 text-slate-600 p-1 rounded text-xs font-bold w-12 text-center">PRINT</span>
-                                       Print / Save PDF
-                                   </button>
                                </div>
                            )}
                        </div>
@@ -477,7 +457,7 @@ export const GeneratedCV: React.FC = () => {
 
        {/* Success Toast */}
        {showEditSuccess && (
-         <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-2 animate-bounce-subtle">
+         <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-2 animate-bounce-subtle no-print">
            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
            <span className="font-bold">Changes Applied Successfully!</span>
          </div>
@@ -549,7 +529,7 @@ export const GeneratedCV: React.FC = () => {
            </div>
 
            {/* RIGHT: Smart Editor Sidebar */}
-           <div className="order-1 lg:order-2 sidebar-container lg:h-full">
+           <div className="order-1 lg:order-2 sidebar-container lg:h-full no-print">
                <SmartEditor 
                  cvData={cvData}
                  clContent={application.cl_content}

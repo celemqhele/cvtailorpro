@@ -1,5 +1,4 @@
 
-
 export enum Status {
   IDLE = 'IDLE',
   SCANNING = 'SCANNING',
@@ -90,6 +89,10 @@ export interface GeneratorResponse {
   cvData?: CVData; 
   coverLetter?: TailoredDocument; 
   brandingImage?: string; 
+  meta?: {
+      jobTitle?: string;
+      company?: string;
+  };
 }
 
 export interface FileData {

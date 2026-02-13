@@ -59,30 +59,27 @@
         );
       }
       
-      /* Print Styles for PDF Generation */
+      /* Print Styles for PDF Generation Fallback */
       @media print {
-        body * {
-          visibility: hidden;
-        }
-        #print-area, #print-area * {
-          visibility: visible;
-        }
-        #print-area {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-          margin: 0;
-          padding: 0;
-        }
-        /* Hide unwanted elements during print */
+        /* Hide buttons, navigation, modals, etc */
         .no-print {
           display: none !important;
         }
         
-        @page {
-          size: auto;
-          margin: 0mm;
+        /* Ensure proper page breaks */
+        .cv-section {
+          page-break-inside: avoid;
+        }
+        
+        /* Reset layout for print */
+        body {
+          background: white;
+        }
+        
+        #root {
+          width: 100%;
+          margin: 0;
+          padding: 0;
         }
       }
     </style>
@@ -93,6 +90,7 @@
     "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
     "jspdf": "https://esm.sh/jspdf@^4.1.0",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1",
     "vite": "https://esm.sh/vite@^7.3.1",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4",
     "react-markdown": "https://esm.sh/react-markdown@^10.1.0",

@@ -361,7 +361,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       const dataToSave = resultOverride || result;
       if (!dataToSave || !dataToSave.cvData) return null;
       try {
-        const { company, role } = extractCompanyAndRole();
+        let { company, role } = extractCompanyAndRole();
+        
+        // Use AI detected metadata if available (Fixes missing name issues when skipping Step 1)
+        if (dataToSave.meta?.jobTitle && dataToSave.meta.jobTitle.length > 3 && !dataToSave.meta.jobTitle.includes("Extracted")) {
+            role = dataToSave.meta.jobTitle;
+        }
+        if (dataToSave.meta?.company && dataToSave.meta.company.length > 2 && !dataToSave.meta.company.includes("Extracted")) {
+            company = dataToSave.meta.company;
+        }
         
         // Pass the directApplyLink to the save function
         const savedApp = await authService.saveApplication(

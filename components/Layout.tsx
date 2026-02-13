@@ -29,7 +29,7 @@ export const Layout: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [dailyCvCount, setDailyCvCount] = useState<number>(0);
   const [secondsUntilReset, setSecondsUntilReset] = useState<number>(0);
-  const [dailyLimit, setDailyLimit] = useState(2); // Default to free limit (2)
+  const [dailyLimit, setDailyLimit] = useState(1); // Default to free limit (1)
   const [isPaidUser, setIsPaidUser] = useState(false);
   const [isMaxPlan, setIsMaxPlan] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false); // Mobile menu state
