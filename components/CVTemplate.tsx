@@ -23,6 +23,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
       boxSizing: 'border-box' as const,
       wordWrap: 'break-word' as const, 
       overflowWrap: 'break-word' as const,
+      letterSpacing: '0.3px', // Adds slight spacing to prevent words merging in PDF
     },
     header: {
       textAlign: 'center' as const,
@@ -69,7 +70,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
     },
     summaryText: {
       margin: '0',
-      textAlign: 'justify' as const,
+      textAlign: 'left' as const, // Changed from justify to left to fix PDF spacing artifacts
       lineHeight: '1.5',
     },
     skillsGrid: {
@@ -126,6 +127,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
     achievementItem: {
       marginBottom: '5.6px',
       lineHeight: '1.5',
+      textAlign: 'left' as const,
     },
     educationItem: {
       marginBottom: '8px',
