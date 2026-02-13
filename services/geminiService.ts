@@ -5,6 +5,8 @@ import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT, SMART
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, CVData } from "../types";
 import { naturalizeObject, naturalizeText } from "../utils/textHelpers";
 
+const OCR_SPACE_KEY = "K88916317488957";
+
 /**
  * Scrapes job content using Jina.ai.
  */
@@ -43,6 +45,39 @@ export const scrapeJobFromUrl = async (url: string): Promise<string> => {
 };
 
 /**
+ * Helper: Call OCR.space API
+ */
+async function extractTextFromPdfOcrSpace(base64: string): Promise<string> {
+    const formData = new FormData();
+    formData.append("base64Image", `data:application/pdf;base64,${base64}`);
+    formData.append("apikey", OCR_SPACE_KEY);
+    formData.append("language", "eng");
+    formData.append("isOverlayRequired", "false");
+    formData.append("OCREngine", "2"); // Engine 2 is often better for text-heavy documents
+
+    const response = await fetch("https://api.ocr.space/parse/image", {
+        method: "POST",
+        body: formData
+    });
+
+    const data = await response.json();
+
+    if (data.IsErroredOnProcessing) {
+        const errorMsg = Array.isArray(data.ErrorMessage) ? data.ErrorMessage.join(', ') : (data.ErrorMessage || "Unknown OCR Error");
+        throw new Error(`OCR API Error: ${errorMsg}`);
+    }
+
+    if (!data.ParsedResults || data.ParsedResults.length === 0) {
+        throw new Error("No parsed results from OCR");
+    }
+
+    const text = data.ParsedResults.map((p: any) => p.ParsedText).join('\n');
+    if (!text || !text.trim()) throw new Error("OCR returned empty text");
+
+    return text;
+}
+
+/**
  * Helper to extract raw text from the uploaded file.
  * Now Exported for use in Dashboard to save text to DB.
  */
@@ -69,32 +104,44 @@ export async function extractTextFromFile(file: FileData): Promise<string> {
   } 
   // Handle PDF
   else if (file.mimeType === "application/pdf" || file.name.endsWith(".pdf")) {
+    // Strategy 1: OCR.space (Primary)
     try {
-      const pdfjs = (pdfjsLib as any).default || pdfjsLib;
+        console.log("Attempting PDF extraction via OCR.space...");
+        const text = await extractTextFromPdfOcrSpace(file.base64);
+        console.log("OCR.space success.");
+        return text;
+    } catch (ocrError) {
+        console.warn("OCR.space failed, falling back to local PDF.js. Reason:", ocrError);
+        
+        // Strategy 2: PDF.js (Fallback)
+        try {
+            const pdfjs = (pdfjsLib as any).default || pdfjsLib;
 
-      if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-        // Use a consistent version for worker
-        const version = '3.11.174'; 
-        pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
-      }
+            if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+                // Use the ES Module worker build to match the ESM import of pdfjs-dist.
+                // Classic script (.js) workers fail when loaded via dynamic import in ESM mode.
+                const version = pdfjs.version || '5.4.624'; 
+                pdfjs.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@${version}/build/pdf.worker.mjs`;
+            }
 
-      const loadingTask = pdfjs.getDocument({ data: byteArray });
-      const pdf = await loadingTask.promise;
-      let fullText = "";
+            const loadingTask = pdfjs.getDocument({ data: byteArray });
+            const pdf = await loadingTask.promise;
+            let fullText = "";
 
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          .map((item: any) => item.str)
-          .join(' ');
-        fullText += pageText + "\n\n";
-      }
-      
-      return fullText;
-    } catch (e) {
-      console.error("PDF extraction failed", e);
-      throw new Error("Failed to read PDF. Please ensure it is a text-based PDF, not a scanned image.");
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items
+                .map((item: any) => item.str)
+                .join(' ');
+                fullText += pageText + "\n\n";
+            }
+            
+            return fullText;
+        } catch (pdfJsError) {
+            console.error("PDF.js extraction failed", pdfJsError);
+            throw new Error("Failed to read PDF. Please ensure it is a valid text-based PDF or try a DOCX file.");
+        }
     }
   }
   // Handle Text

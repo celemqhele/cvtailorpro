@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate, Link, useOutletContext } from 'react-router-dom';
+import { useParams, useNavigate, Link, useOutletContext, useLocation } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { smartEditCV, smartEditCoverLetter } from '../services/geminiService';
 import { SavedApplication, CVData } from '../types';
@@ -8,6 +8,7 @@ import CVTemplate from '../components/CVTemplate';
 import CoverLetterTemplate from '../components/CoverLetterTemplate';
 import { SmartEditor } from '../components/SmartEditor';
 import { FeatureLockedModal } from '../components/FeatureLockedModal';
+import { SubscriptionModal } from '../components/SubscriptionModal';
 import { createWordBlob } from '../utils/docHelper';
 import { generatePdfFromApi } from '../utils/pdfHelper';
 import saveAs from 'file-saver';
@@ -16,6 +17,7 @@ import { GEMINI_KEY_1 } from '../constants';
 export const GeneratedCV: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, triggerAuth, triggerPayment, isPaidUser } = useOutletContext<any>();
   
   const [application, setApplication] = useState<SavedApplication | null>(null);
@@ -32,6 +34,9 @@ export const GeneratedCV: React.FC = () => {
   const [activeMenu, setActiveMenu] = useState<'cv' | 'cl' | null>(null);
   const [processingType, setProcessingType] = useState<string | null>(null); // e.g., 'cv-pdf', 'cl-docx'
   const [isClaiming, setIsClaiming] = useState(false);
+  
+  // Subscription Popup State
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   
   // Click outside to close menus
   const menuRef = useRef<HTMLDivElement>(null);
@@ -53,6 +58,16 @@ export const GeneratedCV: React.FC = () => {
     }
     loadApplication(id);
   }, [id, navigate]);
+
+  // Check for Subscription Trigger from Dashboard
+  useEffect(() => {
+      if (location.state?.showSubscribe) {
+          const timer = setTimeout(() => {
+              setShowSubscriptionModal(true);
+          }, 2500); // 2.5s delay
+          return () => clearTimeout(timer);
+      }
+  }, [location.state]);
 
   const loadApplication = async (appId: string) => {
     try {
@@ -527,6 +542,12 @@ export const GeneratedCV: React.FC = () => {
           onUpgrade={() => { setShowLockedModal(false); triggerPayment(); }}
           title="Unlock Smart Editing"
           description="Pro users can make unlimited AI tweaks and manual edits to their generated CVs. Upgrade now to perfect your application."
+       />
+
+       {/* Subscription Modal (New) */}
+       <SubscriptionModal 
+          isOpen={showSubscriptionModal} 
+          onClose={() => setShowSubscriptionModal(false)} 
        />
 
        {/* Rate Us Floating Button */}

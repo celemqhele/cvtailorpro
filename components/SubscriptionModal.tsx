@@ -1,0 +1,47 @@
+
+import React from 'react';
+
+interface SubscriptionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full relative overflow-hidden max-h-[90vh] flex flex-col">
+        {/* Close Button */}
+        <button 
+          onClick={onClose} 
+          className="absolute top-4 right-4 z-10 p-2 bg-white/80 hover:bg-white rounded-full text-slate-400 hover:text-slate-600 transition-colors shadow-sm"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Header Content */}
+        <div className="pt-8 px-6 text-center shrink-0">
+            <h3 className="text-2xl font-bold text-slate-800">Don't Miss Out!</h3>
+            <p className="text-slate-600 text-sm mt-2">Get alerted when new jobs matching your skills are posted.</p>
+        </div>
+
+        {/* Brevo Iframe */}
+        <div className="w-full flex justify-center p-4 overflow-y-auto">
+            <iframe 
+                width="100%" 
+                height="700" 
+                src="https://8604898e.sibforms.com/serve/MUIFAIY9FWoMTqnzi-nzn65Fzn-Szuq50Ar_6D9_js-XPRpJ116z4gUUkWjJWkqN093h7v1LA9GeikodoU4lm4z8ApoQFTsQnyYQo0NnknNJMG6GQKlXJE8zJ3kWM7V8seEFaXAnM1mSW7vnUbFHtEuBoIfRYnRbsI2jDUezAv5tjZ6tAqnfeWzAyEdvYuF1nCB4sUiUo0nYcQWjAQ==" 
+                frameBorder="0" 
+                scrolling="auto" 
+                allowFullScreen 
+                style={{ display: 'block', marginLeft: 'auto', marginRight: 'auto', maxWidth: '100%' }}
+                title="Job Alerts Subscription"
+            ></iframe>
+        </div>
+      </div>
+    </div>
+  );
+};

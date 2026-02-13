@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useOutletContext, useNavigate, useLocation, Link } from 'react-router-dom';
@@ -10,6 +11,7 @@ import { SupportModal } from '../components/SupportModal';
 import { HistoryModal } from '../components/HistoryModal';
 import { LimitReachedModal } from '../components/LimitReachedModal';
 import { ProPlusFeatureCard } from '../components/ProPlusFeatureCard';
+import { AdDecisionModal } from '../components/AdDecisionModal';
 
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile } from '../services/geminiService';
 import { authService } from '../services/authService';
@@ -58,6 +60,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [showRewardedModal, setShowRewardedModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showAdDecisionModal, setShowAdDecisionModal] = useState(false);
   
   // Confirmation Modal State
   const [showRemoveCvModal, setShowRemoveCvModal] = useState(false);
@@ -185,6 +188,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const handleLimitUpgrade = (withDiscount: boolean) => {
       setShowLimitModal(false);
       triggerPayment(undefined, withDiscount);
+  };
+
+  const handleAdDecisionWatch = () => {
+      setShowAdDecisionModal(false);
+      setAdContext('generation');
+      setShowRewardedModal(true);
+  };
+
+  const handleAdDecisionUpgrade = () => {
+      setShowAdDecisionModal(false);
+      triggerPayment();
   };
 
   const handleAdComplete = () => {
@@ -379,10 +393,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
             return;
         }
 
-        // If not at limit, they must watch an ad for this generation
+        // If not at limit, ask them to decide (Ad vs Upgrade)
         setPendingGenParams({ force: forceOverride, isTitle: isDirectTitleMode });
-        setAdContext('generation');
-        setShowRewardedModal(true);
+        setShowAdDecisionModal(true);
         return;
     }
 
@@ -435,7 +448,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           
           const savedId = await saveCurrentResultToHistory(response);
           if (savedId) {
-              navigate(`/cv-generated/${savedId}`);
+              // Determine if we should show the subscription popup
+              // Logic: Came from Find Jobs Funnel AND is Free Tier/Guest
+              const isJobBoardFlow = !!location.state?.autofillJobDescription;
+              const showSubscribe = isJobBoardFlow && (!user || user.plan_id === 'free');
+
+              navigate(`/cv-generated/${savedId}`, { state: { showSubscribe } });
           }
       } else {
           setResult(response);
@@ -671,6 +689,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                     )}
             </div>
 
+            <AdDecisionModal 
+                isOpen={showAdDecisionModal}
+                onClose={() => setShowAdDecisionModal(false)}
+                onWatchAd={handleAdDecisionWatch}
+                onUpgrade={handleAdDecisionUpgrade}
+            />
+
             <RewardedAdModal isOpen={showRewardedModal} onClose={() => setShowRewardedModal(false)} onComplete={handleAdComplete} />
             <SupportModal isOpen={showSupportModal} onClose={() => setShowSupportModal(false)} onConfirmSupport={() => { setShowSupportModal(false); triggerPayment(); }} onContinueFree={() => { setShowSupportModal(false); setAdContext('download'); setShowRewardedModal(true); }} />
             <HistoryModal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} onLoadApplication={handleLoadHistory} />
@@ -712,8 +737,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                     </div>
                 </div>
             )}
-            
-            {/* Keeping the other modal logic just in case, but using the one above as primary */}
     </div>
   );
 };
