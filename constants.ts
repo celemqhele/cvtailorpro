@@ -6,7 +6,7 @@ export const GEMINI_KEY_1 = "AIzaSyA3rr4OroEw6zrHQDLbEpHPYnPweJNitAw"; // Gemini
 export const GEMINI_KEY_2 = "AIzaSyBPXR5LLN4Vm1CuYgzs2mhFsXWz_IvwFYA"; // Gemini 2.5 Flash
 export const CEREBRAS_KEY = "csk-rmv54ykfk8mp439ww3xrrjy98nk3phnh3hentfprjxp2xwv3";
 export const HTML2PDF_KEY = "rLfgooIxMb2rPVKh3hmQrtnUJAcIssWZ9Bhgddt9G4JtCSrztqemgdEKUo9OsE3Q";
-export const CLOUDCONVERT_API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiNWNkODhiNjNkNGYxMzk4Yzc4N2JjZDQyMjlmNDg0YWJiNDViYjQ1MzYyNGFjZGZiM2ZlNzIyMThiNDI0YTJkOTI4NTIxMGMwOTYwYjU5NTMiLCJpYXQiOjE3NzA5OTc1MDYuNzI2MDEzLCJuYmYiOjE3NzA5OTc1MDYuNzI2MDE1LCJleHAiOjQ5MjY2NzExMDYuNzE3MDcyLCJzdWIiOiI3NDMwNTgyNiIsInNjb3BlcyI6WyJ1c2VyLnJlYWQiLCJ1c2VyLndyaXRlIiwidGFzay5yZWFkIiwidGFzay53cml0ZSIsIndlYmhvb2sucmVhZCIsIndlYmhvb2sud3JpdGUiLCJwcmVzZXQucmVhZCIsInByZXNldC53cml0ZSJdfQ.GY89Zot1XyT1zyyLsoChnH08nSdbplKYm0XxjouU85gFyUvxiXzkTNsSbJCU5c58rxD-0qr4g7_YTYav3QnBMS9fsKSOAYNuv270MbpeoaZSqitFn-xHafByXIr7uqPNmfgn2v1lOOiDX3LC1Wgaz2khqFhfWbsfvdDdKuLJk46dJjW6WRkYwnVTh9C84nOIcj6fmR8cpzPoiGD7-bItWlVphcANfjHIzo0ec-IJCISh1TbnmM2D1cpEJ8oaOc8gevcuxyvidNXoFW2SMKieYCERjV6L7iiWSnwSxEmMHEf0p9hsg7i7q2BzhkeLajtjfCRfonOJzpZAZhjGR9N9dH7IQKUOUUrmFvITIZ-VVbIIHqsGBZ2HrrVOJpWG36aoBz7N5SzPGGgaH0wsVwGw7AQIMp1gTbVJgr4-633O8numqHrxbjtqDCxEzOeOeAqGssIa0fIGUNODnOVFGuXjh2nZcP-zZHVZkXMPo-tjT7Rgu-Z5KTIfV9jlZL2FRiYwYR8f3K7ZqlBlft7j3zegWeq8MzaDm_PfqOIvP_sKMNtY5MaPGU9_fQnGMD0qxQG0oKmKI_FEvJrnbcouNBLbmY51qePOd_lwtJhXtl5qGllrGaSDHfAdK_4aFBjsREbHfLlYQlDCLeJXh_QlpkVEgOf-V-JFQ-ZY_vukwarZ3sE";
+export const CLOUDCONVERT_API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiNWNkODhiNjNkNGYxMzk4Yzc4N2JjZDQyMjlmNDg0YWJiNDViYjQ1MzYyNGFjZGZiM2ZlNzIyMThiNDI0YTJkOTI4NTIxMGMwOTYwYjU5NTMiLCJpYXQiOjE3NzA5OTc1MDYuNzI2MDEzLCJuYmYiOjE3NzA5OTc1MDYuNzI2MDE1LCJleHAiOjQ5MjY2NzExMDYuNzI2MDE1LCJleHAiOjQ5MjY2NzExMDYuNzE3MDcyLCJzdWIiOiI3NDMwNTgyNiIsInNjb3BlcyI6WyJ1c2VyLnJlYWQiLCJ1c2VyLndyaXRlIiwidGFzay5yZWFkIiwidGFzay53cml0ZSIsIndlYmhvb2sucmVhZCIsIndlYmhvb2sud3JpdGUiLCJwcmVzZXQucmVhZCIsInByZXNldC53cml0ZSJdfQ.GY89Zot1XyT1zyyLsoChnH08nSdbplKYm0XxjouU85gFyUvxiXzkTNsSbJCU5c58rxD-0qr4g7_YTYav3QnBMS9fsKSOAYNuv270MbpeoaZSqitFn-xHafByXIr7uqPNmfgn2v1lOOiDX3LC1Wgaz2khqFhfWbsfvdDdKuLJk46dJjW6WRkYwnVTh9C84nOIcj6fmR8cpzPoiGD7-bItWlVphcANfjHIzo0ec-IJCISh1TbnmM2D1cpEJ8oaOc8gevcuxyvidNXoFW2SMKieYCERjV6L7iiWSnwSxEmMHEf0p9hsg7i7q2BzhkeLajtjfCRfonOJzpZAZhjGR9N9dH7IQKUOUUrmFvITIZ-VVbIIHqsGBZ2HrrVOJpWG36aoBz7N5SzPGGgaH0wsVwGw7AQIMp1gTbVJgr4-633O8numqHrxbjtqDCxEzOeOeAqGssIa0fIGUNODnOVFGuXjh2nZcP-zZHVZkXMPo-tjT7Rgu-Z5KTIfV9jlZL2FRiYwYR8f3K7ZqlBlft7j3zegWeq8MzaDm_PfqOIvP_sKMNtY5MaPGU9_fQnGMD0qxQG0oKmKI_FEvJrnbcouNBLbmY51qePOd_lwtJhXtl5qGllrGaSDHfAdK_4aFBjsREbHfLlYQlDCLeJXh_QlpkVEgOf-V-JFQ-ZY_vukwarZ3sE";
 
 export const ANALYSIS_PROMPT = `
 Role: Senior Technical Recruiter & ATS Specialist.
@@ -124,7 +124,7 @@ Your goal is to answer user questions about the website, pricing, and features.
 **KNOWLEDGE BASE:**
 1. **What we do:** We use advanced AI (Gemini/Llama) to analyze a user's CV against a specific Job Description. We then rewrite the CV to match keywords and optimize it for ATS (Applicant Tracking Systems), increasing the chance of getting an interview. We also generate matching Cover Letters.
 2. **Pricing:**
-   - **Free Tier:** 2 CVs/day, ad-supported.
+   - **Free Tier:** 1 CV/day, ad-supported.
    - **Starter (R19.99):** 5 CVs/day, 30 days access.
    - **Growth (R39.99):** 10 CVs/day, 30 days access.
    - **Pro (R99.99):** 20 CVs/day, 30 days access.

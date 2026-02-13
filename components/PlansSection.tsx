@@ -45,7 +45,7 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
                   <ul className="space-y-3 mb-8 flex-1">
                     <li className="flex items-center gap-2 text-sm text-slate-700">
                        <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                       <span>{isFree ? '1 CV per ad watch' : <strong>{plan.dailyLimit} CVs per day</strong>}</span>
+                       <span>{isFree ? '1 CV / Day (Ad-supported)' : <strong>{plan.dailyLimit} CVs per day</strong>}</span>
                     </li>
                     <li className="flex items-center gap-2 text-sm text-slate-700">
                        <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
