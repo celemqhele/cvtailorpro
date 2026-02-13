@@ -1,6 +1,6 @@
 
 import { jsPDF } from "jspdf";
-import { HTML2PDF_KEY } from "../constants";
+import { HTML2PDF_KEY, FALLBACK_PDF_KEY } from "../constants";
 
 /**
  * Generates a PDF using client-side rendering with Selectable Text (Vector PDF).
@@ -60,8 +60,41 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
 };
 
 /**
- * Generates a PDF using the external HTML2PDF API for high-fidelity rendering.
- * Falls back to client-side vector generation if API fails.
+ * Generates a PDF using the fallback API (CustomJS.io).
+ * Assumes a function named 'html-to-pdf' is deployed on CustomJS.
+ */
+const generatePdfFromFallbackApi = async (htmlContent: string): Promise<Blob | null> => {
+    try {
+        console.log("Attempting PDF generation via Fallback API (CustomJS)...");
+        
+        // Note: This endpoint expects a function named 'html-to-pdf' to exist on your CustomJS account.
+        // If you named it something else (e.g. 'generate-pdf'), change the URL below.
+        const response = await fetch('https://api.customjs.io/v1/execute/html-to-pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': FALLBACK_PDF_KEY 
+            },
+            body: JSON.stringify({
+                html: htmlContent,
+                format: 'Letter',
+                printBackground: true
+            })
+        });
+
+        if (!response.ok) {
+             throw new Error(`Fallback API Error: ${response.status}`);
+        }
+        return await response.blob();
+    } catch (e) {
+        console.warn("Fallback API failed:", e);
+        return null;
+    }
+};
+
+/**
+ * Generates a PDF using the external APIs for high-fidelity rendering.
+ * Strategy: Primary API -> Fallback API -> Client-side Fallback.
  */
 export const generatePdfFromApi = async (elementId: string): Promise<Blob | null> => {
     const element = document.getElementById(elementId);
@@ -89,8 +122,9 @@ export const generatePdfFromApi = async (elementId: string): Promise<Blob | null
     </html>
     `;
 
+    // 1. Attempt Primary API (html2pdf.app)
     try {
-        console.log("Attempting PDF generation via API...");
+        console.log("Attempting PDF generation via Primary API...");
         const response = await fetch('https://api.html2pdf.app/v1/generate', {
             method: 'POST',
             headers: {
@@ -111,14 +145,22 @@ export const generatePdfFromApi = async (elementId: string): Promise<Blob | null
         });
 
         if (!response.ok) {
-            console.warn(`PDF API Error: ${response.status} ${response.statusText}. Quota likely exceeded. Switching to client-side fallback.`);
-            throw new Error(`PDF API Error: ${response.status}`);
+            throw new Error(`Primary API Error: ${response.status}`);
         }
 
         return await response.blob();
     } catch (e) {
-        console.warn("PDF API Generation failed, falling back to client-side (jsPDF). Reason:", e);
-        // Fallback to client-side generation if API fails
+        console.warn("Primary API failed, attempting fallback API...", e);
+        
+        // 2. Attempt Fallback API (CustomJS)
+        const fallbackBlob = await generatePdfFromFallbackApi(htmlContent);
+        if (fallbackBlob) {
+            console.log("Fallback API success.");
+            return fallbackBlob;
+        }
+
+        // 3. Fallback to Client-Side (jsPDF)
+        console.warn("All Server APIs failed, falling back to client-side generation.");
         return createPdfBlob(elementId);
     }
 };

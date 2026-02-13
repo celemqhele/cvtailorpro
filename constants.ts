@@ -1,5 +1,6 @@
 
 
+
 export const APP_NAME = "CV Tailor Pro";
 export const SERP_API_KEY = "694175e6871350996f0a04ee41ef7c632ef94fa12aa40725a94b78e708f999bc";
 
@@ -7,6 +8,7 @@ export const GEMINI_KEY_1 = "AIzaSyA3rr4OroEw6zrHQDLbEpHPYnPweJNitAw"; // Gemini
 export const GEMINI_KEY_2 = "AIzaSyBPXR5LLN4Vm1CuYgzs2mhFsXWz_IvwFYA"; // Gemini 2.5 Flash
 export const CEREBRAS_KEY = "csk-rmv54ykfk8mp439ww3xrrjy98nk3phnh3hentfprjxp2xwv3";
 export const HTML2PDF_KEY = "rLfgooIxMb2rPVKh3hmQrtnUJAcIssWZ9Bhgddt9G4JtCSrztqemgdEKUo9OsE3Q";
+export const FALLBACK_PDF_KEY = "T38F9fic1B1xSzngpYyiB2C4xgEH54FV2XCYssKZ";
 
 export const ANALYSIS_PROMPT = `
 Role: Senior Technical Recruiter & ATS Specialist.
