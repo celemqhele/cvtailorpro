@@ -92,6 +92,7 @@ export interface GeneratorResponse {
   meta?: {
       jobTitle?: string;
       company?: string;
+      suggestedFilename?: string;
   };
 }
 

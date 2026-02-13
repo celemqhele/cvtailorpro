@@ -306,8 +306,9 @@ export const generateTailoredApplication = async (
   {
     "outcome": "PROCEED",
     "meta": {
-        "jobTitle": "Extracted Job Title from Job Description (or 'General' if unclear)",
-        "company": "Extracted Company Name (or 'Company' if unclear)"
+        "jobTitle": "The specific Job Title from the description (e.g. 'Senior Data Analyst'). Do NOT use placeholders like 'Role' or 'General'. If unknown, infer the most likely title.",
+        "company": "The Company Name (or 'Company' if unknown)",
+        "suggestedFilename": "CandidateName_JobTitle_CV"
     },
     "cvData": {
         "name": "FULL NAME",
@@ -382,7 +383,7 @@ export const generateTailoredApplication = async (
 
   const userMessage = `
       STEP 1: Analyze the Candidate CV and Additional Information (if any). Identify all METRICS, NUMBERS, and SPECIFIC ACHIEVEMENTS.
-      STEP 2: Analyze the Target Job. Identify TOP 5 KEYWORDS. Extract Job Title and Company Name for the 'meta' field.
+      STEP 2: Analyze the Target Job. Identify TOP 5 KEYWORDS. Extract Job Title and Company Name for the 'meta' field. GENERATE a professional filename in the 'meta.suggestedFilename' field (e.g. "John_Smith_Senior_Accountant_CV").
       STEP 3: Rewrite the CV Data into the JSON structure. Integrate any relevant details from the "Additional Information" section into the summary, skills, or experience as appropriate. 
       NOTE: If References are present in the CV, extract them into the 'references' array. If none are present, leave it empty.
       STEP 4: Write the Cover Letter content following the TRADITIONAL BUSINESS LETTER rules.

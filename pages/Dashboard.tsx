@@ -363,11 +363,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       try {
         let { company, role } = extractCompanyAndRole();
         
-        // Use AI detected metadata if available (Fixes missing name issues when skipping Step 1)
-        if (dataToSave.meta?.jobTitle && dataToSave.meta.jobTitle.length > 3 && !dataToSave.meta.jobTitle.includes("Extracted")) {
+        // Priority 1: AI Extracted Meta (if highly confident)
+        if (dataToSave.meta?.jobTitle && 
+            dataToSave.meta.jobTitle.toLowerCase() !== 'role' && 
+            dataToSave.meta.jobTitle.toLowerCase() !== 'general' &&
+            !dataToSave.meta.jobTitle.includes("Extracted")) {
             role = dataToSave.meta.jobTitle;
+        } 
+        
+        // Priority 2: Fallback to Analysis Result if meta is weak
+        if ((role === 'Role' || role === 'General') && analysis?.jobTitle && !['role', 'general'].includes(analysis.jobTitle.toLowerCase())) {
+             role = analysis.jobTitle;
         }
-        if (dataToSave.meta?.company && dataToSave.meta.company.length > 2 && !dataToSave.meta.company.includes("Extracted")) {
+
+        // Company Extraction Priority
+        if (dataToSave.meta?.company && 
+            dataToSave.meta.company.length > 2 && 
+            !dataToSave.meta.company.includes("Extracted")) {
             company = dataToSave.meta.company;
         }
         
