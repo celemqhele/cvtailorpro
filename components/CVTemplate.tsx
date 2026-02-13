@@ -23,7 +23,6 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
       boxSizing: 'border-box' as const,
       wordWrap: 'break-word' as const, 
       overflowWrap: 'break-word' as const,
-      letterSpacing: '0.3px', // Adds slight spacing to prevent words merging in PDF
     },
     header: {
       textAlign: 'center' as const,
