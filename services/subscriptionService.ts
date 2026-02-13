@@ -11,7 +11,7 @@ export interface SubscriptionPlan {
 }
 
 export const PLANS: SubscriptionPlan[] = [
-  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 1, description: '1 CV / Day (Ads)' },
+  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 2, description: '2 CVs / Day (Ads)' },
   { id: 'tier_1', name: 'Starter', price: 19.99, durationDays: 30, dailyLimit: 5, description: '5 CVs / Day' },
   { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 10, description: '10 CVs / Day' },
   { id: 'tier_3', name: 'Pro', price: 99.99, durationDays: 30, dailyLimit: 25, description: '25 CVs / Day' },
