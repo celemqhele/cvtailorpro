@@ -19,9 +19,10 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
         });
 
         // 2. Calculations
-        // The CV Template is designed at 794px width (approx 210mm at 96 DPI).
+        // The CV Template is now designed at 794px width (approx 210mm at 96 DPI).
+        // PDF A4 width is 595.28pt.
         const srcWidth = 794;
-        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const destWidth = 595.28; 
         
         // 3. Generate Vector PDF
         await new Promise<void>((resolve) => {
@@ -31,16 +32,13 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
                 },
                 x: 0,
                 y: 0,
-                // Using pdfWidth forces jsPDF to map the container to the PDF width
-                width: pdfWidth, 
-                // windowWidth is crucial for font metrics. Matching source CSS width helps.
+                // Setting width and windowWidth lets jsPDF auto-calculate the scale
+                width: destWidth, 
                 windowWidth: srcWidth, 
                 autoPaging: 'text',
                 html2canvas: {
-                    // letterRendering: false prevents character splitting which breaks "words together".
-                    // useCORS handles images properly.
-                    // scale 1 is usually safer for vector metrics than forcing high dpi
-                    scale: 1, 
+                    // Removed explicit 'scale' to allow jsPDF to calculate it based on width/windowWidth.
+                    // letterRendering: false prevents character overlap/kerning issues.
                     letterRendering: false,
                     useCORS: true,
                     logging: false,
@@ -61,6 +59,7 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
 /**
  * Generates a PDF using the external APIs for high-fidelity rendering.
  * Strategy: Primary API (html2pdf.app) -> Client-side Fallback.
+ * Removed CustomJS due to configuration requirements.
  */
 export const generatePdfFromApi = async (elementId: string): Promise<Blob | null> => {
     const element = document.getElementById(elementId);

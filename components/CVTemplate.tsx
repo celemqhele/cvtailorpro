@@ -69,7 +69,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
     },
     summaryText: {
       margin: '0',
-      textAlign: 'left' as const, // Changed from justify to left to fix PDF spacing artifacts
+      textAlign: 'justify' as const,
       lineHeight: '1.5',
     },
     skillsGrid: {
@@ -126,7 +126,6 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
     achievementItem: {
       marginBottom: '5.6px',
       lineHeight: '1.5',
-      textAlign: 'left' as const,
     },
     educationItem: {
       marginBottom: '8px',

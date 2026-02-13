@@ -40,7 +40,7 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
       color: '#333',
     },
     body: {
-      textAlign: 'left' as const, // Changed from justify to left to prevent PDF artifacts
+      textAlign: 'justify' as const,
     },
     paragraph: {
       marginBottom: '12pt', // Distinct paragraph spacing for Word/PDF

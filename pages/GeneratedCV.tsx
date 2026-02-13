@@ -10,7 +10,6 @@ import { SmartEditor } from '../components/SmartEditor';
 import { FeatureLockedModal } from '../components/FeatureLockedModal';
 import { SubscriptionModal } from '../components/SubscriptionModal';
 import { createWordBlob } from '../utils/docHelper';
-import { generatePdfFromApi } from '../utils/pdfHelper';
 import saveAs from 'file-saver';
 import { GEMINI_KEY_1 } from '../constants';
 
@@ -174,37 +173,57 @@ export const GeneratedCV: React.FC = () => {
       }
   };
 
-  const handlePrint = () => {
-      // 1. Ensure correct view is active
-      if (activeMenu === 'cv' && viewMode !== 'cv') setViewMode('cv');
-      if (activeMenu === 'cl' && viewMode !== 'cl') setViewMode('cl');
+  const handlePrint = (targetView?: 'cv' | 'cl') => {
+      const target = targetView || viewMode;
       
-      // 2. Small delay to render then print
+      // Switch view if needed
+      if (viewMode !== target) {
+          setViewMode(target);
+      }
+      
+      // Close menu
+      setActiveMenu(null);
+      
+      // Delay to ensure render update and then print
       setTimeout(() => {
-          const printContent = document.getElementById(viewMode === 'cv' ? 'cv-render-target' : 'cl-render-target');
+          const elementId = target === 'cv' ? 'cv-render-target' : 'cl-render-target';
+          const printContent = document.getElementById(elementId);
           if (!printContent) return;
+          
           document.body.classList.add('printing');
           
           // Remove preview lines temporarily for print
           const children = printContent.children;
-          if (children.length > 0) children[0].classList.remove('cv-preview-background');
+          let removedClass = false;
+          if (children.length > 0 && children[0].classList.contains('cv-preview-background')) {
+              children[0].classList.remove('cv-preview-background');
+              removedClass = true;
+          }
           
           window.print();
           
           // Add back
-          if (children.length > 0) children[0].classList.add('cv-preview-background');
+          if (removedClass && children.length > 0) {
+              children[0].classList.add('cv-preview-background');
+          }
           
           document.body.classList.remove('printing');
-          setActiveMenu(null);
-      }, 300);
+      }, 500);
   };
 
   const handleDownload = async (docType: 'cv' | 'cl', format: 'pdf' | 'docx') => {
       if (!application || !cvData) return;
       
+      // For PDF, we revert to native Print behavior as requested
+      if (format === 'pdf') {
+          handlePrint(docType);
+          return;
+      }
+
+      // DOCX Handling
       const processId = `${docType}-${format}`;
       setProcessingType(processId);
-      setActiveMenu(null); // Close menu immediately
+      setActiveMenu(null); 
 
       try {
           const baseName = `${cvData.name} - ${application.job_title}`;
@@ -216,11 +235,10 @@ export const GeneratedCV: React.FC = () => {
           // Switch view if needed to ensure element exists in DOM
           if (viewMode !== docType) {
               setViewMode(docType);
-              // Wait for render
               await new Promise(resolve => setTimeout(resolve, 100));
           }
 
-          // Temporarily remove the preview lines from the DOM element to ensure clean export
+          // Temporarily remove the preview lines for clean export
           const element = document.getElementById(elementId);
           let removedClass = false;
           if (element && element.children.length > 0) {
@@ -235,9 +253,6 @@ export const GeneratedCV: React.FC = () => {
 
           if (format === 'docx') {
               blob = await createWordBlob(elementId);
-          } else {
-              // Ensure print styles are active if needed or just capture element
-              blob = await generatePdfFromApi(elementId);
           }
 
           // Restore class
@@ -248,7 +263,7 @@ export const GeneratedCV: React.FC = () => {
           if (blob) {
               saveAs(blob, fileName);
           } else {
-              alert("Failed to generate file. Please try again or use the Print option.");
+              alert("Failed to generate file. Please try again.");
           }
 
       } catch (e) {
@@ -415,7 +430,7 @@ export const GeneratedCV: React.FC = () => {
                                </button>
                                <div className="border-t border-slate-100 my-1"></div>
                                <button 
-                                 onClick={handlePrint}
+                                 onClick={() => handlePrint('cv')}
                                  className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
                                >
                                    <span className="bg-slate-100 text-slate-600 p-1 rounded text-xs font-bold w-12 text-center">PRINT</span>
@@ -460,7 +475,7 @@ export const GeneratedCV: React.FC = () => {
                                    </button>
                                    <div className="border-t border-slate-100 my-1"></div>
                                    <button 
-                                     onClick={handlePrint}
+                                     onClick={() => handlePrint('cl')}
                                      className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
                                    >
                                        <span className="bg-slate-100 text-slate-600 p-1 rounded text-xs font-bold w-12 text-center">PRINT</span>
