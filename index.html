@@ -47,6 +47,17 @@
         user-select: none; /* Standard */
       }
       
+      /* CV Preview Page Breaks Pattern (A4 Height approx 1123px at 96dpi) */
+      .cv-preview-background {
+        background-image: repeating-linear-gradient(
+          to bottom,
+          transparent,
+          transparent 1122px,
+          #94a3b8 1122px,
+          #94a3b8 1123px
+        );
+      }
+      
       /* Print Styles for PDF Generation */
       @media print {
         body * {
@@ -89,7 +100,9 @@
     "pdfjs-dist": "https://esm.sh/pdfjs-dist@^5.4.624",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.95.3",
     "file-saver": "https://esm.sh/file-saver@^2.0.5",
-    "html-docx-js-typescript": "https://esm.sh/html-docx-js-typescript@^0.1.5"
+    "html-docx-js-typescript": "https://esm.sh/html-docx-js-typescript@^0.1.5",
+    "puppeteer-core": "https://esm.sh/puppeteer-core@^24.37.3",
+    "@sparticuz/chromium": "https://esm.sh/@sparticuz/chromium@^143.0.4"
   }
 }
 </script>

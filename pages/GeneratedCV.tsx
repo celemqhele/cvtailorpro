@@ -184,7 +184,16 @@ export const GeneratedCV: React.FC = () => {
           const printContent = document.getElementById(viewMode === 'cv' ? 'cv-render-target' : 'cl-render-target');
           if (!printContent) return;
           document.body.classList.add('printing');
+          
+          // Remove preview lines temporarily for print
+          const children = printContent.children;
+          if (children.length > 0) children[0].classList.remove('cv-preview-background');
+          
           window.print();
+          
+          // Add back
+          if (children.length > 0) children[0].classList.add('cv-preview-background');
+          
           document.body.classList.remove('printing');
           setActiveMenu(null);
       }, 300);
@@ -211,6 +220,17 @@ export const GeneratedCV: React.FC = () => {
               await new Promise(resolve => setTimeout(resolve, 100));
           }
 
+          // Temporarily remove the preview lines from the DOM element to ensure clean export
+          const element = document.getElementById(elementId);
+          let removedClass = false;
+          if (element && element.children.length > 0) {
+              const contentContainer = element.children[0];
+              if (contentContainer.classList.contains('cv-preview-background')) {
+                  contentContainer.classList.remove('cv-preview-background');
+                  removedClass = true;
+              }
+          }
+
           let blob: Blob | null = null;
 
           if (format === 'docx') {
@@ -218,6 +238,11 @@ export const GeneratedCV: React.FC = () => {
           } else {
               // Ensure print styles are active if needed or just capture element
               blob = await generatePdfFromApi(elementId);
+          }
+
+          // Restore class
+          if (removedClass && element && element.children.length > 0) {
+              element.children[0].classList.add('cv-preview-background');
           }
 
           if (blob) {
@@ -479,7 +504,7 @@ export const GeneratedCV: React.FC = () => {
                 )}
                 
                 {/* Controls */}
-                <div className="flex justify-center mb-8 no-print">
+                <div className="flex justify-between items-center mb-8 no-print">
                     <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 inline-flex">
                         <button 
                             onClick={() => setViewMode('cv')}
@@ -493,6 +518,11 @@ export const GeneratedCV: React.FC = () => {
                         >
                             Cover Letter
                         </button>
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                        <span className="w-3 h-px bg-slate-300"></span>
+                        Gray lines indicate page breaks
+                        <span className="w-3 h-px bg-slate-300"></span>
                     </div>
                 </div>
 

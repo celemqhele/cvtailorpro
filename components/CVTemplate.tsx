@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { CVData } from '../types';
 
@@ -12,16 +11,19 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
   // 96 DPI Standard: 1px = 1/96 inch
   const styles = {
     container: {
-      width: '816px', // 8.5 inches at 96 DPI (US Letter)
-      minHeight: '1056px', // 11 inches (Minimum height)
+      width: '794px', // A4 Width at 96 DPI
+      minHeight: '1123px', // A4 Height at 96 DPI
       margin: '0 auto',
-      padding: '72px', // 0.75 inches
-      fontFamily: 'Calibri, Arial, sans-serif',
+      padding: '60px', // Approx 20mm margin (Standard A4 margin)
+      fontFamily: 'Arial, Helvetica, sans-serif', 
       fontSize: '11px',
       lineHeight: '1.4', // Unitless for better inheritance
       color: '#1a1a1a',
       backgroundColor: 'white',
       boxSizing: 'border-box' as const,
+      wordWrap: 'break-word' as const, 
+      overflowWrap: 'break-word' as const,
+      letterSpacing: '0.3px', // Adds slight spacing to prevent words merging in PDF
     },
     header: {
       textAlign: 'center' as const,
@@ -68,7 +70,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
     },
     summaryText: {
       margin: '0',
-      textAlign: 'justify' as const,
+      textAlign: 'left' as const, // Changed from justify to left to fix PDF spacing artifacts
       lineHeight: '1.5',
     },
     skillsGrid: {
@@ -77,7 +79,9 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
     skillItem: {
       lineHeight: '1.5',
       marginBottom: '8px',
-      display: 'block'
+      display: 'block',
+      breakInside: 'avoid' as const,
+      pageBreakInside: 'avoid' as const
     },
     skillCategory: {
       color: '#2c3e50',
@@ -85,6 +89,8 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
     },
     experienceItem: {
       marginBottom: '20px',
+      breakInside: 'avoid' as const,
+      pageBreakInside: 'avoid' as const
     },
     jobHeader: {
       marginBottom: '8px',
@@ -121,10 +127,13 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
     achievementItem: {
       marginBottom: '5.6px',
       lineHeight: '1.5',
+      textAlign: 'left' as const,
     },
     educationItem: {
       marginBottom: '8px',
       lineHeight: '1.5',
+      breakInside: 'avoid' as const,
+      pageBreakInside: 'avoid' as const
     },
   };
 
@@ -150,7 +159,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
   ].filter(Boolean);
 
   return (
-    <div className="cv-absolute-container" style={styles.container}>
+    <div className="cv-absolute-container cv-preview-background" style={styles.container}>
       {/* Header Section */}
       <header style={styles.header}>
         <h1 style={styles.name}>{data.name}</h1>
@@ -179,7 +188,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
           <h2 style={styles.sectionTitle}>CORE COMPETENCIES</h2>
           <div style={styles.skillsGrid}>
             {data.skills.map((skill, index) => (
-              <div key={index} style={styles.skillItem}>
+              <div key={index} style={styles.skillItem} className="no-break">
                 <span style={styles.skillCategory}>{skill.category}:</span> {skill.items}
               </div>
             ))}
@@ -192,7 +201,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>PROFESSIONAL EXPERIENCE</h2>
           {data.experience.map((job, index) => (
-            <div key={index} style={styles.experienceItem}>
+            <div key={index} style={styles.experienceItem} className="no-break">
               {/* Use Table for Title/Date alignment to support DOCX conversion better than Flexbox */}
               <table style={styles.jobHeader}>
                 <tbody>
@@ -234,7 +243,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>EDUCATION</h2>
           {data.education.map((edu, index) => (
-            <div key={index} style={styles.educationItem}>
+            <div key={index} style={styles.educationItem} className="no-break">
               <strong>{edu.degree}</strong>
               {edu.institution && <span> — {edu.institution}</span>}
               {edu.year && <span> ({edu.year})</span>}
@@ -249,7 +258,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
           <h2 style={styles.sectionTitle}>REFERENCES</h2>
           <div style={styles.skillsGrid}>
             {data.references.map((ref, index) => (
-              <div key={index} style={styles.skillItem}>
+              <div key={index} style={styles.skillItem} className="no-break">
                 <strong>{ref.name}</strong> — {ref.contact}
               </div>
             ))}

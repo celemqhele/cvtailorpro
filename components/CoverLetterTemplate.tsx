@@ -11,10 +11,10 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
   // Styles based on MEASUREMENTS_SPEC for A4/Letter consistency
   const styles = {
     container: {
-      width: '816px', // US Letter width at 96 DPI
-      minHeight: '1056px',
+      width: '794px', // A4 width at 96 DPI
+      minHeight: '1123px', // A4 height at 96 DPI
       margin: '0 auto',
-      padding: '72px', // 0.75 inch margin
+      padding: '60px', // Approx 20mm margin
       fontFamily: '"Times New Roman", Times, serif',
       fontSize: '12pt',
       lineHeight: '1.5',
@@ -40,7 +40,7 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
       color: '#333',
     },
     body: {
-      textAlign: 'justify' as const,
+      textAlign: 'left' as const, // Changed from justify to left to prevent PDF artifacts
     },
     paragraph: {
       marginBottom: '12pt', // Distinct paragraph spacing for Word/PDF
@@ -62,7 +62,7 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
   const paragraphs = content.split('\n');
 
   return (
-    <div className="cv-absolute-container" style={styles.container}>
+    <div className="cv-absolute-container cv-preview-background" style={styles.container}>
       {/* Consistent Header with CV */}
       <div style={styles.header}>
         <div style={styles.name}>{userData.name}</div>
