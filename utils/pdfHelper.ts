@@ -60,7 +60,7 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
                         "input": "import-html",
                         "output_format": "pdf",
                         "engine": "chrome",
-                        "engine_version": "116",
+                        "engine_version": "143",
                         "pixel_density": 300,
                         "print_background": true
                     },
