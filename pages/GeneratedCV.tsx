@@ -174,23 +174,6 @@ export const GeneratedCV: React.FC = () => {
       }
   };
 
-  const triggerFallbackPrint = () => {
-        const printContent = document.getElementById(viewMode === 'cv' ? 'cv-render-target' : 'cl-render-target');
-        if (!printContent) return;
-        
-        // Remove preview lines temporarily for print
-        const children = printContent.children;
-        if (children.length > 0) children[0].classList.remove('cv-preview-background');
-        
-        // Ensure transforms are cleared by global CSS or here specifically
-        // The global @media print should handle .cv-absolute-container transforms
-        
-        window.print();
-        
-        // Add back
-        if (children.length > 0) children[0].classList.add('cv-preview-background');
-  };
-
   const handleDownload = async (docType: 'cv' | 'cl', format: 'pdf' | 'docx') => {
       if (!application || !cvData) return;
       
@@ -228,7 +211,7 @@ export const GeneratedCV: React.FC = () => {
           if (format === 'docx') {
               blob = await createWordBlob(elementId);
           } else {
-              // Try CloudConvert first
+              // Try CloudConvert
               blob = await generatePdfFromApi(elementId);
           }
 
@@ -240,20 +223,15 @@ export const GeneratedCV: React.FC = () => {
           if (blob) {
               saveAs(blob, fileName);
           } else if (format === 'pdf') {
-              // Fallback to Native Print if CloudConvert returned null
-              console.warn("Falling back to native browser print...");
-              triggerFallbackPrint();
+              // Only alert if PDF failed, since DOCX is handled by local library
+              alert("PDF Generation service is currently unavailable. Please try again later.");
           } else {
               alert("Failed to generate file.");
           }
 
       } catch (e) {
           console.error("Download error:", e);
-          if (format === 'pdf') {
-              triggerFallbackPrint();
-          } else {
-              alert("An error occurred during download.");
-          }
+          alert("An error occurred during download.");
       } finally {
           setProcessingType(null);
       }

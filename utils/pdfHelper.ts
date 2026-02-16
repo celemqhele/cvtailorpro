@@ -1,23 +1,23 @@
 
-import { CLOUDCONVERT_API_KEY } from '../constants';
+import { CLOUDCONVERT_KEY } from "../constants";
 
 /**
- * Generates a PDF using the CloudConvert API.
- * Uses 'import/raw' -> 'convert' -> 'export/url' task flow.
- * Returns a Blob if successful, null if failed (triggering fallback).
+ * Generates a PDF using the CloudConvert API v2.
+ * Uses the updated key with full permissions.
  */
 export const createPdfBlob = async (elementId: string): Promise<Blob | null> => {
     const element = document.getElementById(elementId);
     if (!element) return null;
 
-    // Prepare HTML with embedded styles for the conversion service
-    // We explicitly clear the background grid class to ensure a clean PDF
+    // Prepare HTML with embedded styles for CloudConvert
+    // We explicitly include Tailwind CDN to ensure proper rendering in their Chrome engine
     const htmlContent = `
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
         <style>
              body { margin: 0; padding: 0; font-family: 'Arial', sans-serif; background: white; -webkit-font-smoothing: antialiased; }
@@ -31,19 +31,21 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
         </style>
     </head>
     <body>
-        ${element.innerHTML}
+        <div class="p-8">
+            ${element.innerHTML}
+        </div>
     </body>
     </html>
     `;
 
     try {
-        console.log("Starting CloudConvert Job...");
-        
-        // 1. Create Job with Tasks
-        const jobResponse = await fetch('https://api.cloudconvert.com/v2/jobs', {
+        console.log("Requesting PDF from CloudConvert...");
+
+        // 1. Create Job
+        const createJobRes = await fetch('https://api.cloudconvert.com/v2/jobs', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${CLOUDCONVERT_API_KEY}`,
+                'Authorization': `Bearer ${CLOUDCONVERT_KEY}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -53,78 +55,71 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
                         "file": htmlContent,
                         "filename": "cv.html"
                     },
-                    "convert-pdf": {
+                    "convert-to-pdf": {
                         "operation": "convert",
                         "input": "import-html",
                         "output_format": "pdf",
                         "engine": "chrome",
-                        "engine_version": "117",
-                        "print_background": true,
-                        "display_header_footer": false
+                        "engine_version": "116",
+                        "pixel_density": 300,
+                        "print_background": true
                     },
-                    "export-url": {
+                    "export-pdf": {
                         "operation": "export/url",
-                        "input": "convert-pdf"
+                        "input": "convert-to-pdf",
+                        "inline": false,
+                        "archive_multiple_files": false
                     }
                 }
             })
         });
 
-        if (!jobResponse.ok) {
-            const errText = await jobResponse.text();
-            throw new Error(`CloudConvert API Error: ${errText}`);
+        if (!createJobRes.ok) {
+            throw new Error(`CloudConvert Init Error: ${createJobRes.status}`);
         }
 
-        const jobData = await jobResponse.json();
+        const jobData = await createJobRes.json();
         const jobId = jobData.data.id;
 
         // 2. Poll for Completion
+        let status = jobData.data.status;
         let exportUrl = null;
-        let attempts = 0;
-        const maxAttempts = 40; // Approx 40 seconds wait time
 
-        while (!exportUrl && attempts < maxAttempts) {
-            await new Promise(r => setTimeout(r, 1000));
+        while (status !== 'finished' && status !== 'error') {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s
             
-            const statusRes = await fetch(`https://api.cloudconvert.com/v2/jobs/${jobId}`, {
-                headers: { 'Authorization': `Bearer ${CLOUDCONVERT_API_KEY}` }
+            const checkRes = await fetch(`https://api.cloudconvert.com/v2/jobs/${jobId}`, {
+                headers: { 'Authorization': `Bearer ${CLOUDCONVERT_KEY}` }
             });
-            
-            if (!statusRes.ok) continue;
-            
-            const statusData = await statusRes.json();
-            const job = statusData.data;
-            
-            if (job.status === 'error') {
-                // Log detailed error from tasks if available
-                const failedTask = job.tasks.find((t: any) => t.status === 'error');
-                const msg = failedTask ? failedTask.message : "Job Failed";
-                throw new Error(`CloudConvert Job Failed: ${msg}`);
-            }
-            
-            if (job.status === 'finished') {
-                const exportTask = job.tasks.find((t: any) => t.name === 'export-url');
-                if (exportTask?.result?.files?.[0]?.url) {
+            const checkData = await checkRes.json();
+            status = checkData.data.status;
+
+            if (status === 'finished') {
+                const tasks = checkData.data.tasks;
+                const exportTask = tasks.find((t: any) => t.name === 'export-pdf');
+                if (exportTask && exportTask.result && exportTask.result.files && exportTask.result.files.length > 0) {
                     exportUrl = exportTask.result.files[0].url;
                 }
             }
-            attempts++;
         }
 
-        if (!exportUrl) throw new Error("CloudConvert Timed Out");
+        if (status === 'error' || !exportUrl) {
+            throw new Error("CloudConvert Processing Failed");
+        }
 
-        // 3. Download the Result
+        // 3. Download the PDF Blob
         const pdfRes = await fetch(exportUrl);
         return await pdfRes.blob();
 
     } catch (error) {
-        console.error("PDF Generation via CloudConvert failed:", error);
-        // Returning null triggers the client-side window.print() fallback in the UI
+        console.error("CloudConvert Error:", error);
+        // Fallback is explicitly disabled per user request.
+        // We return null to signal failure, but the UI should handle the messaging.
         return null;
     }
 };
 
 /**
- * Legacy/Fallback alias.
+ * Legacy alias.
  */
 export const generatePdfFromApi = createPdfBlob;
