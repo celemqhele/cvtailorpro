@@ -17,6 +17,53 @@ export const JobDetails: React.FC = () => {
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [exampleCV, setExampleCV] = useState<CVData | null>(null);
 
+  // Helper to generate a placeholder tailored CV if the DB doesn't have one
+  const getFallbackCV = (jobTitle: string, company: string): CVData => ({
+    name: "Candidate Name",
+    title: jobTitle, // Dynamic Title
+    location: "Johannesburg, South Africa",
+    phone: "+27 82 123 4567",
+    email: "candidate@email.com",
+    linkedin: "linkedin.com/in/candidate",
+    summary: `Highly motivated ${jobTitle} with a proven track record of delivering results in fast-paced environments. Expert in aligning technical solutions with business goals. Eager to leverage experience in project lifecycle management to drive success at ${company}.`,
+    skills: [
+        { category: "Core Skills", items: "Project Management, Strategic Planning, Data Analysis, Agile Methodologies" },
+        { category: "Technical", items: "Microsoft Office 365, JIRA, CRM Software, Cloud Basics" }
+    ],
+    experience: [
+        {
+            title: `Senior ${jobTitle}`,
+            company: "Global Tech Solutions",
+            dates: "2021 - Present",
+            achievements: [
+                "Led a cross-functional team of 15 members to deliver critical projects 20% under budget.",
+                "Optimized operational workflows, reducing process downtime by 15% year-over-year.",
+                "Spearheaded the integration of new software tools, improving team collaboration scores by 30%."
+            ]
+        },
+        {
+            title: `Junior ${jobTitle}`,
+            company: "Innovate Corp",
+            dates: "2018 - 2021",
+            achievements: [
+                "Assisted in the successful rollout of 3 major product features, impacting 10k+ users.",
+                "Conducted market research that informed key strategic pivots for Q3 2019."
+            ]
+        }
+    ],
+    keyAchievements: [
+        "Employee of the Year 2022",
+        "Certified Professional (CP) Accreditation"
+    ],
+    education: [
+        {
+            degree: "Bachelor of Commerce",
+            institution: "University of Cape Town",
+            year: "2017"
+        }
+    ]
+  });
+
   useEffect(() => {
     if (id) {
         jobService.getJobById(id)
@@ -26,8 +73,12 @@ export const JobDetails: React.FC = () => {
                     try {
                         setExampleCV(JSON.parse(data.example_cv_content));
                     } catch (e) {
-                        console.error("Failed to parse example CV");
+                        console.warn("Failed to parse example CV, using fallback");
+                        setExampleCV(getFallbackCV(data.title, data.company));
                     }
+                } else {
+                    // Use fallback so the preview always shows
+                    setExampleCV(getFallbackCV(data.title, data.company));
                 }
             })
             .catch(console.error)
@@ -122,10 +173,7 @@ export const JobDetails: React.FC = () => {
 
                         <h2 className="text-2xl font-bold text-slate-900 mb-3">Boost Your Application?</h2>
                         <p className="text-slate-600 mb-8 leading-relaxed">
-                            {exampleCV 
-                                ? "Look at the preview on the right. This is the kind of tailored, ATS-optimized CV we can generate for you in seconds based on this exact job description."
-                                : "We can rewrite your CV to match this exact job description using AI. It increases your chances of passing the ATS check."
-                            }
+                            Look at the preview on the right. This is the kind of tailored, ATS-optimized CV we can generate for you in seconds based on this exact job description.
                         </p>
 
                         <div className="space-y-4">
