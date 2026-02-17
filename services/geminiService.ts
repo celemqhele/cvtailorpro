@@ -401,6 +401,73 @@ export const generateTailoredApplication = async (
   return parseAndProcessResponse(responseText);
 };
 
+export const generateSkeletonCV = async (
+    jobSpec: string,
+    apiKey: string
+): Promise<GeneratorResponse> => {
+    const SCHEMA_INSTRUCTION = `
+    You are a Strategic Career Architect. Your task is to build a "Perfect Candidate Skeleton CV" based strictly on the provided Job Description.
+    
+    GOAL: Create a CV structure that perfectly matches the job requirements, but leave placeholders for the user's specific metrics, dates, and companies.
+    
+    RULES:
+    1. **PLACEHOLDERS:** Use strictly bracketed placeholders like \`[Insert Company Name]\`, \`[Date]\`, \`[Insert Metric %]\`, \`[Team Size]\`.
+    2. **SKILLS:** Fill in the hard skills and soft skills that are EXPLICITLY required by the JD.
+    3. **EXPERIENCE BULLETS:** Write the experience bullets as if the candidate did the job, but leave the quantifiable results as placeholders.
+       - Example: "Led a team of [Team Size] developers to migrate legacy code, reducing technical debt by [Insert %]."
+       - Example: "Managed a marketing budget of [Insert Amount], achieving a ROAS of [Insert ROAS]."
+    4. **SUMMARY:** Write a powerful summary that hits every keyword, but uses placeholders for years of experience and specific industries if not generic.
+    5. **NAME:** Use "[Your Full Name]".
+    
+    RETURN JSON:
+    {
+      "outcome": "PROCEED",
+      "meta": {
+          "jobTitle": "Extracted Job Title",
+          "company": "Extracted Company",
+          "suggestedFilename": "Skeleton_Tailored_CV"
+      },
+      "cvData": {
+          "name": "[Your Full Name]",
+          "title": "Professional Title (Match JD)",
+          "location": "[City, Country]",
+          "phone": "[Phone Number]",
+          "email": "[Email Address]",
+          "linkedin": "linkedin.com/in/[username]",
+          "summary": "...",
+          "skills": [ {"category": "Technical", "items": "Java, Python"} ],
+          "experience": [
+              {
+              "title": "Previous Job Title (Relevant to JD)",
+              "company": "[Insert Company Name]",
+              "dates": "[Start Date] – [End Date]",
+              "achievements": ["Achievement 1 with [Placeholder]", "Achievement 2 with [Placeholder]"]
+              }
+          ],
+          "keyAchievements": ["Awarded [Name of Award] for excellence in..."],
+          "education": [
+              {"degree": "Degree Required by JD", "institution": "[University Name]", "year": "[Year]"}
+          ],
+          "references": []
+      },
+      "coverLetter": {
+        "title": "Skeleton_Cover_Letter.docx",
+        "content": "Cover Letter with [Placeholders] for specific company details..."
+      }
+    }
+    `;
+
+    const userMessage = `
+    TARGET JOB DESCRIPTION:
+    ${jobSpec}
+    
+    Generate the Skeleton CV JSON now.
+    `;
+
+    const responseText = await runAIChain(SCHEMA_INSTRUCTION, userMessage, 0.7, apiKey);
+    return parseAndProcessResponse(responseText);
+};
+
 export const smartEditCV = async (
     currentData: CVData,
     instruction: string,

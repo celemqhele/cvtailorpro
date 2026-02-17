@@ -12,10 +12,12 @@ import { HistoryModal } from '../components/HistoryModal';
 import { LimitReachedModal } from '../components/LimitReachedModal';
 import { ProPlusFeatureCard } from '../components/ProPlusFeatureCard';
 import { AdDecisionModal } from '../components/AdDecisionModal';
+import { FeatureLockedModal } from '../components/FeatureLockedModal';
 
-import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile } from '../services/geminiService';
+import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile, generateSkeletonCV } from '../services/geminiService';
 import { authService } from '../services/authService';
 import { checkUsageLimit, incrementUsage } from '../services/usageService';
+import { getPlanDetails } from '../services/subscriptionService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis, SavedApplication, ManualCVData, ManualExperienceItem, ManualEducationItem } from '../types';
 import { GEMINI_KEY_1 } from '../constants';
 
@@ -64,9 +66,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   
   // Confirmation Modal State
   const [showRemoveCvModal, setShowRemoveCvModal] = useState(false);
+  const [showSkeletonLockModal, setShowSkeletonLockModal] = useState(false);
   
   // Input Modes
-  const [cvInputMode, setCvInputMode] = useState<'upload' | 'scratch'>('upload');
+  const [cvInputMode, setCvInputMode] = useState<'upload' | 'scratch' | 'skeleton'>('upload');
   const [file, setFile] = useState<FileData | null>(null);
   
   // Saved CV State
@@ -104,10 +107,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [generatedCvId, setGeneratedCvId] = useState<string | null>(null);
   
   // Pending actions for ad completion
-  const [pendingGenParams, setPendingGenParams] = useState<{force: boolean, isTitle: boolean} | null>(null);
+  const [pendingGenParams, setPendingGenParams] = useState<{force: boolean, isTitle: boolean, isSkeleton: boolean} | null>(null);
   const [adContext, setAdContext] = useState<'generation' | 'download'>('generation');
 
   const previewRef = useRef<HTMLDivElement>(null);
+
+  // Check Plan Details for Features
+  const userPlan = user?.plan_id ? getPlanDetails(user.plan_id) : getPlanDetails('free');
+  const hasSkeletonAccess = userPlan.hasSkeletonMode;
 
   // Load Saved CV from User Profile
   useEffect(() => {
@@ -185,6 +192,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
   // --- Handlers ---
 
+  const handleSkeletonClick = () => {
+      if (!hasSkeletonAccess) {
+          setShowSkeletonLockModal(true);
+      } else {
+          setCvInputMode('skeleton');
+      }
+  };
+
   const handleLimitUpgrade = (withDiscount: boolean) => {
       setShowLimitModal(false);
       triggerPayment(undefined, withDiscount);
@@ -206,7 +221,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       
       if (adContext === 'generation' && pendingGenParams) {
           // Resume generation after ad
-          handleGenerate(pendingGenParams.force, pendingGenParams.isTitle, true); // true = bypassAd
+          if (pendingGenParams.isSkeleton) {
+              handleGenerateSkeleton(true); // true = bypassAd
+          } else {
+              handleGenerate(pendingGenParams.force, pendingGenParams.isTitle, true); // true = bypassAd
+          }
           setPendingGenParams(null);
       } else if (adContext === 'download') {
           if (generatedCvId) {
@@ -257,6 +276,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       } else if (cvInputMode === 'scratch') {
           if (!manualData.fullName) return false;
           if (manualData.experience.length === 0) return false;
+      } else if (cvInputMode === 'skeleton') {
+          // No CV input needed
       }
       
       if (targetMode === 'url' && !jobLink) return false;
@@ -301,6 +322,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
   const handleScanAndAnalyze = async () => {
       if (!validateInputs()) return;
+      if (cvInputMode === 'skeleton') {
+          // Analysis not needed for Skeleton Mode, go straight to generate suggestion
+          alert("For Skeleton Mode, proceed directly to Generation (Step 2).");
+          return;
+      }
+
       setStatus(Status.SCANNING);
       setErrorMsg(null);
       setAnalysis(null);
@@ -414,7 +441,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
         }
 
         // If not at limit, ask them to decide (Ad vs Upgrade)
-        setPendingGenParams({ force: forceOverride, isTitle: isDirectTitleMode });
+        setPendingGenParams({ force: forceOverride, isTitle: isDirectTitleMode, isSkeleton: false });
         setShowAdDecisionModal(true);
         return;
     }
@@ -486,6 +513,64 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     }
   };
 
+  const handleGenerateSkeleton = async (bypassAd: boolean = false) => {
+      // 1. Process Job Spec
+      let textToAnalyze = '';
+      if (targetMode === 'title') {
+          textToAnalyze = jobTitle;
+      } else if (targetMode === 'url') {
+          try {
+            textToAnalyze = await scrapeJobFromUrl(jobLink);
+            setDirectApplyLink(jobLink);
+          } catch(e: any) {
+             setErrorMsg(e.message);
+             return;
+          }
+      } else {
+          textToAnalyze = manualJobText;
+      }
+      setJobSpec(textToAnalyze);
+
+      // 2. Check Limit
+      // We share the same daily limit pool for now (until complex DB migration)
+      // but only Growth+ users can access this function anyway.
+      const canProceed = bypassAd || await checkUsageLimit(user?.id, dailyLimit);
+      const isAdmin = user?.email === 'mqhele03@gmail.com';
+
+      if (!canProceed && !isAdmin) {
+          setShowLimitModal(true);
+          return;
+      }
+
+      setStatus(Status.GENERATING);
+      setErrorMsg(null);
+      setResult(null);
+      setGeneratedCvId(null);
+
+      try {
+          const response = await generateSkeletonCV(textToAnalyze, apiKey);
+          if (response.outcome !== 'REJECT') {
+              setResult(response);
+              setStatus(Status.SUCCESS);
+              if (!isAdmin) {
+                 await incrementUsage(user?.id);
+                 setDailyCvCount((prev: number) => prev + 1);
+              }
+              const savedId = await saveCurrentResultToHistory(response);
+              if (savedId) {
+                  navigate(`/cv-generated/${savedId}`);
+              }
+          } else {
+              setResult(response);
+              setStatus(Status.REJECTED);
+          }
+      } catch (e: any) {
+          console.error(e);
+          setStatus(Status.ERROR);
+          setErrorMsg(e.message || "Failed to generate skeleton CV.");
+      }
+  };
+
   const handleLoadHistory = (app: SavedApplication) => {
       // Intentionally empty
   };
@@ -550,12 +635,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                              <div className="flex items-center justify-between">
                                  <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide">1. Your CV</h2>
                                  <div className="flex bg-slate-100 p-1 rounded-lg">
-                                     <button onClick={() => setCvInputMode('upload')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${cvInputMode === 'upload' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Upload</button>
-                                     <button onClick={() => setCvInputMode('scratch')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${cvInputMode === 'scratch' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Fill Form</button>
+                                     <button onClick={() => setCvInputMode('upload')} className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all ${cvInputMode === 'upload' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Upload</button>
+                                     <button onClick={() => setCvInputMode('scratch')} className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all ${cvInputMode === 'scratch' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Form</button>
+                                     <button 
+                                        onClick={handleSkeletonClick} 
+                                        className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1 ${cvInputMode === 'skeleton' ? 'bg-white shadow text-purple-600' : 'text-slate-500'}`}
+                                     >
+                                        Skeleton
+                                        {!hasSkeletonAccess && <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>}
+                                     </button>
                                  </div>
                              </div>
 
-                             {cvInputMode === 'upload' ? (
+                             {cvInputMode === 'upload' && (
                                  <>
                                     {useSavedCv && savedCvFilename ? (
                                         <div className="border-2 border-indigo-200 bg-indigo-50 rounded-xl p-6 text-center relative">
@@ -598,7 +690,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                         </div>
                                     )}
                                  </>
-                             ) : (
+                             )}
+                             
+                             {cvInputMode === 'scratch' && (
                                  <div className="bg-white p-4 rounded-xl border border-slate-300 space-y-4">
                                      <div className="space-y-3 pb-4 border-b border-slate-100">
                                          <input placeholder="Full Name" className="w-full p-2 border rounded text-sm" value={manualData.fullName} onChange={e => setManualData({...manualData, fullName: e.target.value})} />
@@ -612,10 +706,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                      <div className="p-2 bg-slate-50 rounded text-center text-xs text-slate-500 italic">Manual Entry Form Available</div>
                                  </div>
                              )}
-                             <div>
-                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">LinkedIn URL (Optional)</label>
-                                 <input type="text" className="w-full px-4 py-2 rounded-lg border border-slate-300 text-sm outline-none" placeholder="https://linkedin.com/in/username" value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)}/>
-                             </div>
+
+                             {cvInputMode === 'skeleton' && (
+                                <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-6 relative">
+                                    <div className="absolute top-2 right-2 bg-purple-200 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded">GROWTH+</div>
+                                    <h3 className="font-bold text-purple-900 mb-2">Skeleton Mode Active</h3>
+                                    <p className="text-xs text-purple-800 leading-relaxed">
+                                        We will generate a <strong>Perfect Candidate</strong> CV structure based on the job description.
+                                        <br/><br/>
+                                        It will contain <strong>[Placeholders]</strong> for metrics, dates, and companies. 
+                                        You must fill these in after generation to be truthful.
+                                    </p>
+                                </div>
+                             )}
+
+                             {cvInputMode !== 'skeleton' && (
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">LinkedIn URL (Optional)</label>
+                                    <input type="text" className="w-full px-4 py-2 rounded-lg border border-slate-300 text-sm outline-none" placeholder="https://linkedin.com/in/username" value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)}/>
+                                </div>
+                             )}
                         </div>
 
                         {/* 2. JOB INPUT */}
@@ -649,57 +759,66 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                         </div>
                     </div>
                     
-                    {/* 3. ADDITIONAL INFO (Optional) */}
-                    <div className="mt-6 bg-white p-6 rounded-xl border border-slate-300">
-                         <div className="flex items-center justify-between mb-4">
-                             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide">3. Additional Context (Optional)</h2>
-                         </div>
-                         <p className="text-xs text-slate-500 mb-2">Include extra certifications, cover letter notes, or updated skills that aren't in your main CV.</p>
-                         <div className="relative">
-                             <textarea 
-                                className="w-full p-3 text-sm border border-slate-300 rounded-lg h-24 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                placeholder="e.g. I recently completed a React Native certification. Also, please emphasize my leadership experience..."
-                                value={additionalInfo}
-                                onChange={(e) => setAdditionalInfo(e.target.value)}
-                             />
-                             <div className="absolute bottom-3 right-3">
-                                 <input 
-                                    type="file" 
-                                    ref={additionalFileRef}
-                                    className="hidden" 
-                                    accept=".pdf,.docx,.txt"
-                                    onChange={handleAdditionalFileUpload}
-                                 />
-                                 <button 
-                                    onClick={() => additionalFileRef.current?.click()}
-                                    disabled={isProcessingFile}
-                                    className="flex items-center gap-1 text-xs font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-slate-200 transition-colors"
-                                 >
-                                    {isProcessingFile ? (
-                                        <span>Processing...</span>
-                                    ) : (
-                                        <>
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                                            Attach File
-                                        </>
-                                    )}
-                                 </button>
+                    {/* 3. ADDITIONAL INFO (Optional) - Hide for Skeleton */}
+                    {cvInputMode !== 'skeleton' && (
+                        <div className="mt-6 bg-white p-6 rounded-xl border border-slate-300">
+                             <div className="flex items-center justify-between mb-4">
+                                 <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide">3. Additional Context (Optional)</h2>
                              </div>
-                         </div>
-                    </div>
+                             <p className="text-xs text-slate-500 mb-2">Include extra certifications, cover letter notes, or updated skills that aren't in your main CV.</p>
+                             <div className="relative">
+                                 <textarea 
+                                    className="w-full p-3 text-sm border border-slate-300 rounded-lg h-24 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    placeholder="e.g. I recently completed a React Native certification. Also, please emphasize my leadership experience..."
+                                    value={additionalInfo}
+                                    onChange={(e) => setAdditionalInfo(e.target.value)}
+                                 />
+                                 <div className="absolute bottom-3 right-3">
+                                     <input 
+                                        type="file" 
+                                        ref={additionalFileRef}
+                                        className="hidden" 
+                                        accept=".pdf,.docx,.txt"
+                                        onChange={handleAdditionalFileUpload}
+                                     />
+                                     <button 
+                                        onClick={() => additionalFileRef.current?.click()}
+                                        disabled={isProcessingFile}
+                                        className="flex items-center gap-1 text-xs font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-slate-200 transition-colors"
+                                     >
+                                        {isProcessingFile ? (
+                                            <span>Processing...</span>
+                                        ) : (
+                                            <>
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                                Attach File
+                                            </>
+                                        )}
+                                     </button>
+                                 </div>
+                             </div>
+                        </div>
+                    )}
 
                     <div className="flex flex-col md:flex-row gap-4 pt-4 border-t border-slate-200">
-                        {targetMode !== 'title' && (
+                        {cvInputMode !== 'skeleton' && targetMode !== 'title' && (
                             <Button variant="secondary" onClick={handleScanAndAnalyze} isLoading={status === Status.SCANNING || status === Status.ANALYZING} disabled={status === Status.GENERATING || !validateInputs()} className="flex-1">
                                 Step 1: Analyze Match
                             </Button>
                         )}
-                        <Button onClick={() => handleGenerate(false, targetMode === 'title')} isLoading={status === Status.GENERATING} disabled={!validateInputs()} className="flex-1 shadow-lg shadow-indigo-200">
-                            {targetMode === 'title' ? 'Generate Standard CV' : 'Step 2: Generate Tailored CV'}
-                        </Button>
+                        
+                        {cvInputMode === 'skeleton' ? (
+                            <Button onClick={() => handleGenerateSkeleton(false)} isLoading={status === Status.GENERATING} disabled={!validateInputs()} className="flex-1 shadow-lg shadow-purple-200 bg-purple-600 hover:bg-purple-700">
+                                Generate Skeleton CV
+                            </Button>
+                        ) : (
+                            <Button onClick={() => handleGenerate(false, targetMode === 'title')} isLoading={status === Status.GENERATING} disabled={!validateInputs()} className="flex-1 shadow-lg shadow-indigo-200">
+                                {targetMode === 'title' ? 'Generate Standard CV' : 'Step 2: Generate Tailored CV'}
+                            </Button>
+                        )}
                     </div>
 
-                    <AnalysisDashboard />
+                    {cvInputMode !== 'skeleton' && <AnalysisDashboard />}
                     
                     {!isPaidUser && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-8 items-center">
@@ -730,6 +849,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                 limit={dailyLimit}
             />
             
+            <FeatureLockedModal
+                isOpen={showSkeletonLockModal}
+                onClose={() => setShowSkeletonLockModal(false)}
+                onUpgrade={() => { setShowSkeletonLockModal(false); triggerPayment('tier_2'); }} // Trigger Growth Plan
+                title="Unlock Skeleton Mode"
+                description="Skeleton Mode generates a perfect CV structure for your target job with placeholders for you to fill in. Upgrade to the Growth Plan (R39.99) or higher to access this feature."
+            />
+
             {showRemoveCvModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center relative border border-slate-200">

@@ -47,26 +47,16 @@ export const ProPlusFeatureCard: React.FC<ProPlusFeatureCardProps> = ({ onUpgrad
                 100% Ad-Free Experience
             </li>
             <li className="flex items-center gap-2 text-sm text-indigo-100">
-                <svg className="w-4 h-4 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                AI Smart Editor & Revisions
-            </li>
-            <li className="flex items-center gap-2 text-sm text-indigo-100">
-                <svg className="w-4 h-4 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                Style Matching (Upload Refs)
-            </li>
-             <li className="flex items-center gap-2 text-sm text-indigo-100">
-                <svg className="w-4 h-4 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                Valid for 30 Days
+                <svg className="w-4 h-4 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                New: Skeleton Mode Access
             </li>
         </ul>
-        
-        <Link 
-          to="/pricing"
-          className="w-full py-3 bg-white text-indigo-700 font-bold rounded-lg shadow-sm hover:bg-indigo-50 transition-colors text-sm flex items-center justify-center gap-2"
+        <button 
+            onClick={onUpgrade}
+            className="w-full bg-white text-indigo-900 font-bold py-2 rounded-lg shadow-md hover:bg-indigo-50 transition-colors text-sm"
         >
-          View Pricing
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-        </Link>
+            View Plans & Upgrade
+        </button>
       </div>
     </div>
   );
