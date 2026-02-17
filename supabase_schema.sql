@@ -303,3 +303,15 @@ BEGIN
   RETURN new;
 END;
 $$;
+
+-- ==========================================
+-- 8. MIGRATIONS (Run these if column missing)
+-- ==========================================
+
+-- Ensure example_cv_content exists on job_listings
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_listings' AND column_name = 'example_cv_content') THEN
+        ALTER TABLE job_listings ADD COLUMN example_cv_content text;
+    END IF;
+END $$;

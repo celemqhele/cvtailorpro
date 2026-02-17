@@ -1,7 +1,8 @@
 
+
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
-import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT } from "../constants";
+import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT, SKELETON_FILLER_PROMPT } from "../constants";
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, CVData } from "../types";
 import { naturalizeObject, naturalizeText } from "../utils/textHelpers";
 
@@ -491,6 +492,32 @@ export const smartEditCV = async (
     } catch (e) {
         console.error("Smart Edit Parse Error", e, responseText);
         throw new Error("Failed to process your edit instruction. Please try again.");
+    }
+};
+
+export const fillSkeletonCV = async (
+    skeletonData: CVData,
+    userCvText: string,
+    apiKey: string
+): Promise<CVData> => {
+    const userMessage = `
+    SKELETON CV DATA (The Target Structure):
+    ${JSON.stringify(skeletonData)}
+
+    REAL CANDIDATE CV TEXT (The Facts):
+    ${userCvText}
+
+    Please merge the Real Candidate Facts into the Skeleton Structure, replacing [Placeholders].
+    `;
+
+    const responseText = await runAIChain(SKELETON_FILLER_PROMPT, userMessage, 0.3, apiKey);
+    
+    try {
+        const result = JSON.parse(responseText);
+        return naturalizeObject(result);
+    } catch (e) {
+        console.error("Skeleton Fill Parse Error", e, responseText);
+        throw new Error("Failed to auto-fill the skeleton CV. Please try again.");
     }
 };
 

@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { PLANS } from '../services/subscriptionService';
 
@@ -24,7 +25,11 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
              const isFree = plan.id === 'free';
              const isCurrent = userPlanId ? userPlanId === plan.id : isFree;
              const isPopular = plan.id === 'tier_2'; // Growth
+             
+             // Feature Checks
              const hasReferenceUpload = ['tier_2', 'tier_3', 'tier_4'].includes(plan.id);
+             const hasSkeletonMode = plan.hasSkeletonMode;
+             const hasAutoFill = plan.hasAutoFill;
 
              return (
                <div key={plan.id} className={`relative rounded-2xl p-6 flex flex-col transition-all duration-300 ${isPopular ? 'border-2 border-indigo-500 shadow-xl scale-105 z-10 bg-white' : 'border border-slate-200 shadow-sm hover:shadow-lg bg-slate-50'}`}>
@@ -51,20 +56,22 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
                        <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                        <span>{isFree ? 'Ad-supported' : 'No Ads'}</span>
                     </li>
-                    <li className="flex items-center gap-2 text-sm text-slate-700">
-                       <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                       <span>{isFree ? 'Standard PDF' : 'Priority Processing'}</span>
-                    </li>
                     {!isFree && (
                         <li className="flex items-center gap-2 text-sm text-slate-700 font-medium">
                            <svg className="w-5 h-5 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                           <span>AI Smart Editor (Unlimited Tweaks)</span>
+                           <span>AI Smart Editor (Unlimited)</span>
                         </li>
                     )}
-                    {hasReferenceUpload && (
-                        <li className="flex items-center gap-2 text-sm text-slate-700 font-medium">
-                           <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                           <span>Reference Uploads (Style Match)</span>
+                    {hasSkeletonMode && (
+                        <li className="flex items-center gap-2 text-sm text-purple-700 font-bold bg-purple-50 p-1 rounded-md -ml-1">
+                           <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                           <span>Skeleton Mode (Blueprint)</span>
+                        </li>
+                    )}
+                    {hasAutoFill && (
+                        <li className="flex items-center gap-2 text-sm text-amber-700 font-bold bg-amber-50 p-1 rounded-md -ml-1">
+                           <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                           <span>Auto-Fill Skeleton (AI Merge)</span>
                         </li>
                     )}
                      {!isFree && (
@@ -91,18 +98,6 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
                </div>
              );
            })}
-        </div>
-        
-        <div className="mt-16 bg-slate-50 rounded-2xl p-8 text-center border border-slate-200 shadow-inner">
-            <h4 className="text-lg font-bold text-slate-800 mb-3">Why are these "One-Time" payments?</h4>
-            <p className="text-slate-600 max-w-3xl mx-auto leading-relaxed text-sm md:text-base">
-                We believe you should only pay when you need us. Most people only need to update their CV intensely for a few weeks while job hunting. 
-                Our plans give you <strong>30 days of power access</strong>, then automatically revert to the free tier. 
-                <br className="hidden md:block" />
-                <span className="inline-block mt-4 bg-green-100 text-green-800 px-4 py-2 rounded-full font-bold text-xs md:text-sm uppercase tracking-wide border border-green-200">
-                   Meaning you have all the flexibility in the world.
-                </span>
-            </p>
         </div>
       </div>
     </section>

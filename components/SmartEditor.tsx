@@ -5,10 +5,13 @@
 
 
 
+
+
 import React, { useState, useRef } from 'react';
 import { Button } from './Button';
 import { CVData, CVReference } from '../types';
-import { extractTextFromFile } from '../services/geminiService';
+import { extractTextFromFile, fillSkeletonCV } from '../services/geminiService';
+import { GEMINI_KEY_1 } from '../constants';
 
 interface SmartEditorProps {
   cvData: CVData | null;
@@ -45,14 +48,20 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
   isProcessing,
   userPlanId
 }) => {
-  const [activeTab, setActiveTab] = useState<'ai' | 'manual'>('ai');
+  const [activeTab, setActiveTab] = useState<'ai' | 'manual' | 'fill'>('ai');
   const [instruction, setInstruction] = useState('');
   
-  // Reference File State
+  // Reference File State (Smart Edit)
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachedFileName, setAttachedFileName] = useState<string | null>(null);
   const [extractedFileText, setExtractedFileText] = useState<string | null>(null);
   const [isReadingFile, setIsReadingFile] = useState(false);
+
+  // Auto-Fill State
+  const autoFillFileRef = useRef<HTMLInputElement>(null);
+  const [autoFillFileName, setAutoFillFileName] = useState<string | null>(null);
+  const [autoFillText, setAutoFillText] = useState<string | null>(null);
+  const [isFillingSkeleton, setIsFillingSkeleton] = useState(false);
 
   // Manual Form States
   const [formData, setFormData] = useState<CVData | null>(cvData);
@@ -61,8 +70,25 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
   // References local string state for textarea
   const [referencesText, setReferencesText] = useState('');
 
-  // Restrict Reference Uploads to Growth/Pro plans
+  // Feature Flags
   const isReferenceUploadAllowed = userPlanId ? ['tier_2', 'tier_3', 'tier_4'].includes(userPlanId) : false;
+  const isAutoFillAllowed = userPlanId ? ['tier_3', 'tier_4'].includes(userPlanId) : false;
+
+  // Detect if current CV is a Skeleton (has placeholders or generic name)
+  const isSkeleton = React.useMemo(() => {
+      if (!cvData) return false;
+      const jsonStr = JSON.stringify(cvData);
+      return jsonStr.includes("[Placeholder]") || jsonStr.includes("[Date]") || cvData.name.includes("[Your Full Name]");
+  }, [cvData]);
+
+  // Default to 'fill' tab if it's a skeleton
+  React.useEffect(() => {
+      if (isSkeleton && viewMode === 'cv') {
+          setActiveTab('fill');
+      } else {
+          setActiveTab('ai');
+      }
+  }, [isSkeleton, viewMode]);
 
   // Update form data when props change
   React.useEffect(() => {
@@ -85,7 +111,7 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
       if (!file) return;
 
       if (!isReferenceUploadAllowed) {
-          if(confirm("Reference Uploads (e.g. copying another CV's style or adding Certifications from PDF) is available on the Growth Plan and up. Upgrade to unlock?")) {
+          if(confirm("Reference Uploads available on Growth Plan and up. Upgrade to unlock?")) {
               onUnlock();
           }
           if (fileInputRef.current) fileInputRef.current.value = '';
@@ -107,7 +133,36 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
                   setAttachedFileName(file.name);
               } catch (err) {
                   console.error("Extraction error", err);
-                  alert("Failed to read file. Please try a standard PDF or DOCX.");
+                  alert("Failed to read file.");
+              } finally {
+                  setIsReadingFile(false);
+              }
+          };
+          reader.readAsDataURL(file);
+      } catch (e) {
+          setIsReadingFile(false);
+      }
+  };
+
+  const handleAutoFillFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setIsReadingFile(true);
+      try {
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+              const base64 = (reader.result as string).split(',')[1];
+              try {
+                  const text = await extractTextFromFile({
+                      base64,
+                      mimeType: file.type || 'text/plain',
+                      name: file.name
+                  });
+                  setAutoFillText(text);
+                  setAutoFillFileName(file.name);
+              } catch (err) {
+                  alert("Failed to read CV file.");
               } finally {
                   setIsReadingFile(false);
               }
@@ -143,6 +198,27 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
     onSmartEdit(finalInstruction);
     setInstruction('');
     removeAttachment();
+  };
+
+  const handleSkeletonFill = async () => {
+      if (!cvData || !autoFillText) return;
+      
+      if (!isAutoFillAllowed) {
+          onUnlock(); // Trigger Pro Upgrade
+          return;
+      }
+
+      setIsFillingSkeleton(true);
+      try {
+          const filledData = await fillSkeletonCV(cvData, autoFillText, GEMINI_KEY_1);
+          onManualUpdate(filledData); // Uses same update path as manual
+          alert("Skeleton filled successfully! Review the changes.");
+      } catch (e: any) {
+          console.error(e);
+          alert("Failed to fill skeleton: " + e.message);
+      } finally {
+          setIsFillingSkeleton(false);
+      }
   };
 
   const handleManualChange = (field: keyof CVData, value: string) => {
@@ -202,16 +278,25 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
                 onClick={() => setActiveTab('manual')}
                 className={`flex-1 text-xs font-bold py-1.5 rounded-md transition-all ${activeTab === 'manual' ? 'bg-white text-indigo-900 shadow' : 'text-slate-400 hover:text-white'}`}
              >
-                Manual Edit
+                Manual
              </button>
+             {viewMode === 'cv' && (
+                 <button 
+                    onClick={() => setActiveTab('fill')}
+                    className={`flex-1 text-xs font-bold py-1.5 rounded-md transition-all flex items-center justify-center gap-1 ${activeTab === 'fill' ? 'bg-white text-purple-900 shadow' : 'text-purple-300 hover:text-white'}`}
+                 >
+                    {isSkeleton && <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>}
+                    Auto-Fill
+                 </button>
+             )}
           </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 relative">
          
-         {/* Lock Overlay */}
-         {isLocked && (
+         {/* Lock Overlay (General) */}
+         {isLocked && activeTab !== 'fill' && (
             <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
                  <div className="bg-indigo-100 p-3 rounded-full text-indigo-600 mb-3 shadow-md">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -226,7 +311,7 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
             </div>
          )}
 
-         {activeTab === 'ai' ? (
+         {activeTab === 'ai' && (
              <div className="space-y-4">
                  <p className="text-sm text-slate-600 leading-relaxed">
                      {viewMode === 'cv' 
@@ -322,7 +407,9 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
                      </Button>
                  </form>
              </div>
-         ) : (
+         )}
+
+         {activeTab === 'manual' && (
              <div className="space-y-4">
                  <p className="text-sm text-slate-600">Manual edits update your CV text directly without AI generation.</p>
                  
@@ -364,6 +451,71 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
                  <Button onClick={handleManualSave} className="w-full bg-slate-800 hover:bg-slate-900">
                     Save Manual Edits
                  </Button>
+             </div>
+         )}
+
+         {/* SKELETON FILL TAB */}
+         {activeTab === 'fill' && (
+             <div className="space-y-6">
+                 {/* Lock Overlay for Auto-Fill */}
+                 {!isAutoFillAllowed && (
+                    <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 rounded-xl">
+                         <div className="bg-amber-100 p-3 rounded-full text-amber-600 mb-3 shadow-md">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                         </div>
+                         <h4 className="font-bold text-slate-900">Unlock Auto-Fill</h4>
+                         <p className="text-xs text-slate-600 mb-4 mt-1 max-w-[200px]">
+                             Merge your real CV data into this Skeleton automatically. Available on the <strong>Pro Plan</strong>.
+                         </p>
+                         <Button onClick={onUnlock} className="w-full text-xs py-2 bg-indigo-600 shadow-lg shadow-indigo-200">
+                             Upgrade to Pro
+                         </Button>
+                    </div>
+                 )}
+
+                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                     <h4 className="font-bold text-purple-900 text-sm mb-2">Skeleton Mode Detected</h4>
+                     <p className="text-xs text-purple-800 leading-relaxed">
+                         This CV is a structural blueprint. Use this tool to replace the [Placeholders] with facts from your real CV.
+                     </p>
+                 </div>
+
+                 <div className="space-y-3">
+                     <p className="text-sm font-bold text-slate-700">1. Upload Your Real CV</p>
+                     <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => autoFillFileRef.current?.click()}>
+                         <input 
+                            type="file" 
+                            className="hidden" 
+                            ref={autoFillFileRef}
+                            accept=".pdf,.docx"
+                            onChange={handleAutoFillFileSelect}
+                         />
+                         {autoFillFileName ? (
+                             <div className="text-green-600 font-bold text-sm flex items-center justify-center gap-2">
+                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                 {autoFillFileName}
+                             </div>
+                         ) : (
+                             <div className="text-slate-500 text-xs">
+                                 Click to upload PDF/DOCX
+                             </div>
+                         )}
+                     </div>
+                 </div>
+
+                 <div className="pt-4 border-t border-slate-100">
+                     <Button 
+                        onClick={handleSkeletonFill} 
+                        disabled={!autoFillText || isFillingSkeleton || isReadingFile}
+                        isLoading={isFillingSkeleton}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 shadow-lg"
+                     >
+                        Auto-Fill Placeholders
+                     </Button>
+                     <p className="text-[10px] text-slate-400 text-center mt-2">
+                         The AI will preserve the Skeleton structure and inject your metrics.
+                     </p>
+                 </div>
              </div>
          )}
       </div>

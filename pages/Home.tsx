@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
@@ -82,48 +83,68 @@ export const Home: React.FC = () => {
         </div>
       </div>
 
-      {/* NEW SECTION: Educational Content (For AdSense Approval) */}
-      <div className="bg-white py-16 border-t border-slate-100">
-         <div className="max-w-4xl mx-auto px-6">
-             <div className="prose prose-slate max-w-none text-center mb-12">
-                 <h2 className="text-3xl font-bold text-slate-900">Understanding Applicant Tracking Systems (ATS)</h2>
-                 <p className="text-slate-600 text-lg">
-                    Did you know that 75% of CVs are never seen by a human recruiter? Understanding how the technology works is the first step to getting hired.
-                 </p>
-             </div>
-
-             <div className="grid md:grid-cols-2 gap-12 text-left">
-                 <div>
-                     <h3 className="text-xl font-bold text-slate-800 mb-3">What is an ATS?</h3>
-                     <p className="text-slate-600 leading-relaxed mb-4">
-                        An Applicant Tracking System (ATS) is software used by recruiters and employers to collect, sort, scan, and rank the job applications they receive for their open positions. 
-                        It acts as a gatekeeper, filtering out candidates who don't meet specific criteria before a human ever reviews the application.
-                     </p>
-                     <p className="text-slate-600 leading-relaxed">
-                        Common ATS examples include Taleo, Workday, and Greenhouse. These systems parse your resume into digital profiles and assign you a match score based on keyword frequency and relevance.
-                     </p>
-                 </div>
-                 <div>
-                     <h3 className="text-xl font-bold text-slate-800 mb-3">Why Keywords Matter</h3>
-                     <p className="text-slate-600 leading-relaxed mb-4">
-                        If a job description asks for "Project Management" and your CV says "Managed projects", the ATS might not rank you as highly as a candidate who used the exact phrase. 
-                        Contextual matching is improving, but exact matches still drive higher scores.
-                     </p>
-                     <ul className="list-disc pl-5 space-y-2 text-slate-600">
-                         <li><strong>Hard Skills:</strong> e.g., Python, SQL, Financial Analysis.</li>
-                         <li><strong>Soft Skills:</strong> e.g., Leadership, Communication.</li>
-                         <li><strong>Certifications:</strong> e.g., PMP, CPA.</li>
-                     </ul>
-                 </div>
-             </div>
-             
-             <div className="mt-12 bg-slate-50 p-6 rounded-xl border border-slate-200">
-                 <h3 className="text-xl font-bold text-slate-800 mb-2 text-center">How CV Tailor Pro Helps</h3>
-                 <p className="text-slate-600 text-center max-w-2xl mx-auto">
-                    Manually rewriting your CV for every job is exhausting. Our AI engine identifies these critical keywords in seconds and naturally weaves them into your existing experience, ensuring you pass the ATS filter while keeping your CV readable and professional for the human recruiter.
-                 </p>
-             </div>
-         </div>
+      {/* NEW SKELETON MODE MARKETING SECTION */}
+      <div className="bg-indigo-900 py-16 text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-700 rounded-full mix-blend-screen filter blur-3xl opacity-30 animate-blob"></div>
+          <div className="absolute -bottom-10 left-0 w-64 h-64 bg-purple-700 rounded-full mix-blend-screen filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
+          
+          <div className="max-w-7xl mx-auto px-6 relative z-10">
+              <div className="grid md:grid-cols-2 gap-12 items-center">
+                  <div>
+                      <span className="bg-purple-500/20 border border-purple-400/30 text-purple-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-4 inline-block">New Feature</span>
+                      <h2 className="text-3xl font-extrabold mb-4">Reverse Engineer the Perfect Job</h2>
+                      <p className="text-lg text-indigo-200 mb-6 leading-relaxed">
+                          Don't guess what they want. Use <strong>Skeleton Mode</strong> to generate the "Perfect Candidate" CV profile based on the job description.
+                      </p>
+                      <ul className="space-y-4 mb-8">
+                          <li className="flex items-start gap-3">
+                              <svg className="w-6 h-6 text-green-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                              <div>
+                                  <strong className="text-white block">See the Structure</strong>
+                                  <span className="text-indigo-300 text-sm">Get the exact bullet points, keywords, and phrasing the recruiter is looking for.</span>
+                              </div>
+                          </li>
+                          <li className="flex items-start gap-3">
+                              <svg className="w-6 h-6 text-green-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                              <div>
+                                  <strong className="text-white block">Fill in the Blanks</strong>
+                                  <span className="text-indigo-300 text-sm">The CV generates with [Placeholders]. Simply fill them with your truth to match the perfect structure.</span>
+                              </div>
+                          </li>
+                          <li className="flex items-start gap-3">
+                              <svg className="w-6 h-6 text-green-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                              <div>
+                                  <strong className="text-white block">Auto-Fill with AI (Pro)</strong>
+                                  <span className="text-indigo-300 text-sm">Pro users can upload their existing CV and let AI automatically merge their facts into the Skeleton.</span>
+                              </div>
+                          </li>
+                      </ul>
+                      <Link to="/pricing" className="inline-block bg-white text-indigo-900 font-bold px-8 py-3 rounded-xl hover:bg-indigo-50 transition-colors shadow-lg">
+                          Unlock Skeleton Mode
+                      </Link>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm relative">
+                      <div className="absolute -top-4 -right-4 bg-purple-500 text-white font-bold px-4 py-2 rounded-lg shadow-lg transform rotate-6">
+                          Blueprint
+                      </div>
+                      <div className="space-y-4 opacity-80">
+                          <div className="h-4 bg-white/20 rounded w-3/4"></div>
+                          <div className="h-4 bg-white/20 rounded w-1/2 mb-6"></div>
+                          
+                          <div className="space-y-2">
+                              <div className="flex gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-green-400 mt-1.5"></div>
+                                  <p className="text-sm text-indigo-100">Led a team of <span className="bg-purple-500/40 px-1 rounded text-white font-mono">[Team Size]</span> developers to migrate legacy code...</p>
+                              </div>
+                              <div className="flex gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-green-400 mt-1.5"></div>
+                                  <p className="text-sm text-indigo-100">Managed budget of <span className="bg-purple-500/40 px-1 rounded text-white font-mono">[Amount]</span> achieving ROAS of <span className="bg-purple-500/40 px-1 rounded text-white font-mono">[Metric]</span>...</p>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
       </div>
 
       {/* Feature Section */}
@@ -185,36 +206,7 @@ export const Home: React.FC = () => {
         userPlanId={user?.plan_id || 'free'}
       />
 
-      {/* FAQ Section */}
-      <div className="bg-white py-24 sm:py-32 border-t border-slate-200">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl mb-12 text-center">Frequently Asked Questions</h2>
-            <div className="grid md:grid-cols-2 gap-12">
-                <div>
-                    <h3 className="font-bold text-lg text-slate-900 mb-2">Is CV Tailor Pro free?</h3>
-                    <p className="text-slate-600 leading-relaxed mb-6">
-                        Yes! We offer a completely free tier that allows you to generate tailored CVs supported by ads.
-                    </p>
-                    <h3 className="font-bold text-lg text-slate-900 mb-2">How does the AI optimize my CV?</h3>
-                    <p className="text-slate-600 leading-relaxed mb-6">
-                        Our AI compares your existing resume against the job description. It identifies missing keywords, restructures your bullet points to emphasize relevant experience, and formats the document for maximum readability.
-                    </p>
-                </div>
-                <div>
-                    <h3 className="font-bold text-lg text-slate-900 mb-2">Is my data safe?</h3>
-                    <p className="text-slate-600 leading-relaxed mb-6">
-                        Absolutely. We process your documents securely and do not sell your personal data.
-                    </p>
-                    <h3 className="font-bold text-lg text-slate-900 mb-2">Does it work for any industry?</h3>
-                    <p className="text-slate-600 leading-relaxed mb-6">
-                        Yes. Whether you are in Tech, Finance, Healthcare, or Retail, the principles of keyword matching apply universally.
-                    </p>
-                </div>
-            </div>
-        </div>
-      </div>
-
-      {/* Internal Ad / Bottom CTA */}
+      {/* Bottom CTA */}
       <div className="bg-slate-50 border-t border-slate-200">
         {!isPaidUser && <AdBanner variant="internal" />}
         <div className="px-6 py-12 sm:px-6 sm:py-24 lg:px-8">

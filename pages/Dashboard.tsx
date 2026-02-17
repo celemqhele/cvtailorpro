@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useOutletContext, useNavigate, useLocation, Link } from 'react-router-dom';
@@ -13,6 +15,7 @@ import { LimitReachedModal } from '../components/LimitReachedModal';
 import { ProPlusFeatureCard } from '../components/ProPlusFeatureCard';
 import { AdDecisionModal } from '../components/AdDecisionModal';
 import { FeatureLockedModal } from '../components/FeatureLockedModal';
+import { SkeletonPromoModal } from '../components/SkeletonPromoModal';
 
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile, generateSkeletonCV } from '../services/geminiService';
 import { authService } from '../services/authService';
@@ -63,6 +66,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [showAdDecisionModal, setShowAdDecisionModal] = useState(false);
+  const [showSkeletonPromo, setShowSkeletonPromo] = useState(false);
   
   // Confirmation Modal State
   const [showRemoveCvModal, setShowRemoveCvModal] = useState(false);
@@ -124,6 +128,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
         setUseSavedCv(true); // Default to using saved CV if available
     }
   }, [user]);
+
+  // Occasional Skeleton Promo Popup logic
+  useEffect(() => {
+      // 30% chance to show if not paid or if on lower tier
+      const shouldCheck = !isPaidUser || userPlan.id === 'tier_1';
+      if (shouldCheck && Math.random() < 0.3) {
+          const lastSeen = localStorage.getItem('skeleton_promo_seen');
+          const now = Date.now();
+          if (!lastSeen || (now - parseInt(lastSeen) > 24 * 60 * 60 * 1000)) {
+              setTimeout(() => {
+                  setShowSkeletonPromo(true);
+                  localStorage.setItem('skeleton_promo_seen', now.toString());
+              }, 3000);
+          }
+      }
+  }, [isPaidUser, userPlan]);
 
   // Restore State from Session Storage on Mount
   useEffect(() => {
@@ -198,6 +218,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       } else {
           setCvInputMode('skeleton');
       }
+  };
+
+  const handleSkeletonPromoTry = () => {
+      setShowSkeletonPromo(false);
+      handleSkeletonClick();
   };
 
   const handleLimitUpgrade = (withDiscount: boolean) => {
@@ -855,6 +880,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                 onUpgrade={() => { setShowSkeletonLockModal(false); triggerPayment('tier_2'); }} // Trigger Growth Plan
                 title="Unlock Skeleton Mode"
                 description="Skeleton Mode generates a perfect CV structure for your target job with placeholders for you to fill in. Upgrade to the Growth Plan (R39.99) or higher to access this feature."
+            />
+
+            <SkeletonPromoModal 
+                isOpen={showSkeletonPromo}
+                onClose={() => setShowSkeletonPromo(false)}
+                onTryIt={handleSkeletonPromoTry}
             />
 
             {showRemoveCvModal && (
