@@ -1,10 +1,11 @@
 
 import React, { useEffect } from 'react';
-import { Link, useLocation, Navigate } from 'react-router-dom';
+import { Link, useLocation, Navigate, useOutletContext } from 'react-router-dom';
 import { PLANS } from '../services/subscriptionService';
 
 export const ThankYou: React.FC = () => {
   const location = useLocation();
+  const { user } = useOutletContext<any>();
   const { planId, isUpgrade } = location.state || {};
 
   // Prevent direct access to this page without a purchase state
@@ -16,6 +17,9 @@ export const ThankYou: React.FC = () => {
   const planName = plan ? plan.name : 'Pro Plan';
 
   useEffect(() => {
+    // Admin Exclusion Logic
+    if (user?.email === 'mqhele03@gmail.com') return;
+
     // Fire Google Analytics Purchase Event
     if (window.gtag && plan) {
       window.gtag('event', 'purchase', {
@@ -33,7 +37,7 @@ export const ThankYou: React.FC = () => {
       });
       console.log('GA4 Purchase Event Fired');
     }
-  }, [plan]);
+  }, [plan, user]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 animate-fade-in relative overflow-hidden">

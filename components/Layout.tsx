@@ -75,14 +75,22 @@ export const Layout: React.FC = () => {
 
   // Google Analytics Page View Tracking
   useEffect(() => {
+    // 1. Reset UI State (Always run this)
+    window.scrollTo(0, 0);
+    setIsMenuOpen(false);
+
+    // 2. Admin Exclusion for Analytics
+    if (user?.email === 'mqhele03@gmail.com') {
+      return;
+    }
+
+    // 3. Fire Tracking
     if (window.gtag) {
       window.gtag('config', 'G-216SJPZ17Y', {
         page_path: location.pathname + location.search
       });
     }
-    window.scrollTo(0, 0);
-    setIsMenuOpen(false);
-  }, [location]);
+  }, [location, user?.email]); // Re-run if location or user email changes
 
   useEffect(() => {
     fetchStats(user?.id);
