@@ -69,16 +69,20 @@ export const JobDetails: React.FC = () => {
         jobService.getJobById(id)
             .then(data => {
                 setJob(data);
-                if (data?.example_cv_content) {
-                    try {
-                        setExampleCV(JSON.parse(data.example_cv_content));
-                    } catch (e) {
-                        console.warn("Failed to parse example CV, using fallback");
+                
+                // Safety check: ensure data exists before accessing properties
+                if (data) {
+                    if (data.example_cv_content) {
+                        try {
+                            setExampleCV(JSON.parse(data.example_cv_content));
+                        } catch (e) {
+                            console.warn("Failed to parse example CV, using fallback");
+                            setExampleCV(getFallbackCV(data.title, data.company));
+                        }
+                    } else {
+                        // Use fallback so the preview always shows
                         setExampleCV(getFallbackCV(data.title, data.company));
                     }
-                } else {
-                    // Use fallback so the preview always shows
-                    setExampleCV(getFallbackCV(data.title, data.company));
                 }
             })
             .catch(console.error)
