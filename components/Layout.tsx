@@ -13,6 +13,7 @@ import { CookieConsent } from './CookieConsent';
 import { isPreviewOrAdmin } from '../utils/envHelper';
 import { ChatWidget } from './ChatWidget';
 import { CreditCountdown } from './CreditCountdown';
+import { ToastNotification, ToastType } from './ToastNotification';
 
 // Extend window for Google Analytics
 declare global {
@@ -33,6 +34,13 @@ export const Layout: React.FC = () => {
   const [isPaidUser, setIsPaidUser] = useState(false);
   const [isMaxPlan, setIsMaxPlan] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false); // Mobile menu state
+
+  // Toast State
+  const [toast, setToast] = useState<{ msg: string; type: ToastType; visible: boolean }>({
+    msg: '',
+    type: 'info',
+    visible: false
+  });
 
   // Modals controlled by Layout
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -181,6 +189,10 @@ export const Layout: React.FC = () => {
     setShowPaymentModal(true);
   };
 
+  const showToast = (msg: string, type: ToastType = 'info') => {
+    setToast({ msg, type, visible: true });
+  };
+
   const handleSignOut = async () => {
       await authService.signOut();
       setUser(null);
@@ -197,7 +209,8 @@ export const Layout: React.FC = () => {
     isMaxPlan,
     checkUserSession,
     triggerAuth,
-    triggerPayment
+    triggerPayment,
+    showToast
   };
 
   const isActive = (path: string) => location.pathname === path ? 'text-indigo-600 font-bold' : 'text-slate-600 hover:text-indigo-600';
@@ -375,7 +388,13 @@ export const Layout: React.FC = () => {
            </div>
        </footer>
 
-       {/* Global Modals */}
+       {/* Global Modals & Toasts */}
+       <ToastNotification 
+          message={toast.msg} 
+          type={toast.type} 
+          isVisible={toast.visible} 
+          onClose={() => setToast(prev => ({ ...prev, visible: false }))} 
+       />
        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={() => checkUserSession()} />
        <PaymentModal 
             isOpen={showPaymentModal} 

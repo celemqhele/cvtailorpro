@@ -18,7 +18,7 @@ export const GeneratedCV: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, triggerAuth, triggerPayment, isPaidUser } = useOutletContext<any>();
+  const { user, triggerAuth, triggerPayment, isPaidUser, showToast } = useOutletContext<any>();
   
   const [application, setApplication] = useState<SavedApplication | null>(null);
   const [cvData, setCvData] = useState<CVData | null>(null);
@@ -98,9 +98,9 @@ export const GeneratedCV: React.FC = () => {
           const success = await authService.claimApplication(id);
           if (success) {
               loadApplication(id);
-              alert("Application successfully saved to your profile!");
+              showToast("Application successfully saved to your profile!", 'success');
           } else {
-              alert("Failed to save application.");
+              showToast("Failed to save application.", 'error');
           }
       } catch (e) {
           console.error(e);
@@ -133,7 +133,7 @@ export const GeneratedCV: React.FC = () => {
           setTimeout(() => setShowEditSuccess(false), 3000);
       } catch (e) {
           console.error("Smart Edit failed", e);
-          alert("Failed to apply edits. Please try again.");
+          showToast("Failed to apply edits. Please try again.", 'error');
       } finally {
           setIsSmartEditing(false);
       }
@@ -224,14 +224,14 @@ export const GeneratedCV: React.FC = () => {
               saveAs(blob, fileName);
           } else if (format === 'pdf') {
               // Only alert if PDF failed, since DOCX is handled by local library
-              alert("PDF Generation service is currently unavailable. Please try again later.");
+              showToast("PDF Generation service is currently unavailable. Please try again later.", 'error');
           } else {
-              alert("Failed to generate file.");
+              showToast("Failed to generate file.", 'error');
           }
 
       } catch (e) {
           console.error("Download error:", e);
-          alert("An error occurred during download.");
+          showToast("An error occurred during download.", 'error');
       } finally {
           setProcessingType(null);
       }
@@ -519,6 +519,7 @@ export const GeneratedCV: React.FC = () => {
                  onUnlock={() => setShowLockedModal(true)}
                  isProcessing={isSmartEditing}
                  userPlanId={user?.plan_id}
+                 showToast={showToast}
                />
            </div>
        </div>

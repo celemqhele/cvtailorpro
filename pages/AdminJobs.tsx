@@ -14,7 +14,7 @@ import { supabase } from '../services/supabaseClient';
 
 export const AdminJobs: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useOutletContext<any>();
+  const { user, showToast } = useOutletContext<any>();
   const [isChecking, setIsChecking] = useState(true);
   const [activeTab, setActiveTab] = useState<'jobs' | 'articles'>('jobs');
 
@@ -124,12 +124,12 @@ export const AdminJobs: React.FC = () => {
       setLastCreatedJob(newJob);
       setJobTitle(''); setJobCompany(''); setJobLocation(''); setJobLink(''); setJobRawDesc('');
       loadJobs();
-    } catch (e: any) { alert(`Error: ${e.message}`); } finally { setIsLoading(false); }
+    } catch (e: any) { showToast(`Error: ${e.message}`, 'error'); } finally { setIsLoading(false); }
   };
 
   const handleJobDelete = async (id: string) => {
     if (!confirm('Delete job?')) return;
-    try { await jobService.deleteJob(id); loadJobs(); } catch (e: any) { alert(`Error: ${e.message}`); }
+    try { await jobService.deleteJob(id); loadJobs(); } catch (e: any) { showToast(`Error: ${e.message}`, 'error'); }
   };
 
   // --- Article Handlers ---
@@ -141,7 +141,7 @@ export const AdminJobs: React.FC = () => {
           const result = await generateArticle(topic, GEMINI_KEY_1);
           setGeneratedArticle(result);
       } catch (e: any) {
-          alert(`Generation failed: ${e.message}`);
+          showToast(`Generation failed: ${e.message}`, 'error');
       } finally {
           setIsLoading(false);
       }
@@ -157,20 +157,20 @@ export const AdminJobs: React.FC = () => {
           setTopic('');
           loadArticles();
       } catch (e: any) {
-          alert(`Publish failed: ${e.message}`);
+          showToast(`Publish failed: ${e.message}`, 'error');
       } finally {
           setIsLoading(false);
       }
   };
 
   const handleArticleDelete = async (id: string) => {
-      if (id.length < 5) { alert("Cannot delete static/legacy articles."); return; } // Simple check for legacy IDs (usually '1', 'v1')
+      if (id.length < 5) { showToast("Cannot delete static/legacy articles.", 'info'); return; } // Simple check for legacy IDs (usually '1', 'v1')
       if (!confirm('Delete article?')) return;
-      try { await contentService.deleteArticle(id); loadArticles(); } catch (e: any) { alert(`Error: ${e.message}`); }
+      try { await contentService.deleteArticle(id); loadArticles(); } catch (e: any) { showToast(`Error: ${e.message}`, 'error'); }
   };
 
   const performGlobalReset = async () => {
-      try { await resetAllDailyCredits(); setShowConfirmModal(false); setShowSuccessModal(true); } catch (e: any) { alert(`Failed: ${e.message}`); }
+      try { await resetAllDailyCredits(); setShowConfirmModal(false); setShowSuccessModal(true); } catch (e: any) { showToast(`Failed: ${e.message}`, 'error'); }
   };
 
   if (isChecking) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>;

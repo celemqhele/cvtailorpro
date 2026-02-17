@@ -7,7 +7,7 @@ import { AdBanner } from '../components/AdBanner';
 import { isPreviewOrAdmin } from '../utils/envHelper';
 
 export const FindJobs: React.FC = () => {
-  const { isPaidUser, user } = useOutletContext<any>();
+  const { isPaidUser, user, showToast } = useOutletContext<any>();
   const [jobs, setJobs] = useState<JobListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -35,7 +35,7 @@ export const FindJobs: React.FC = () => {
         await jobService.deleteJob(id);
         setJobs(prev => prev.filter(j => j.id !== id));
     } catch(e: any) {
-        alert(`Failed to delete job: ${e.message}`);
+        showToast(`Failed to delete job: ${e.message}`, 'error');
     }
   };
 

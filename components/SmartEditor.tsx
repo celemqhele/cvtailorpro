@@ -1,17 +1,10 @@
 
-
-
-
-
-
-
-
-
 import React, { useState, useRef } from 'react';
 import { Button } from './Button';
 import { CVData, CVReference } from '../types';
 import { extractTextFromFile, fillSkeletonCV } from '../services/geminiService';
 import { GEMINI_KEY_1 } from '../constants';
+import { ToastType } from './ToastNotification';
 
 interface SmartEditorProps {
   cvData: CVData | null;
@@ -24,6 +17,7 @@ interface SmartEditorProps {
   onUnlock: () => void;
   isProcessing: boolean;
   userPlanId?: string;
+  showToast?: (msg: string, type: ToastType) => void;
 }
 
 const CL_PRESETS = [
@@ -46,7 +40,8 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
   isLocked, 
   onUnlock,
   isProcessing,
-  userPlanId
+  userPlanId,
+  showToast
 }) => {
   const [activeTab, setActiveTab] = useState<'ai' | 'manual' | 'fill'>('ai');
   const [instruction, setInstruction] = useState('');
@@ -62,6 +57,7 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
   const [autoFillFileName, setAutoFillFileName] = useState<string | null>(null);
   const [autoFillText, setAutoFillText] = useState<string | null>(null);
   const [isFillingSkeleton, setIsFillingSkeleton] = useState(false);
+  const [showAutoFillSuccess, setShowAutoFillSuccess] = useState(false);
 
   // Manual Form States
   const [formData, setFormData] = useState<CVData | null>(cvData);
@@ -133,7 +129,7 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
                   setAttachedFileName(file.name);
               } catch (err) {
                   console.error("Extraction error", err);
-                  alert("Failed to read file.");
+                  if (showToast) showToast("Failed to read file.", 'error');
               } finally {
                   setIsReadingFile(false);
               }
@@ -162,7 +158,7 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
                   setAutoFillText(text);
                   setAutoFillFileName(file.name);
               } catch (err) {
-                  alert("Failed to read CV file.");
+                  if (showToast) showToast("Failed to read CV file.", 'error');
               } finally {
                   setIsReadingFile(false);
               }
@@ -212,10 +208,10 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
       try {
           const filledData = await fillSkeletonCV(cvData, autoFillText, GEMINI_KEY_1);
           onManualUpdate(filledData); // Uses same update path as manual
-          alert("Skeleton filled successfully! Review the changes.");
+          setShowAutoFillSuccess(true);
       } catch (e: any) {
           console.error(e);
-          alert("Failed to fill skeleton: " + e.message);
+          if (showToast) showToast("Failed to fill skeleton: " + e.message, 'error');
       } finally {
           setIsFillingSkeleton(false);
       }
@@ -519,6 +515,27 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
              </div>
          )}
       </div>
+
+      {/* Auto-Fill Success Modal */}
+      {showAutoFillSuccess && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center relative border border-slate-200">
+                <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">Skeleton Filled!</h3>
+                <p className="text-slate-600 text-sm mb-6 leading-relaxed">
+                    Your CV facts have been successfully merged into the optimal structure. Please review the document for accuracy.
+                </p>
+                <button 
+                    onClick={() => setShowAutoFillSuccess(false)}
+                    className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                >
+                    Review Changes
+                </button>
+            </div>
+        </div>
+      )}
     </div>
   );
 };

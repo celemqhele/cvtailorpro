@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useOutletContext, useNavigate, useLocation, Link } from 'react-router-dom';
@@ -41,7 +39,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       triggerAuth, 
       triggerPayment,
       checkUserSession,
-      dailyCvCount
+      dailyCvCount,
+      showToast // Get Toast function
   } = useOutletContext<any>();
 
   const navigate = useNavigate();
@@ -339,7 +338,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           reader.readAsDataURL(file);
       } catch (err) {
           console.error("Failed to read additional file", err);
-          alert("Could not read file. Please try copying text manually.");
+          showToast("Could not read file. Please try copying text manually.", 'error');
       } finally {
           setIsProcessingFile(false);
       }
@@ -349,7 +348,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       if (!validateInputs()) return;
       if (cvInputMode === 'skeleton') {
           // Analysis not needed for Skeleton Mode, go straight to generate suggestion
-          alert("For Skeleton Mode, proceed directly to Generation (Step 2).");
+          showToast("For Skeleton Mode, proceed directly to Generation (Step 2).", 'info');
           return;
       }
 
