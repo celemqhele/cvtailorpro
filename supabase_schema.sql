@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS job_listings (
   summary text,
   description text,
   original_link text,
+  example_cv_content text, -- Fictional CV JSON for preview
   created_at timestamptz DEFAULT now()
 );
 

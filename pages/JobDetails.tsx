@@ -3,9 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { jobService } from '../services/jobService';
-import { JobListing } from '../types';
+import { JobListing, CVData } from '../types';
 import { AdBanner } from '../components/AdBanner';
 import { Button } from '../components/Button';
+import CVTemplate from '../components/CVTemplate';
 
 export const JobDetails: React.FC = () => {
   const { id } = useParams();
@@ -14,11 +15,21 @@ export const JobDetails: React.FC = () => {
   const [job, setJob] = useState<JobListing | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showApplyModal, setShowApplyModal] = useState(false);
+  const [exampleCV, setExampleCV] = useState<CVData | null>(null);
 
   useEffect(() => {
     if (id) {
         jobService.getJobById(id)
-            .then(setJob)
+            .then(data => {
+                setJob(data);
+                if (data?.example_cv_content) {
+                    try {
+                        setExampleCV(JSON.parse(data.example_cv_content));
+                    } catch (e) {
+                        console.error("Failed to parse example CV");
+                    }
+                }
+            })
             .catch(console.error)
             .finally(() => setIsLoading(false));
     }
@@ -94,38 +105,65 @@ export const JobDetails: React.FC = () => {
             </div>
         </div>
 
-        {/* Apply Modal - Moved outside the main container to avoid transform stacking context issues */}
+        {/* Apply Modal */}
         {showApplyModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
-                <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 text-center relative">
-                    <button onClick={() => setShowApplyModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-fade-in">
+                <div className={`bg-white rounded-3xl shadow-2xl w-full p-8 relative flex flex-col md:flex-row gap-8 overflow-hidden max-h-[90vh] ${exampleCV ? 'max-w-5xl' : 'max-w-lg'}`}>
+                    
+                    <button onClick={() => setShowApplyModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 z-10 bg-white rounded-full p-1 shadow-sm">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
 
-                    <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    {/* Left Column: CTA */}
+                    <div className="flex-1 flex flex-col justify-center">
+                        <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-6">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                        </div>
+
+                        <h2 className="text-2xl font-bold text-slate-900 mb-3">Boost Your Application?</h2>
+                        <p className="text-slate-600 mb-8 leading-relaxed">
+                            {exampleCV 
+                                ? "Look at the preview on the right. This is the kind of tailored, ATS-optimized CV we can generate for you in seconds based on this exact job description."
+                                : "We can rewrite your CV to match this exact job description using AI. It increases your chances of passing the ATS check."
+                            }
+                        </p>
+
+                        <div className="space-y-4">
+                            <button 
+                                onClick={handleApplyTailor}
+                                className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                                Tailor my CV for Free
+                            </button>
+                            
+                            <button 
+                                onClick={handleApplyDirect}
+                                className="w-full py-3 bg-white text-slate-500 font-medium rounded-xl border border-slate-200 hover:bg-slate-50 hover:text-slate-800 transition-colors text-sm"
+                            >
+                                No thanks, use my current CV
+                            </button>
+                        </div>
                     </div>
 
-                    <h2 className="text-2xl font-bold text-slate-900 mb-2">Boost Your Application?</h2>
-                    <p className="text-slate-600 mb-8">
-                        We can rewrite your CV to match this exact job description using AI. It increases your chances of passing the ATS check.
-                    </p>
+                    {/* Right Column: Example CV Preview */}
+                    {exampleCV && (
+                        <div className="hidden md:block flex-1 bg-slate-100 rounded-2xl border border-slate-200 overflow-hidden relative group">
+                            <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-t from-slate-100 via-transparent to-transparent opacity-50"></div>
+                            
+                            {/* "Sample" Overlay */}
+                            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-20 uppercase tracking-widest">
+                                Example Result
+                            </div>
 
-                    <div className="space-y-4">
-                        <button 
-                            onClick={handleApplyTailor}
-                            className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg transition-transform hover:scale-105"
-                        >
-                            Tailor my CV for Free
-                        </button>
-                        
-                        <button 
-                            onClick={handleApplyDirect}
-                            className="w-full py-3 bg-white text-slate-500 font-medium rounded-xl border border-slate-200 hover:bg-slate-50 hover:text-slate-800 transition-colors"
-                        >
-                            No thanks, use my current CV
-                        </button>
-                    </div>
+                            <div className="w-full h-full overflow-hidden flex justify-center items-start pt-8 bg-slate-200/50">
+                                {/* Scaled CV Preview Container */}
+                                <div className="transform scale-[0.45] origin-top shadow-2xl rounded-sm">
+                                    <CVTemplate data={exampleCV} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         )}

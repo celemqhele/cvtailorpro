@@ -1,9 +1,8 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { jobService } from '../services/jobService';
 import { contentService } from '../services/contentService';
-import { rewriteJobDescription, generateArticle } from '../services/geminiService';
+import { rewriteJobDescription, generateArticle, generateFictionalCV } from '../services/geminiService';
 import { resetAllDailyCredits } from '../services/usageService';
 import { JobListing } from '../types';
 import { ContentItem } from '../data/blogData';
@@ -101,14 +100,25 @@ export const AdminJobs: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
+      // 1. Rewrite Description
       const aiResult = await rewriteJobDescription(jobTitle, jobRawDesc, GEMINI_KEY_1);
+      
+      // 2. Generate Example CV JSON (New)
+      let exampleCvJson = null;
+      try {
+          exampleCvJson = await generateFictionalCV(aiResult.description, aiResult.title, GEMINI_KEY_1);
+      } catch (genErr) {
+          console.warn("Failed to generate example CV, continuing without it.", genErr);
+      }
+
       const newJob = await jobService.createJob({
         title: aiResult.title, // Use AI standardized title
         company: jobCompany,
         location: jobLocation,
         original_link: jobLink,
         description: aiResult.description,
-        summary: aiResult.summary
+        summary: aiResult.summary,
+        example_cv_content: exampleCvJson || undefined
       });
       setLastCreatedJob(newJob);
       setJobTitle(''); setJobCompany(''); setJobLocation(''); setJobLink(''); setJobRawDesc('');
@@ -206,7 +216,7 @@ export const AdminJobs: React.FC = () => {
                         </div>
                         <input className="w-full border p-2 rounded" type="url" placeholder="Apply Link" value={jobLink} onChange={e => setJobLink(e.target.value)} required />
                         <textarea className="w-full border p-2 rounded h-40" placeholder="Raw Job Description" value={jobRawDesc} onChange={e => setJobRawDesc(e.target.value)} required />
-                        <Button type="submit" isLoading={isLoading} className="w-full">Rewrite & Post</Button>
+                        <Button type="submit" isLoading={isLoading} className="w-full">Rewrite, Create Persona & Post</Button>
                     </form>
                 </div>
                 <div className="space-y-8">
@@ -215,7 +225,11 @@ export const AdminJobs: React.FC = () => {
                         <div className="space-y-4 max-h-[400px] overflow-y-auto">
                             {jobs.map(job => (
                                 <div key={job.id} className="bg-white p-4 rounded-lg shadow-sm border flex justify-between items-start">
-                                    <div><h3 className="font-bold">{job.title}</h3><p className="text-sm text-slate-500">{job.company}</p></div>
+                                    <div>
+                                        <h3 className="font-bold">{job.title}</h3>
+                                        <p className="text-sm text-slate-500">{job.company}</p>
+                                        {job.example_cv_content && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">Has Example CV</span>}
+                                    </div>
                                     <button onClick={() => handleJobDelete(job.id)} className="text-red-500 font-bold text-sm">Delete</button>
                                 </div>
                             ))}

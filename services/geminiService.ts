@@ -539,6 +539,67 @@ export const rewriteJobDescription = async (
     return naturalizeObject(result);
 };
 
+export const generateFictionalCV = async (
+    jobDescription: string,
+    jobTitle: string,
+    apiKey: string
+): Promise<string> => {
+    const systemPrompt = `
+    ROLE: You are an expert Resume Writer demonstrating a "Perfect Match" CV.
+    GOAL: Create a FICTIONAL, high-quality CV for a candidate who is a 100% perfect match for the provided job description.
+    
+    INSTRUCTIONS:
+    1. Create a fictional persona (Name, realistic location, placeholder email).
+    2. Write a summary that perfectly hits the keywords in the JD.
+    3. Fabricate 2-3 past roles that directly demonstrate the required experience. Use strong action verbs and metrics (e.g. "Increased revenue by 20%").
+    4. List skills that match the JD requirements.
+    
+    OUTPUT FORMAT:
+    Return ONLY valid JSON matching this schema:
+    {
+        "name": "Jane Doe",
+        "title": "Professional Title",
+        "location": "City, Country",
+        "phone": "+27 12 345 6789",
+        "email": "jane.doe@example.com",
+        "linkedin": "linkedin.com/in/janedoe-example",
+        "summary": "...",
+        "skills": [
+            {"category": "Technical", "items": "Java, Python, SQL"}
+        ],
+        "experience": [
+            {
+                "title": "Previous Job Title",
+                "company": "Tech Corp (Fictional)",
+                "dates": "Jan 2020 – Present",
+                "achievements": ["Led team of 5...", "Reduced latency by 15%..."]
+            }
+        ],
+        "keyAchievements": ["Awarded Top Performer 2022"],
+        "education": [
+            {"degree": "BSc Computer Science", "institution": "University of Cape Town", "year": "2019"}
+        ],
+        "references": []
+    }
+    `;
+
+    const userMessage = `
+    JOB TITLE: ${jobTitle}
+    JOB DESCRIPTION:
+    ${jobDescription.substring(0, 10000)}
+    `;
+
+    const responseText = await runAIChain(systemPrompt, userMessage, 0.7, apiKey);
+    
+    // Ensure it's just the JSON part if there's extra text
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
+    
+    // Validate it parses
+    JSON.parse(jsonStr); 
+    return naturalizeText(jsonStr);
+};
+
 export const chatWithSupport = async (messageHistory: {role: 'user'|'assistant', content: string}[], userMessage: string): Promise<string> => {
     // Construct the messages array for the API
     const messages = [

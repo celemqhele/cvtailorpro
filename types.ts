@@ -151,5 +151,6 @@ export interface JobListing {
   summary: string;
   description: string; // The AI rewritten 3rd person description
   original_link: string;
+  example_cv_content?: string; // Stringified JSON of a fictional tailored CV
   created_at: string;
 }
