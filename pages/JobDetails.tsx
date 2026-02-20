@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { jobService } from '../services/jobService';
+import { authService } from '../services/authService';
 import * as usageService from '../services/usageService';
 import * as geminiService from '../services/geminiService';
 import { JobListing, CVData, FileData } from '../types';
@@ -16,7 +17,7 @@ import { LimitReachedModal } from '../components/LimitReachedModal';
 export const JobDetails: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isPaidUser, user } = useOutletContext<any>();
+  const { isPaidUser, user, setDailyCvCount, dailyLimit } = useOutletContext<any>();
   const [job, setJob] = useState<JobListing | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showApplyModal, setShowApplyModal] = useState(false);
@@ -29,17 +30,103 @@ export const JobDetails: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [skeletonData, setSkeletonData] = useState<CVData | null>(null);
   const [toast, setToast] = useState<{message: string, type: ToastType} | null>(null);
+  const [limitType, setLimitType] = useState<'quick' | 'daily'>('quick');
 
-  // ... (getFallbackCV and useEffect remain unchanged)
+  // Helper to generate a placeholder tailored CV if the DB doesn't have one
+  const getFallbackCV = (jobTitle: string, company: string): CVData => ({
+    name: "Candidate Name",
+    title: jobTitle, // Dynamic Title
+    location: "Johannesburg, South Africa",
+    phone: "+27 82 123 4567",
+    email: "candidate@email.com",
+    linkedin: "linkedin.com/in/candidate",
+    summary: `Highly motivated ${jobTitle} with a proven track record of delivering results in fast-paced environments. Expert in aligning technical solutions with business goals. Eager to leverage experience in project lifecycle management to drive success at ${company}.`,
+    skills: [
+        { category: "Core Skills", items: "Project Management, Strategic Planning, Data Analysis, Agile Methodologies" },
+        { category: "Technical", items: "Microsoft Office 365, JIRA, CRM Software, Cloud Basics" }
+    ],
+    experience: [
+        {
+            title: `Senior ${jobTitle}`,
+            company: "Global Tech Solutions",
+            dates: "2021 - Present",
+            achievements: [
+                "Led a cross-functional team of 15 members to deliver critical projects 20% under budget.",
+                "Optimized operational workflows, reducing process downtime by 15% year-over-year.",
+                "Spearheaded the integration of new software tools, improving team collaboration scores by 30%."
+            ]
+        },
+        {
+            title: `Junior ${jobTitle}`,
+            company: "Innovate Corp",
+            dates: "2018 - 2021",
+            achievements: [
+                "Assisted in the successful rollout of 3 major product features, impacting 10k+ users.",
+                "Conducted market research that informed key strategic pivots for Q3 2019."
+            ]
+        }
+    ],
+    keyAchievements: [
+        "Employee of the Year 2022",
+        "Certified Professional (CP) Accreditation"
+    ],
+    education: [
+        {
+            degree: "Bachelor of Commerce",
+            institution: "University of Cape Town",
+            year: "2017"
+        }
+    ]
+  });
+
+  useEffect(() => {
+    if (id) {
+        setIsLoading(true);
+        jobService.getJobById(id)
+            .then(data => {
+                if (data) {
+                    setJob(data);
+                    
+                    // Handle Example CV
+                    if (data.example_cv_content) {
+                        try {
+                            setExampleCV(JSON.parse(data.example_cv_content));
+                        } catch (e) {
+                            console.warn("Failed to parse example CV, using fallback");
+                            setExampleCV(getFallbackCV(data.title, data.company));
+                        }
+                    } else {
+                        setExampleCV(getFallbackCV(data.title, data.company));
+                    }
+                } else {
+                    setJob(null);
+                }
+            })
+            .catch(err => {
+                console.error("Error fetching job:", err);
+                setJob(null);
+            })
+            .finally(() => setIsLoading(false));
+    }
+  }, [id]);
 
   const handleApplyTailor = async () => {
     if (!job) return;
     
-    // Check Limit (Pass user plan if available)
+    // 1. Check Quick Apply Limit (Once per day)
     const userPlanId = user?.plan_id;
-    const allowed = await usageService.checkQuickApplyLimit(userPlanId);
+    const allowedQuickApply = await usageService.checkQuickApplyLimit(userPlanId);
     
-    if (!allowed) {
+    if (!allowedQuickApply) {
+        setLimitType('quick');
+        setShowLimitModal(true);
+        return;
+    }
+
+    // 2. Check Daily CV Credit Limit (e.g. 5 per day)
+    const allowedDaily = await usageService.checkUsageLimit(user?.id, dailyLimit);
+    if (!allowedDaily) {
+        setLimitType('daily');
         setShowLimitModal(true);
         return;
     }
@@ -51,20 +138,33 @@ export const JobDetails: React.FC = () => {
 
   const handleSkeletonGenerate = async () => {
     if (!job) return;
+
+    // Compatibility: If older jobs have no description, use summary as fallback
+    const jobSpec = job.description || job.summary || "No description provided.";
+
     setIsGenerating(true);
     try {
         // 1. Generate Skeleton
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "demo-key"; 
         
-        const response = await geminiService.generateSkeletonCV(job.description, apiKey);
+        const response = await geminiService.generateSkeletonCV(jobSpec, apiKey);
         
         if (response.cvData) {
             setSkeletonData(response.cvData);
             
-            // 2. Increment Usage (Only if not unlimited)
+            // 2. Increment Usage (Both Quick Apply and Daily Credits)
             const userPlanId = user?.plan_id;
-            if (userPlanId !== 'tier_3' && userPlanId !== 'tier_4') {
-                await usageService.incrementQuickApply();
+            const isAdmin = user?.email === 'mqhele03@gmail.com';
+
+            if (!isAdmin) {
+                // Deduct Daily CV Credit
+                await usageService.incrementUsage(user?.id);
+                if (setDailyCvCount) setDailyCvCount((prev: number) => prev + 1);
+
+                // Deduct Quick Apply (Once per day) Credit if not unlimited
+                if (userPlanId !== 'tier_3' && userPlanId !== 'tier_4') {
+                    await usageService.incrementQuickApply();
+                }
             }
             
             // 3. Show Preview
@@ -90,11 +190,26 @@ export const JobDetails: React.FC = () => {
         // 2. Fill the skeleton
         const finalCV = await geminiService.fillSkeletonCV(skeletonData, userCvText, apiKey);
         
-        // 3. Navigate to result
-        navigate(`/cv-generated/${user ? 'user' : 'guest'}-${Date.now()}`, { 
+        // 3. Save to DB
+        const savedApp = await authService.saveApplication(
+            job.title,
+            job.company,
+            JSON.stringify(finalCV),
+            "", // No cover letter for skeleton mode yet
+            100, // Match score 100 as it's tailored
+            job.original_link
+        );
+
+        if (!savedApp) throw new Error("Failed to save application");
+
+        // 4. Navigate to result
+        navigate(`/cv-generated/${savedApp.id}`, { 
             state: { 
                 cvData: finalCV,
                 jobId: job.id,
+                jobTitle: job.title,
+                companyName: job.company,
+                originalLink: job.original_link,
                 isGuest: !user
             } 
         });
@@ -315,9 +430,12 @@ export const JobDetails: React.FC = () => {
             onUpgrade={handleUpgrade}
             isMaxPlan={false}
             isPaidUser={isPaidUser}
-            limit={1}
-            title="Skeleton Mode Limit Reached"
-            message="You can only use the Quick Tailor (Skeleton Mode) feature once per day on your current plan. Upgrade to Pro for unlimited access."
+            limit={limitType === 'quick' ? 1 : dailyLimit}
+            title={limitType === 'quick' ? "Skeleton Mode Limit Reached" : "Daily Credit Limit Reached"}
+            message={limitType === 'quick' 
+                ? "You can only use the Quick Tailor (Skeleton Mode) feature once per day on your current plan. Upgrade to Pro for unlimited access."
+                : `You have used all your ${isPaidUser ? 'plan' : 'free'} CV generations for today (${dailyLimit}/${dailyLimit}). Upgrade to continue.`
+            }
         />
 
         {/* Toast Notification */}

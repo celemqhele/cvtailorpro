@@ -70,9 +70,32 @@ export const GeneratedCV: React.FC = () => {
   }, [location.state]);
 
   const loadApplication = async (appId: string) => {
+    // 1. Immediate Fallback: If we have data in state, use it to show content faster
+    if (location.state?.cvData) {
+        setCvData(location.state.cvData);
+        // We'll still try to load the full application from DB for editing/claiming
+    }
+
     try {
         const app = await authService.getApplicationById(appId);
         if (!app) {
+            // 2. Secondary Fallback: If DB fetch fails but we have state, synthesize an application
+            if (location.state?.cvData) {
+                const tempApp: SavedApplication = {
+                    id: appId,
+                    user_id: null,
+                    job_title: location.state.jobTitle || "Job Application",
+                    company_name: location.state.companyName || "Company",
+                    cv_content: JSON.stringify(location.state.cvData),
+                    cl_content: "",
+                    match_score: 100,
+                    created_at: new Date().toISOString(),
+                    original_link: location.state.originalLink
+                };
+                setApplication(tempApp);
+                setIsLoading(false);
+                return;
+            }
             throw new Error("Application not found");
         }
         
@@ -86,6 +109,21 @@ export const GeneratedCV: React.FC = () => {
         }
     } catch (e) {
         console.error(e);
+        // Final Fallback: If error occurred but we have state
+        if (location.state?.cvData) {
+            const tempApp: SavedApplication = {
+                id: appId,
+                user_id: null,
+                job_title: location.state.jobTitle || "Job Application",
+                company_name: location.state.companyName || "Company",
+                cv_content: JSON.stringify(location.state.cvData),
+                cl_content: "",
+                match_score: 100,
+                created_at: new Date().toISOString(),
+                original_link: location.state.originalLink
+            };
+            setApplication(tempApp);
+        }
     } finally {
         setIsLoading(false);
     }
