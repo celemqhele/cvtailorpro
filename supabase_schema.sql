@@ -308,10 +308,53 @@ $$;
 -- 8. MIGRATIONS (Run these if column missing)
 -- ==========================================
 
--- Ensure example_cv_content exists on job_listings
-DO $$
+-- ==========================================
+-- 9. QUICK APPLY USAGE (Strict IP Limit)
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS quick_apply_usage (
+  ip_address text NOT NULL,
+  last_used_at date DEFAULT CURRENT_DATE,
+  PRIMARY KEY (ip_address)
+);
+
+ALTER TABLE quick_apply_usage ENABLE ROW LEVEL SECURITY;
+
+-- No public access policies needed as we use secure functions below
+
+-- Function to check if IP is allowed (True if not used today)
+CREATE OR REPLACE FUNCTION check_quick_apply_eligibility(user_ip text)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  last_date date;
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_listings' AND column_name = 'example_cv_content') THEN
-        ALTER TABLE job_listings ADD COLUMN example_cv_content text;
-    END IF;
-END $$;
+  SELECT last_used_at INTO last_date FROM quick_apply_usage WHERE ip_address = user_ip;
+  
+  -- If no record, or last used date is before today, return true
+  IF last_date IS NULL OR last_date < CURRENT_DATE THEN
+    RETURN true;
+  ELSE
+    RETURN false;
+  END IF;
+END;
+$$;
+
+-- Function to record usage
+CREATE OR REPLACE FUNCTION record_quick_apply_usage(user_ip text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO quick_apply_usage (ip_address, last_used_at)
+  VALUES (user_ip, CURRENT_DATE)
+  ON CONFLICT (ip_address)
+  DO UPDATE SET last_used_at = CURRENT_DATE;
+END;
+$$;
+

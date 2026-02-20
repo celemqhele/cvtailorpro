@@ -123,3 +123,44 @@ export const resetAllDailyCredits = async (): Promise<void> => {
         throw new Error(error.message);
     }
 };
+
+/**
+ * Checks if the current IP is eligible for Quick Apply (Once per day).
+ * Bypasses limit if user is on Pro (tier_3) or Unlimited (tier_4) plan.
+ */
+export const checkQuickApplyLimit = async (userPlanId?: string): Promise<boolean> => {
+    // Unlimited plans bypass the check
+    if (userPlanId === 'tier_3' || userPlanId === 'tier_4') {
+        return true;
+    }
+
+    try {
+        const ip = await getIpAddress();
+        const { data, error } = await supabase.rpc('check_quick_apply_eligibility', { user_ip: ip });
+        
+        if (error) {
+            console.error("Quick Apply Check Error:", error);
+            return true; // Fail open if error, or false if strict
+        }
+        return data;
+    } catch (e) {
+        console.error("Quick Apply Check Failed:", e);
+        return true;
+    }
+};
+
+/**
+ * Records a Quick Apply usage for the current IP.
+ */
+export const incrementQuickApply = async (): Promise<void> => {
+    try {
+        const ip = await getIpAddress();
+        const { error } = await supabase.rpc('record_quick_apply_usage', { user_ip: ip });
+        
+        if (error) {
+            console.error("Failed to record Quick Apply usage:", error);
+        }
+    } catch (e) {
+        console.error("Failed to increment Quick Apply:", e);
+    }
+};
