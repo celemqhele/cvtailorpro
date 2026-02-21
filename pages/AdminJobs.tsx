@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { jobService } from '../services/jobService';
 import { contentService } from '../services/contentService';
-import { rewriteJobDescription, generateArticle, generateFictionalCV } from '../services/geminiService';
+import { rewriteJobDescription, generateArticle, generateFictionalCV, extractLinkedInDataWithSerp, generateJobSpecFromCandidateProfile } from '../services/geminiService';
 import { resetAllDailyCredits } from '../services/usageService';
 import { JobListing } from '../types';
 import { ContentItem } from '../data/blogData';
@@ -16,7 +16,7 @@ export const AdminJobs: React.FC = () => {
   const navigate = useNavigate();
   const { user, showToast } = useOutletContext<any>();
   const [isChecking, setIsChecking] = useState(true);
-  const [activeTab, setActiveTab] = useState<'jobs' | 'articles'>('jobs');
+  const [activeTab, setActiveTab] = useState<'jobs' | 'articles' | 'linkedin'>('jobs');
 
   // Robust Admin Check on Mount
   useEffect(() => {
@@ -63,6 +63,10 @@ export const AdminJobs: React.FC = () => {
   const [topic, setTopic] = useState('');
   const [generatedArticle, setGeneratedArticle] = useState<any>(null); // Draft state
   const [lastPublishedSlug, setLastPublishedSlug] = useState<string | null>(null);
+
+  // --- LinkedIn to Job Spec State ---
+  const [adminLinkedinUrl, setAdminLinkedinUrl] = useState('');
+  const [generatedJobSpec, setGeneratedJobSpec] = useState<string | null>(null);
 
   // Shared State
   const [isLoading, setIsLoading] = useState(false);
@@ -169,6 +173,30 @@ export const AdminJobs: React.FC = () => {
       try { await contentService.deleteArticle(id); loadArticles(); } catch (e: any) { showToast(`Error: ${e.message}`, 'error'); }
   };
 
+  // --- LinkedIn Handlers ---
+  const handleGenerateJobSpec = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!adminLinkedinUrl.includes('linkedin.com')) {
+          showToast("Please enter a valid LinkedIn URL", 'error');
+          return;
+      }
+      setIsLoading(true);
+      setGeneratedJobSpec(null);
+      try {
+          // 1. Extract data via Serp
+          const profileData = await extractLinkedInDataWithSerp(adminLinkedinUrl);
+          
+          // 2. Generate Job Spec via AI
+          const spec = await generateJobSpecFromCandidateProfile(profileData, GEMINI_KEY_1);
+          setGeneratedJobSpec(spec);
+          showToast("Job Spec generated successfully!", 'success');
+      } catch (e: any) {
+          showToast(`Failed: ${e.message}`, 'error');
+      } finally {
+          setIsLoading(false);
+      }
+  };
+
   const performGlobalReset = async () => {
       try { await resetAllDailyCredits(); setShowConfirmModal(false); setShowSuccessModal(true); } catch (e: any) { showToast(`Failed: ${e.message}`, 'error'); }
   };
@@ -189,6 +217,7 @@ export const AdminJobs: React.FC = () => {
             <div className="flex bg-slate-200 p-1 rounded-lg">
                 <button onClick={() => setActiveTab('jobs')} className={`px-4 py-2 rounded-md font-bold text-sm transition-all ${activeTab === 'jobs' ? 'bg-white text-indigo-700 shadow' : 'text-slate-500'}`}>Jobs</button>
                 <button onClick={() => setActiveTab('articles')} className={`px-4 py-2 rounded-md font-bold text-sm transition-all ${activeTab === 'articles' ? 'bg-white text-indigo-700 shadow' : 'text-slate-500'}`}>Articles (AI)</button>
+                <button onClick={() => setActiveTab('linkedin')} className={`px-4 py-2 rounded-md font-bold text-sm transition-all ${activeTab === 'linkedin' ? 'bg-white text-indigo-700 shadow' : 'text-slate-500'}`}>LinkedIn Scraper</button>
             </div>
         </div>
 
@@ -322,6 +351,67 @@ export const AdminJobs: React.FC = () => {
                             </div>
                         ))}
                     </div>
+                </div>
+            </div>
+        )}
+
+        {/* ================= LINKEDIN TAB ================= */}
+        {activeTab === 'linkedin' && (
+            <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="bg-indigo-100 p-3 rounded-xl text-indigo-600">
+                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-900">LinkedIn to Job Spec</h2>
+                            <p className="text-slate-500 text-sm">Generate a perfect-match job description from a candidate's profile.</p>
+                        </div>
+                    </div>
+
+                    <form onSubmit={handleGenerateJobSpec} className="space-y-6">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Candidate LinkedIn URL</label>
+                            <div className="flex gap-3">
+                                <input 
+                                    className="flex-1 border-2 border-slate-100 focus:border-indigo-500 p-4 rounded-xl outline-none transition-all" 
+                                    placeholder="https://www.linkedin.com/in/username" 
+                                    value={adminLinkedinUrl} 
+                                    onChange={e => setAdminLinkedinUrl(e.target.value)} 
+                                    required 
+                                />
+                                <Button type="submit" isLoading={isLoading} className="px-8 bg-indigo-600 hover:bg-indigo-700">
+                                    Generate Spec
+                                </Button>
+                            </div>
+                        </div>
+                    </form>
+
+                    {generatedJobSpec && (
+                        <div className="mt-10 space-y-4 animate-fade-in">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-bold text-slate-800">Generated Job Specification Template</h3>
+                                <button 
+                                    onClick={() => copyToClipboard(generatedJobSpec)}
+                                    className="flex items-center gap-2 text-indigo-600 font-bold text-sm hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                                    Copy Template
+                                </button>
+                            </div>
+                            <textarea 
+                                readOnly
+                                className="w-full border-2 border-slate-100 p-6 rounded-2xl h-[500px] text-sm font-mono bg-slate-50 focus:ring-0 outline-none"
+                                value={generatedJobSpec}
+                            />
+                            <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl flex gap-3">
+                                <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <p className="text-xs text-amber-800 leading-relaxed">
+                                    <strong>Pro Tip:</strong> Use this generated spec as the "Raw Job Description" in the <strong>Jobs</strong> tab to create a tailored job post and fictional example CV for this client.
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         )}

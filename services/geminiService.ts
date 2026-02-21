@@ -5,6 +5,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT, SKELETON_FILLER_PROMPT } from "../constants";
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, CVData } from "../types";
 import { naturalizeObject, naturalizeText } from "../utils/textHelpers";
+import { SERP_API_KEY } from "../constants";
 
 const OCR_SPACE_KEY = "K88916317488957";
 
@@ -760,4 +761,72 @@ export const generateArticle = async (topic: string, apiKey: string): Promise<an
     const responseText = await runAIChain(systemPrompt, userMessage, 0.7, apiKey);
     const result = JSON.parse(responseText);
     return naturalizeObject(result);
+};
+
+/**
+ * NEW ADMIN FEATURE: Extracts data from a LinkedIn profile using SerpApi (Google Search)
+ * and then generates a "Perfect Match" Job Spec template.
+ */
+export const extractLinkedInDataWithSerp = async (linkedinUrl: string): Promise<string> => {
+    try {
+        console.log("Searching LinkedIn profile via SerpApi...");
+        // Search for the exact URL to get the snippet
+        const query = encodeURIComponent(`site:linkedin.com/in/ "${linkedinUrl}"`);
+        const serpUrl = `https://serpapi.com/search.json?engine=google&q=${query}&api_key=${SERP_API_KEY}`;
+        
+        const response = await fetch(serpUrl);
+        const data = await response.json();
+        
+        if (data.organic_results && data.organic_results.length > 0) {
+            const result = data.organic_results[0];
+            return `Title: ${result.title}\nSnippet: ${result.snippet}\nLink: ${result.link}`;
+        }
+        
+        // Fallback: Just search the URL directly
+        const fallbackQuery = encodeURIComponent(linkedinUrl);
+        const fallbackSerpUrl = `https://serpapi.com/search.json?engine=google&q=${fallbackQuery}&api_key=${SERP_API_KEY}`;
+        const fallbackResponse = await fetch(fallbackSerpUrl);
+        const fallbackData = await fallbackResponse.json();
+        
+        if (fallbackData.organic_results && fallbackData.organic_results.length > 0) {
+            const result = fallbackData.organic_results[0];
+            return `Title: ${result.title}\nSnippet: ${result.snippet}\nLink: ${result.link}`;
+        }
+
+        throw new Error("No search results found for this LinkedIn profile.");
+    } catch (e: any) {
+        console.error("SerpApi LinkedIn extraction failed:", e);
+        throw new Error(`LinkedIn Extraction Failed: ${e.message}`);
+    }
+};
+
+export const generateJobSpecFromCandidateProfile = async (candidateData: string, apiKey: string): Promise<string> => {
+    const systemPrompt = `
+    You are an Expert Technical Recruiter and Job Architect.
+    Your task is to analyze the provided Candidate Profile (extracted from LinkedIn) and generate a "Perfect Match" Job Specification.
+    
+    GOAL: Create a job description that this specific candidate would be the absolute #1 choice for. 
+    The job spec should be challenging but perfectly aligned with their skills, experience level, and industry.
+    
+    STRUCTURE:
+    1. Job Title (Standardized)
+    2. Company Overview (Fictional but realistic for their industry)
+    3. The Role (High-level summary)
+    4. Key Responsibilities (Tailored to their past achievements)
+    5. Required Skills & Qualifications (Directly matching their top skills)
+    6. Why Join Us (Attractive benefits for someone at their level)
+    
+    TONE: Professional, exciting, and high-end.
+    FORMAT: Markdown.
+    `;
+
+    const userMessage = `
+    CANDIDATE PROFILE DATA:
+    ${candidateData}
+    
+    Generate the Perfect Match Job Spec now.
+    `;
+
+    const responseText = await runAIChain(systemPrompt, userMessage, 0.7, apiKey);
+    return naturalizeText(responseText);
 };
