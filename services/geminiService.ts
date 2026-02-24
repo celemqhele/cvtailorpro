@@ -2,10 +2,9 @@
 
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
-import { SYSTEM_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT, SKELETON_FILLER_PROMPT } from "../constants";
+import { TIER_1_PROMPT, TIER_2_PROMPT, TIER_3_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT, SKELETON_FILLER_PROMPT } from "../constants";
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, CVData } from "../types";
 import { naturalizeObject, naturalizeText } from "../utils/textHelpers";
-import { SERP_API_KEY } from "../constants";
 
 const OCR_SPACE_KEY = "K88916317488957";
 
@@ -201,24 +200,40 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
     ];
 
     // Determine JSON mode based on prompt content
-    // We explicitly avoid triggering if the prompt is for the CL Smart Edit which forbids JSON
     const isJsonMode = systemInstruction.includes("JSON") || systemInstruction.includes("json");
+
+    const getTierPrompt = (model: string) => {
+        if (model.includes("qwen") || model.includes("zai-glm")) return TIER_1_PROMPT;
+        if (model.includes("llama")) return TIER_2_PROMPT;
+        if (model.includes("gpt-oss")) return TIER_3_PROMPT;
+        return TIER_1_PROMPT; // Default to Tier 1
+    };
 
     for (const model of models) {
         try {
             console.log(`Attempting Model: ${model}...`);
-            // Attempt to call the model. If it's invalid/unavailable, callCerebras throws an error, 
-            // which is caught here to try the next one.
-            return await callCerebras(model, systemInstruction, userMessage, temperature, isJsonMode);
+            
+            // For CV/CL generation tasks, we use the tiered prompt system
+            let finalSystemInstruction = systemInstruction;
+            if (systemInstruction.includes("CV") || systemInstruction.includes("Cover Letter")) {
+                finalSystemInstruction = getTierPrompt(model) + "\n\n" + systemInstruction;
+            }
+
+            return await callCerebras(model, finalSystemInstruction, userMessage, temperature, isJsonMode);
         } catch (e: any) {
             console.warn(`Model ${model} failed or is unavailable:`, e.message);
         }
     }
 
-    // Ultimate fallback if even the priority list fails
+    // Ultimate fallback
     try {
         console.log("All priority models failed. Attempting legacy Llama 3.1 70B...");
-        return await callCerebras("llama-3.1-70b", systemInstruction, userMessage, temperature, isJsonMode);
+        const fallbackModel = "llama-3.1-70b";
+        let finalSystemInstruction = systemInstruction;
+        if (systemInstruction.includes("CV") || systemInstruction.includes("Cover Letter")) {
+            finalSystemInstruction = getTierPrompt(fallbackModel) + "\n\n" + systemInstruction;
+        }
+        return await callCerebras(fallbackModel, finalSystemInstruction, userMessage, temperature, isJsonMode);
     } catch(e) {
         console.error("All AI services failed.");
         throw new Error("Service Unavailable: All AI models failed to respond. Please try again later.");
@@ -350,7 +365,7 @@ export const generateTailoredApplication = async (
   }
   `;
 
-  let systemContent = SYSTEM_PROMPT + "\n\n" + SCHEMA_INSTRUCTION;
+  let systemContent = SCHEMA_INSTRUCTION;
 
   if (force || targetType === 'title') {
     systemContent += `\nIMPORTANT OVERRIDE: Set "outcome" to "PROCEED". Do not reject. ${targetType === 'title' ? 'Optimize for the INDUSTRY STANDARD of the provided Job Title.' : 'Force generation despite low match.'}`;
@@ -764,40 +779,72 @@ export const generateArticle = async (topic: string, apiKey: string): Promise<an
 };
 
 /**
- * NEW ADMIN FEATURE: Extracts data from a LinkedIn profile using SerpApi (Google Search)
- * and then generates a "Perfect Match" Job Spec template.
+ * NEW ADMIN FEATURE: Extracts data from a LinkedIn profile using Jina.ai Reader in JSON mode.
  */
-export const extractLinkedInDataWithSerp = async (linkedinUrl: string): Promise<string> => {
+export const extractLinkedInDataWithJina = async (linkedinUrl: string): Promise<string> => {
+    console.log("Attempting LinkedIn scrape via Jina JSON...");
+    
+    let targetUrl = linkedinUrl;
+    if (!linkedinUrl.startsWith('http')) {
+        targetUrl = 'https://' + linkedinUrl;
+    }
+
+    // Use Jina.ai Reader with JSON header
+    const scrapeUrl = `https://r.jina.ai/${targetUrl}`;
+
     try {
-        console.log("Searching LinkedIn profile via SerpApi...");
-        // Search for the exact URL to get the snippet
-        const query = encodeURIComponent(`site:linkedin.com/in/ "${linkedinUrl}"`);
-        const serpUrl = `https://serpapi.com/search.json?engine=google&q=${query}&api_key=${SERP_API_KEY}`;
+        // Try JSON mode first
+        let response = await fetch(scrapeUrl, {
+            headers: {
+                'Accept': 'application/json',
+                'X-With-Generated-Alt': 'true'
+            }
+        });
         
-        const response = await fetch(serpUrl);
-        const data = await response.json();
-        
-        if (data.organic_results && data.organic_results.length > 0) {
-            const result = data.organic_results[0];
-            return `Title: ${result.title}\nSnippet: ${result.snippet}\nLink: ${result.link}`;
-        }
-        
-        // Fallback: Just search the URL directly
-        const fallbackQuery = encodeURIComponent(linkedinUrl);
-        const fallbackSerpUrl = `https://serpapi.com/search.json?engine=google&q=${fallbackQuery}&api_key=${SERP_API_KEY}`;
-        const fallbackResponse = await fetch(fallbackSerpUrl);
-        const fallbackData = await fallbackResponse.json();
-        
-        if (fallbackData.organic_results && fallbackData.organic_results.length > 0) {
-            const result = fallbackData.organic_results[0];
-            return `Title: ${result.title}\nSnippet: ${result.snippet}\nLink: ${result.link}`;
+        // If 401, it might mean JSON mode is restricted for this URL/site on free tier
+        // Fallback to standard text mode
+        if (response.status === 401 || response.status === 403) {
+            console.log("Jina JSON mode unauthorized, falling back to text mode...");
+            response = await fetch(scrapeUrl);
         }
 
-        throw new Error("No search results found for this LinkedIn profile.");
+        if (!response.ok) {
+            throw new Error(`Jina error status: ${response.status}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.includes('application/json')) {
+            const jsonResponse = await response.json();
+            if (jsonResponse.data && jsonResponse.data.content) {
+                const content = jsonResponse.data.content;
+                if (checkBlocking(content)) throw new Error("LinkedIn content is protected by an authwall.");
+                
+                return JSON.stringify({
+                    title: jsonResponse.data.title,
+                    description: jsonResponse.data.description,
+                    content: jsonResponse.data.content,
+                    url: jsonResponse.data.url
+                }, null, 2);
+            }
+        }
+        
+        // Fallback or direct text processing
+        const text = await response.text();
+        if (checkBlocking(text)) throw new Error("LinkedIn content is protected by an authwall.");
+        return text;
+
     } catch (e: any) {
-        console.error("SerpApi LinkedIn extraction failed:", e);
+        console.warn("Jina LinkedIn scraping failed:", e);
         throw new Error(`LinkedIn Extraction Failed: ${e.message}`);
     }
+};
+
+// Helper to check for LinkedIn authwalls or blocking
+const checkBlocking = (content: string): boolean => {
+    if (!content || content.length < 150) return true;
+    const markers = ["Access Denied", "Cloudflare", "Sign in", "authwall", "Join LinkedIn", "login"];
+    return markers.some(marker => content.includes(marker));
 };
 
 export const generateJobSpecFromCandidateProfile = async (candidateData: string, apiKey: string): Promise<string> => {

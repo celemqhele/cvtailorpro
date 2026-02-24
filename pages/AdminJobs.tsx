@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { jobService } from '../services/jobService';
 import { contentService } from '../services/contentService';
-import { rewriteJobDescription, generateArticle, generateFictionalCV, extractLinkedInDataWithSerp, generateJobSpecFromCandidateProfile } from '../services/geminiService';
+import { rewriteJobDescription, generateArticle, generateFictionalCV, extractLinkedInDataWithJina, generateJobSpecFromCandidateProfile } from '../services/geminiService';
 import { resetAllDailyCredits } from '../services/usageService';
 import { JobListing } from '../types';
 import { ContentItem } from '../data/blogData';
@@ -183,8 +183,8 @@ export const AdminJobs: React.FC = () => {
       setIsLoading(true);
       setGeneratedJobSpec(null);
       try {
-          // 1. Extract data via Serp
-          const profileData = await extractLinkedInDataWithSerp(adminLinkedinUrl);
+          // 1. Extract data via Jina
+          const profileData = await extractLinkedInDataWithJina(adminLinkedinUrl);
           
           // 2. Generate Job Spec via AI
           const spec = await generateJobSpecFromCandidateProfile(profileData, GEMINI_KEY_1);
