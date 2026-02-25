@@ -2,9 +2,11 @@
 
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
-import { TIER_1_PROMPT, TIER_2_PROMPT, TIER_3_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT, SKELETON_FILLER_PROMPT } from "../constants";
+import { TIER_1_PROMPT, TIER_2_PROMPT, TIER_3_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CEREBRAS_KEY_2, GEMINI_KEY_1, GEMINI_KEY_2, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT, SKELETON_FILLER_PROMPT } from "../constants";
+import { GoogleGenAI } from "@google/genai";
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, CVData } from "../types";
 import { naturalizeObject, naturalizeText } from "../utils/textHelpers";
+import { errorService } from "./errorService";
 
 const OCR_SPACE_KEY = "K88916317488957";
 
@@ -40,6 +42,11 @@ export const scrapeJobFromUrl = async (url: string): Promise<string> => {
 
     } catch (e: any) {
         console.warn("Jina scraping failed:", e);
+        errorService.logError({
+            message: `Jina Scrape Failed: ${e.message}`,
+            path: '/scrapeJobFromUrl',
+            metadata: { url, type: 'api_failure' }
+        });
         // Throw specific error message that the UI will recognize to switch modes
         throw new Error("We couldn't read this link automatically. Please copy and paste the job description text manually.");
     }
@@ -65,6 +72,11 @@ async function extractTextFromPdfOcrSpace(base64: string): Promise<string> {
 
     if (data.IsErroredOnProcessing) {
         const errorMsg = Array.isArray(data.ErrorMessage) ? data.ErrorMessage.join(', ') : (data.ErrorMessage || "Unknown OCR Error");
+        errorService.logError({
+            message: `OCR API Error: ${errorMsg}`,
+            path: '/extractTextFromPdfOcrSpace',
+            metadata: { type: 'api_failure' }
+        });
         throw new Error(`OCR API Error: ${errorMsg}`);
     }
 
@@ -155,13 +167,13 @@ export async function extractTextFromFile(file: FileData): Promise<string> {
 /**
  * Executes a call to AI Provider (Cerebras).
  */
-async function callCerebras(modelName: string, systemPrompt: string, userPrompt: string, temperature: number, jsonMode: boolean = false): Promise<string> {
+async function callCerebras(modelName: string, systemPrompt: string, userPrompt: string, temperature: number, apiKey: string, jsonMode: boolean = false): Promise<string> {
   try {
     const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${CEREBRAS_KEY}`
+        "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: modelName,
@@ -170,7 +182,7 @@ async function callCerebras(modelName: string, systemPrompt: string, userPrompt:
           { role: "user", content: userPrompt }
         ],
         temperature: temperature,
-        max_tokens: 8192,
+        max_tokens: 4096,
         response_format: jsonMode ? { type: "json_object" } : undefined
       })
     });
@@ -189,15 +201,42 @@ async function callCerebras(modelName: string, systemPrompt: string, userPrompt:
   }
 }
 
-async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, apiKey: string): Promise<string> {
+/**
+ * Executes a call to AI Provider (Gemini).
+ */
+async function callGemini(modelName: string, systemPrompt: string, userPrompt: string, temperature: number, apiKey: string, jsonMode: boolean = false): Promise<string> {
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: userPrompt,
+      config: {
+        systemInstruction: systemPrompt,
+        temperature: temperature,
+        responseMimeType: jsonMode ? "application/json" : "text/plain"
+      }
+    });
+
+    return response.text || "";
+  } catch (e) {
+    console.error(`Gemini call failed for ${modelName}:`, e);
+    throw e;
+  }
+}
+
+async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string): Promise<string> {
+    const keys = [CEREBRAS_KEY, CEREBRAS_KEY_2];
     const models = [
-        "zai-glm-4.7",                    // Priority 1
-        "qwen-3-235b-a22b-instruct-2507", // Priority 2
-        "gpt-oss-120b",                   // Priority 3
-        "llama-3.3-70b",                  // Priority 4 (Likely highest success rate)
-        "qwen-3-32b",                     // Priority 5
-        "llama-3.1-8b"                    // Priority 6 (Fallback speed)
+        "llama-3.3-70b",
+        "llama-3.1-70b",
+        "llama-3.1-8b",
+        "llama3.1-70b",
+        "llama3.1-8b"
     ];
+
+    // Truncate user message more aggressively to fit in 8k context windows
+    // 15k chars is roughly 4k tokens, leaving 4k for system prompt and output
+    const truncatedMessage = userMessage.length > 15000 ? userMessage.substring(0, 15000) + "... [Truncated to fit context window]" : userMessage;
 
     // Determine JSON mode based on prompt content
     const isJsonMode = systemInstruction.includes("JSON") || systemInstruction.includes("json");
@@ -209,35 +248,49 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
         return TIER_1_PROMPT; // Default to Tier 1
     };
 
-    for (const model of models) {
-        try {
-            console.log(`Attempting Model: ${model}...`);
-            
-            // For CV/CL generation tasks, we use the tiered prompt system
-            let finalSystemInstruction = systemInstruction;
-            if (systemInstruction.includes("CV") || systemInstruction.includes("Cover Letter")) {
-                finalSystemInstruction = getTierPrompt(model) + "\n\n" + systemInstruction;
+    for (const key of keys) {
+        console.log(`Attempting AI Chain with key: ${key.substring(0, 8)}...`);
+        for (const model of models) {
+            try {
+                console.log(`Attempting Model: ${model}...`);
+                
+                // For CV/CL generation tasks, we use the tiered prompt system
+                let finalSystemInstruction = systemInstruction;
+                if (systemInstruction.includes("CV") || systemInstruction.includes("Cover Letter")) {
+                    finalSystemInstruction = getTierPrompt(model) + "\n\n" + systemInstruction;
+                }
+
+                return await callCerebras(model, finalSystemInstruction, truncatedMessage, temperature, key, isJsonMode);
+            } catch (e: any) {
+                console.warn(`Model ${model} failed with key ${key.substring(0, 8)}:`, e.message);
+                errorService.logError({
+                    message: `Cerebras Model Failure: ${model}`,
+                    stack: e.stack,
+                    path: '/runAIChain',
+                    metadata: { model, error: e.message, type: 'ai_failure', key_hint: key.substring(0, 8) }
+                });
             }
-
-            return await callCerebras(model, finalSystemInstruction, userMessage, temperature, isJsonMode);
-        } catch (e: any) {
-            console.warn(`Model ${model} failed or is unavailable:`, e.message);
         }
     }
 
-    // Ultimate fallback
-    try {
-        console.log("All priority models failed. Attempting legacy Llama 3.1 70B...");
-        const fallbackModel = "llama-3.1-70b";
-        let finalSystemInstruction = systemInstruction;
-        if (systemInstruction.includes("CV") || systemInstruction.includes("Cover Letter")) {
-            finalSystemInstruction = getTierPrompt(fallbackModel) + "\n\n" + systemInstruction;
+    // Ultimate fallback: Gemini
+    const geminiKeys = [GEMINI_KEY_1, GEMINI_KEY_2];
+    const geminiModels = ["gemini-3-flash-preview", "gemini-3.1-pro-preview"];
+
+    for (const gKey of geminiKeys) {
+        if (!gKey) continue;
+        for (const gModel of geminiModels) {
+            try {
+                console.log(`Attempting Gemini Fallback: ${gModel}...`);
+                return await callGemini(gModel, systemInstruction, userMessage, temperature, gKey, isJsonMode);
+            } catch (gError: any) {
+                console.warn(`Gemini ${gModel} failed:`, gError.message);
+            }
         }
-        return await callCerebras(fallbackModel, finalSystemInstruction, userMessage, temperature, isJsonMode);
-    } catch(e) {
-        console.error("All AI services failed.");
-        throw new Error("Service Unavailable: All AI models failed to respond. Please try again later.");
     }
+
+    console.error("All AI services and keys failed.");
+    throw new Error("Service Unavailable: All AI models failed to respond. Please try again later.");
 }
 
 export const analyzeMatch = async (
@@ -711,39 +764,45 @@ export const generateFictionalCV = async (
 };
 
 export const chatWithSupport = async (messageHistory: {role: 'user'|'assistant', content: string}[], userMessage: string): Promise<string> => {
-    // Construct the messages array for the API
-    const messages = [
-        { role: "system", content: CHAT_SYSTEM_PROMPT },
-        ...messageHistory,
-        { role: "user", content: userMessage }
-    ];
+    const keys = [CEREBRAS_KEY, CEREBRAS_KEY_2];
+    const truncatedMsg = userMessage.length > 10000 ? userMessage.substring(0, 10000) + "... [Truncated]" : userMessage;
 
-    try {
-        const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${CEREBRAS_KEY}`
-            },
-            body: JSON.stringify({
-                model: "llama-3.1-8b", // Cheapest/Fastest model for chat
-                messages: messages,
-                temperature: 0.7,
-                max_tokens: 500
-            })
-        });
+    for (const key of keys) {
+        try {
+            const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${key}`
+                },
+                body: JSON.stringify({
+                    model: "llama-3.1-8b", 
+                    messages: [
+                        { role: "system", content: CHAT_SYSTEM_PROMPT },
+                        ...messageHistory,
+                        { role: "user", content: truncatedMsg }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 1024
+                })
+            });
 
-        if (!response.ok) {
-             throw new Error("Chat service unavailable");
+            if (!response.ok) {
+                const errText = await response.text();
+                console.warn(`Chat API Error with key ${key.substring(0, 8)}:`, response.status, errText);
+                continue; 
+            }
+
+            const data = await response.json();
+            const content = data.choices?.[0]?.message?.content || "I apologize, I'm having trouble thinking right now.";
+            return naturalizeText(content);
+        } catch (e) {
+            console.error(`Chat attempt failed with key ${key.substring(0, 8)}:`, e);
+            continue; 
         }
-
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content || "I apologize, I'm having trouble thinking right now.";
-        return naturalizeText(content);
-    } catch (e) {
-        console.error("Chat Error:", e);
-        return "I'm having trouble connecting to the server. Please try again later or email support.";
     }
+
+    return "I'm having trouble connecting to the server. Please try again later or email support.";
 };
 
 /**

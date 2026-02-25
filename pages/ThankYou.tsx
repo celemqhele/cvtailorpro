@@ -8,11 +8,6 @@ export const ThankYou: React.FC = () => {
   const { user } = useOutletContext<any>();
   const { planId, isUpgrade } = location.state || {};
 
-  // Prevent direct access to this page without a purchase state
-  if (!planId) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   const plan = PLANS.find(p => p.id === planId);
   const planName = plan ? plan.name : 'Pro Plan';
 
@@ -38,6 +33,11 @@ export const ThankYou: React.FC = () => {
       console.log('GA4 Purchase Event Fired');
     }
   }, [plan, user]);
+
+  // Prevent direct access to this page without a purchase state
+  if (!planId) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 animate-fade-in relative overflow-hidden">

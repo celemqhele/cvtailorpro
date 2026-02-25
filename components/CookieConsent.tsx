@@ -3,14 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 export const CookieConsent: React.FC = () => {
-  const [show, setShow] = useState(false);
-
-  useEffect(() => {
-    const consent = localStorage.getItem('cookie_consent');
-    if (!consent) {
-      setShow(true);
+  const [show, setShow] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !localStorage.getItem('cookie_consent');
     }
-  }, []);
+    return false;
+  });
 
   const acceptCookies = () => {
     localStorage.setItem('cookie_consent', 'true');

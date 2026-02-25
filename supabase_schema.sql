@@ -358,3 +358,49 @@ BEGIN
 END;
 $$;
 
+-- ==========================================
+-- 10. ANALYTICS & LOGGING
+-- ==========================================
+
+-- Error Logs
+CREATE TABLE IF NOT EXISTS error_logs (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE SET NULL,
+  message text NOT NULL,
+  stack text,
+  path text,
+  metadata jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE error_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin only view error logs" ON error_logs;
+CREATE POLICY "Admin only view error logs" ON error_logs
+  FOR SELECT USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
+DROP POLICY IF EXISTS "Allow public insert error logs" ON error_logs;
+CREATE POLICY "Allow public insert error logs" ON error_logs
+  FOR INSERT WITH CHECK (true);
+
+-- Page Views (Traffic)
+CREATE TABLE IF NOT EXISTS page_views (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE SET NULL,
+  session_id text,
+  path text NOT NULL,
+  referrer text,
+  user_agent text,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE page_views ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin only view page views" ON page_views;
+CREATE POLICY "Admin only view page views" ON page_views
+  FOR SELECT USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
+DROP POLICY IF EXISTS "Allow public insert page views" ON page_views;
+CREATE POLICY "Allow public insert page views" ON page_views
+  FOR INSERT WITH CHECK (true);
+

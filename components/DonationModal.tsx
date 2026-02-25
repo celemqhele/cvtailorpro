@@ -81,6 +81,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     finalPrice = Math.round(finalPrice * 100) / 100;
 
     // Use random Ref
+    // eslint-disable-next-line react-hooks/purity
     const ref = 'TXN-' + Math.random().toString(36).substring(2, 12).toUpperCase();
     const metadata = {
         custom_fields: [

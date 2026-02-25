@@ -14,6 +14,8 @@ import { isPreviewOrAdmin } from '../utils/envHelper';
 import { ChatWidget } from './ChatWidget';
 import { CreditCountdown } from './CreditCountdown';
 import { ToastNotification, ToastType } from './ToastNotification';
+import { analyticsService } from '../services/analyticsService';
+import { errorService } from '../services/errorService';
 
 // Extend window for Google Analytics
 declare global {
@@ -50,53 +52,6 @@ export const Layout: React.FC = () => {
 
   // Check env or specific admin user
   const showAdmin = isPreviewOrAdmin() || user?.email === 'mqhele03@gmail.com';
-
-  useEffect(() => {
-    checkUserSession();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      checkUserSession();
-      // If a user just signed in or signed up, sync their guest usage to their account
-      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
-          const createdAt = new Date(session.user.created_at).getTime();
-          const now = new Date().getTime();
-          const isNewAccount = (now - createdAt) < 15 * 60 * 1000; // 15 minute threshold
-
-          if (isNewAccount) {
-              syncIpUsageToUser(session.user.id).then(() => {
-                  fetchStats(session.user.id);
-              });
-          } else {
-              fetchStats(session.user.id);
-          }
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Google Analytics Page View Tracking
-  useEffect(() => {
-    // 1. Reset UI State (Always run this)
-    window.scrollTo(0, 0);
-    setIsMenuOpen(false);
-
-    // 2. Admin Exclusion for Analytics
-    if (user?.email === 'mqhele03@gmail.com') {
-      return;
-    }
-
-    // 3. Fire Tracking
-    if (window.gtag) {
-      window.gtag('config', 'G-216SJPZ17Y', {
-        page_path: location.pathname + location.search
-      });
-    }
-  }, [location, user?.email]); // Re-run if location or user email changes
-
-  useEffect(() => {
-    fetchStats(user?.id);
-    window.addEventListener('focus', () => fetchStats(user?.id));
-    return () => window.removeEventListener('focus', () => fetchStats(user?.id));
-  }, [user]);
 
   const fetchStats = async (userId?: string) => {
       const stats = await getUsageStats(userId);
@@ -135,6 +90,86 @@ export const Layout: React.FC = () => {
     setIsPaidUser(isPaid);
     setIsMaxPlan(maxPlan);
   };
+
+  useEffect(() => {
+    setTimeout(() => checkUserSession(), 0);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setTimeout(() => checkUserSession(), 0);
+      // If a user just signed in or signed up, sync their guest usage to their account
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+          const createdAt = new Date(session.user.created_at).getTime();
+          const now = new Date().getTime();
+          const isNewAccount = (now - createdAt) < 15 * 60 * 1000; // 15 minute threshold
+
+          if (isNewAccount) {
+              syncIpUsageToUser(session.user.id).then(() => {
+                  fetchStats(session.user.id);
+              });
+          } else {
+              fetchStats(session.user.id);
+          }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Google Analytics & Custom Analytics Page View Tracking
+  useEffect(() => {
+    // 1. Reset UI State (Always run this)
+    window.scrollTo(0, 0);
+    setTimeout(() => setIsMenuOpen(false), 0);
+
+    // 2. Admin Exclusion for Analytics
+    if (user?.email === 'mqhele03@gmail.com') {
+      return;
+    }
+
+    // 3. Fire Google Tracking
+    if (window.gtag) {
+      window.gtag('config', 'G-216SJPZ17Y', {
+        page_path: location.pathname + location.search
+      });
+    }
+
+    // 4. Fire Custom Analytics Tracking
+    analyticsService.trackPageView(location.pathname + location.search, user?.id);
+  }, [location, user?.id, user?.email]); // Re-run if location or user changes
+
+  useEffect(() => {
+    setTimeout(() => fetchStats(user?.id), 0);
+    const handleFocus = () => fetchStats(user?.id);
+    window.addEventListener('focus', handleFocus);
+
+    // Global Error Listener
+    const handleError = (event: ErrorEvent) => {
+        errorService.logError({
+            message: event.message,
+            stack: event.error?.stack,
+            path: window.location.pathname,
+            user_id: user?.id,
+            metadata: { type: 'runtime' }
+        });
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+        errorService.logError({
+            message: event.reason?.message || 'Unhandled Promise Rejection',
+            stack: event.reason?.stack,
+            path: window.location.pathname,
+            user_id: user?.id,
+            metadata: { type: 'promise' }
+        });
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+        window.removeEventListener('focus', () => fetchStats(user?.id));
+        window.removeEventListener('error', handleError);
+        window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, [user]);
 
   const handlePaymentSuccess = async (planId: string, isSubscription: boolean) => {
     if (user) {

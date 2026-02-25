@@ -17,8 +17,10 @@ export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({ isOpen, onClos
     
     if (isOpen) {
       // Reset state when opening
-      setTimeLeft(DURATION);
-      setCanDownload(false);
+      setTimeout(() => {
+        setTimeLeft(DURATION);
+        setCanDownload(false);
+      }, 0);
 
       // --- Countdown Timer ---
       timer = window.setInterval(() => {
