@@ -225,8 +225,27 @@ async function callGemini(modelName: string, systemPrompt: string, userPrompt: s
 }
 
 async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string): Promise<string> {
-    const keys = [CEREBRAS_KEY, CEREBRAS_KEY_2];
-    const models = [
+    const isJsonMode = systemInstruction.includes("JSON") || systemInstruction.includes("json");
+
+    // 1. MAIN: Gemini (Strongest to Weakest)
+    const geminiKeys = [GEMINI_KEY_1, GEMINI_KEY_2];
+    const geminiModels = ["gemini-3.1-pro-preview", "gemini-3-flash-preview"];
+
+    for (const gKey of geminiKeys) {
+        if (!gKey) continue;
+        for (const gModel of geminiModels) {
+            try {
+                console.log(`Attempting Gemini: ${gModel}...`);
+                return await callGemini(gModel, systemInstruction, userMessage, temperature, gKey, isJsonMode);
+            } catch (gError: any) {
+                console.warn(`Gemini ${gModel} failed:`, gError.message);
+            }
+        }
+    }
+
+    // 2. FALLBACK: Cerebras (Strongest to Weakest)
+    const cerebrasKeys = [CEREBRAS_KEY, CEREBRAS_KEY_2];
+    const cerebrasModels = [
         "llama-3.3-70b",
         "llama-3.1-70b",
         "llama-3.1-8b",
@@ -234,12 +253,8 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
         "llama3.1-8b"
     ];
 
-    // Truncate user message more aggressively to fit in 8k context windows
-    // 15k chars is roughly 4k tokens, leaving 4k for system prompt and output
+    // Truncate user message more aggressively for Cerebras context windows
     const truncatedMessage = userMessage.length > 15000 ? userMessage.substring(0, 15000) + "... [Truncated to fit context window]" : userMessage;
-
-    // Determine JSON mode based on prompt content
-    const isJsonMode = systemInstruction.includes("JSON") || systemInstruction.includes("json");
 
     const getTierPrompt = (model: string) => {
         if (model.includes("qwen") || model.includes("zai-glm")) return TIER_1_PROMPT;
@@ -248,13 +263,12 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
         return TIER_1_PROMPT; // Default to Tier 1
     };
 
-    for (const key of keys) {
-        console.log(`Attempting AI Chain with key: ${key.substring(0, 8)}...`);
-        for (const model of models) {
+    for (const key of cerebrasKeys) {
+        console.log(`Attempting Cerebras Fallback with key: ${key.substring(0, 8)}...`);
+        for (const model of cerebrasModels) {
             try {
                 console.log(`Attempting Model: ${model}...`);
                 
-                // For CV/CL generation tasks, we use the tiered prompt system
                 let finalSystemInstruction = systemInstruction;
                 if (systemInstruction.includes("CV") || systemInstruction.includes("Cover Letter")) {
                     finalSystemInstruction = getTierPrompt(model) + "\n\n" + systemInstruction;
@@ -269,22 +283,6 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
                     path: '/runAIChain',
                     metadata: { model, error: e.message, type: 'ai_failure', key_hint: key.substring(0, 8) }
                 });
-            }
-        }
-    }
-
-    // Ultimate fallback: Gemini
-    const geminiKeys = [GEMINI_KEY_1, GEMINI_KEY_2];
-    const geminiModels = ["gemini-3-flash-preview", "gemini-3.1-pro-preview"];
-
-    for (const gKey of geminiKeys) {
-        if (!gKey) continue;
-        for (const gModel of geminiModels) {
-            try {
-                console.log(`Attempting Gemini Fallback: ${gModel}...`);
-                return await callGemini(gModel, systemInstruction, userMessage, temperature, gKey, isJsonMode);
-            } catch (gError: any) {
-                console.warn(`Gemini ${gModel} failed:`, gError.message);
             }
         }
     }
@@ -764,10 +762,27 @@ export const generateFictionalCV = async (
 };
 
 export const chatWithSupport = async (messageHistory: {role: 'user'|'assistant', content: string}[], userMessage: string): Promise<string> => {
-    const keys = [CEREBRAS_KEY, CEREBRAS_KEY_2];
+    // 1. MAIN: Gemini (Strongest to Weakest)
+    const geminiKeys = [GEMINI_KEY_1, GEMINI_KEY_2];
+    const geminiModels = ["gemini-3.1-pro-preview", "gemini-3-flash-preview"];
+
+    for (const gKey of geminiKeys) {
+        if (!gKey) continue;
+        for (const gModel of geminiModels) {
+            try {
+                console.log(`Chat Attempting Gemini: ${gModel}...`);
+                return await callGemini(gModel, CHAT_SYSTEM_PROMPT, `Conversation History:\n${JSON.stringify(messageHistory)}\n\nUser Message: ${userMessage}`, 0.7, gKey, false);
+            } catch (gError: any) {
+                console.warn(`Chat Gemini ${gModel} failed:`, gError.message);
+            }
+        }
+    }
+
+    // 2. FALLBACK: Cerebras
+    const cerebrasKeys = [CEREBRAS_KEY, CEREBRAS_KEY_2];
     const truncatedMsg = userMessage.length > 10000 ? userMessage.substring(0, 10000) + "... [Truncated]" : userMessage;
 
-    for (const key of keys) {
+    for (const key of cerebrasKeys) {
         try {
             const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
                 method: "POST",
