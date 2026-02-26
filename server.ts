@@ -20,10 +20,10 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
 
   // Helper to wrap Vercel-style handlers for Express
-  const wrap = (handler) => async (req, res) => {
+  const wrap = (handler: any) => async (req: express.Request, res: express.Response) => {
     try {
       await handler(req, res);
-    } catch (err) {
+    } catch (err: any) {
       console.error("API Error:", err);
       res.status(500).json({ error: err.message });
     }
@@ -44,7 +44,7 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (req, res) => {
+    app.get("*", (req: express.Request, res: express.Response) => {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
   }
