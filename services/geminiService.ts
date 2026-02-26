@@ -3,7 +3,6 @@
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
 import { TIER_1_PROMPT, TIER_2_PROMPT, TIER_3_PROMPT, ANALYSIS_PROMPT, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT, SKELETON_FILLER_PROMPT } from "../constants";
-import { GoogleGenAI } from "@google/genai";
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, CVData } from "../types";
 import { naturalizeObject, naturalizeText } from "../utils/textHelpers";
 import { errorService } from "./errorService";

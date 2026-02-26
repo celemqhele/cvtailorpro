@@ -7,7 +7,6 @@ import { resetAllDailyCredits } from '../services/usageService';
 import { JobListing } from '../types';
 import { ContentItem } from '../data/blogData';
 import { Button } from '../components/Button';
-import { GEMINI_KEY_1 } from '../constants';
 import { isPreviewOrAdmin } from '../utils/envHelper';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { AdminAnalytics } from '../components/AdminAnalytics';
@@ -106,13 +105,13 @@ export const AdminJobs: React.FC = () => {
     setIsLoading(true);
     try {
       // 1. Rewrite Description
-      const aiResult = await rewriteJobDescription(jobTitle, jobRawDesc, GEMINI_KEY_1);
+      const aiResult = await rewriteJobDescription(jobTitle, jobRawDesc, "");
       
       // 2. Generate Example CV JSON (New)
       console.log("Generating fictional CV with Cerebras...");
       let exampleCvJson = null;
       try {
-          exampleCvJson = await generateFictionalCV(aiResult.description, aiResult.title, GEMINI_KEY_1);
+          exampleCvJson = await generateFictionalCV(aiResult.description, aiResult.title, "");
       } catch (genErr) {
           console.warn("Failed to generate example CV, continuing without it.", genErr);
       }
@@ -143,7 +142,7 @@ export const AdminJobs: React.FC = () => {
       setIsLoading(true);
       setGeneratedArticle(null);
       try {
-          const result = await generateArticle(topic, GEMINI_KEY_1);
+          const result = await generateArticle(topic, "");
           setGeneratedArticle(result);
       } catch (e: any) {
           showToast(`Generation failed: ${e.message}`, 'error');
@@ -188,7 +187,7 @@ export const AdminJobs: React.FC = () => {
           const profileData = await extractLinkedInDataWithJina(adminLinkedinUrl);
           
           // 2. Generate Job Spec via AI
-          const spec = await generateJobSpecFromCandidateProfile(profileData, GEMINI_KEY_1);
+          const spec = await generateJobSpecFromCandidateProfile(profileData, "");
           setGeneratedJobSpec(spec);
           showToast("Job Spec generated successfully!", 'success');
       } catch (e: any) {

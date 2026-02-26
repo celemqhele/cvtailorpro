@@ -20,7 +20,6 @@ import { authService } from '../services/authService';
 import { checkUsageLimit, incrementUsage } from '../services/usageService';
 import { getPlanDetails } from '../services/subscriptionService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis, SavedApplication, ManualCVData, ManualExperienceItem, ManualEducationItem } from '../types';
-import { GEMINI_KEY_1 } from '../constants';
 
 interface DashboardProps {
     mode: 'user' | 'guest';
@@ -102,7 +101,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   // Specific Job Application Link (from Find Jobs)
   const [directApplyLink, setDirectApplyLink] = useState<string | null>(null);
 
-  const [apiKey] = useState(GEMINI_KEY_1);
   const [status, setStatus] = useState<Status>(Status.IDLE);
   const [analysis, setAnalysis] = useState<MatchAnalysis | null>(null);
   const [result, setResult] = useState<GeneratorResponse | null>(null);
@@ -390,7 +388,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
               file, 
               cvInputMode === 'scratch' ? manualData : null,
               textToAnalyze, 
-              apiKey,
+              "",
               (useSavedCv && savedCvText) ? savedCvText : undefined
           );
           setAnalysis(analysisResult);
@@ -481,7 +479,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
     const force = typeof forceOverride === 'boolean' ? forceOverride : false;
     const currentJobSpec = isDirectTitleMode ? jobTitle : jobSpec;
-    if (!apiKey.trim()) return;
 
     setStatus(Status.GENERATING);
     setErrorMsg(null);
@@ -503,7 +500,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           cvInputMode === 'scratch' ? manualData : null,
           currentJobSpec,
           targetMode === 'title' ? 'title' : 'specific',
-          apiKey, 
+          "", 
           force,
           linkedinUrl,
           (useSavedCv && savedCvText) ? savedCvText : undefined,
@@ -572,7 +569,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       setGeneratedCvId(null);
 
       try {
-          const response = await generateSkeletonCV(textToAnalyze, apiKey);
+          const response = await generateSkeletonCV(textToAnalyze, "");
           if (response.outcome !== 'REJECT') {
               setResult(response);
               setStatus(Status.SUCCESS);

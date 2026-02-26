@@ -3,7 +3,6 @@ import React, { useState, useRef } from 'react';
 import { Button } from './Button';
 import { CVData, CVReference } from '../types';
 import { extractTextFromFile, fillSkeletonCV } from '../services/geminiService';
-import { GEMINI_KEY_1 } from '../constants';
 import { ToastType } from './ToastNotification';
 
 interface SmartEditorProps {
@@ -206,7 +205,7 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
 
       setIsFillingSkeleton(true);
       try {
-          const filledData = await fillSkeletonCV(cvData, autoFillText, GEMINI_KEY_1);
+          const filledData = await fillSkeletonCV(cvData, autoFillText, "");
           onManualUpdate(filledData); // Uses same update path as manual
           setShowAutoFillSuccess(true);
       } catch (e: any) {

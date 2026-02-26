@@ -13,7 +13,6 @@ import { SubscriptionModal } from '../components/SubscriptionModal';
 import { createWordBlob } from '../utils/docHelper';
 import { generatePdfFromApi } from '../utils/pdfHelper';
 import saveAs from 'file-saver';
-import { GEMINI_KEY_1 } from '../constants';
 
 export const GeneratedCV: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -160,7 +159,7 @@ export const GeneratedCV: React.FC = () => {
       try {
           if (viewMode === 'cv') {
              if (!cvData) return;
-             const updatedData = await smartEditCV(cvData, instruction, GEMINI_KEY_1);
+             const updatedData = await smartEditCV(cvData, instruction, "");
              setCvData(updatedData);
              const updatedCvContent = JSON.stringify(updatedData);
              setApplication(prev => prev ? ({ ...prev, cv_content: updatedCvContent }) : null);
@@ -168,7 +167,7 @@ export const GeneratedCV: React.FC = () => {
           } else {
              // Cover Letter Mode
              if (!application.cl_content) return;
-             const updatedCL = await smartEditCoverLetter(application.cl_content, instruction, GEMINI_KEY_1);
+             const updatedCL = await smartEditCoverLetter(application.cl_content, instruction, "");
              setApplication(prev => prev ? ({ ...prev, cl_content: updatedCL }) : null);
              await authService.updateApplication(application.id, application.cv_content, updatedCL);
           }
