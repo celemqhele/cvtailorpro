@@ -4,9 +4,11 @@ import { CVData } from '../types';
 
 interface CVTemplateProps {
   data: CVData;
+  isEditable?: boolean;
+  onUpdate?: (newData: CVData) => void;
 }
 
-const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
+const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpdate }) => {
   // Inline styles with absolute measurements based on MEASUREMENTS_SPEC.md
   // 96 DPI Standard: 1px = 1/96 inch
   const styles = {
@@ -24,6 +26,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
       wordWrap: 'break-word' as const, 
       overflowWrap: 'break-word' as const,
       letterSpacing: '0.3px', // Adds slight spacing to prevent words merging in PDF
+      outline: isEditable ? '2px dashed #10b981' : 'none',
     },
     header: {
       textAlign: 'center' as const,
@@ -38,18 +41,21 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
       margin: '0 0 4px 0',
       textTransform: 'uppercase' as const,
       color: '#1a1a1a',
+      outline: 'none',
     },
     title: {
       fontSize: '13px',
       fontWeight: '600',
       color: '#2c3e50',
       marginBottom: '8px',
+      outline: 'none',
     },
     contact: {
       fontSize: '10px',
       color: '#4a4a4a',
       marginTop: '8px',
       textAlign: 'center' as const,
+      outline: 'none',
     },
     separator: {
       margin: '0 8px',
@@ -67,11 +73,13 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
       margin: '0 0 12px 0',
       paddingBottom: '4px',
       borderBottom: '1.5px solid #95a5a6',
+      outline: 'none',
     },
     summaryText: {
       margin: '0',
       textAlign: 'left' as const, // Changed from justify to left to fix PDF spacing artifacts
       lineHeight: '1.5',
+      outline: 'none',
     },
     skillsGrid: {
       display: 'block',
@@ -81,7 +89,8 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
       marginBottom: '8px',
       display: 'block',
       breakInside: 'avoid' as const,
-      pageBreakInside: 'avoid' as const
+      pageBreakInside: 'avoid' as const,
+      outline: 'none',
     },
     skillCategory: {
       color: '#2c3e50',
@@ -103,6 +112,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
       margin: '0',
       color: '#1a1a1a',
       textAlign: 'left' as const,
+      outline: 'none',
     },
     jobDates: {
       fontSize: '10px',
@@ -111,6 +121,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
       whiteSpace: 'nowrap' as const,
       textAlign: 'right' as const,
       verticalAlign: 'top' as const,
+      outline: 'none',
     },
     companyName: {
       fontSize: '11px',
@@ -118,6 +129,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
       color: '#2c3e50',
       fontStyle: 'italic',
       marginTop: '2px',
+      outline: 'none',
     },
     achievementsList: {
       margin: '8px 0 0 20px',
@@ -128,49 +140,79 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
       marginBottom: '5.6px',
       lineHeight: '1.5',
       textAlign: 'left' as const,
+      outline: 'none',
     },
     educationItem: {
       marginBottom: '8px',
       lineHeight: '1.5',
       breakInside: 'avoid' as const,
-      pageBreakInside: 'avoid' as const
+      pageBreakInside: 'avoid' as const,
+      outline: 'none',
     },
+  };
+
+  const handleBlur = (field: string, value: string, index?: number, subIndex?: number) => {
+    if (!onUpdate) return;
+    const newData = { ...data };
+    
+    if (field === 'name') newData.name = value;
+    if (field === 'title') newData.title = value;
+    if (field === 'summary') newData.summary = value;
+    
+    if (field === 'skill' && index !== undefined && newData.skills) {
+        newData.skills[index].items = value;
+    }
+    
+    if (field === 'jobTitle' && index !== undefined && newData.experience) {
+        newData.experience[index].title = value;
+    }
+    if (field === 'jobCompany' && index !== undefined && newData.experience) {
+        newData.experience[index].company = value;
+    }
+    if (field === 'jobDates' && index !== undefined && newData.experience) {
+        newData.experience[index].dates = value;
+    }
+    if (field === 'jobAchievement' && index !== undefined && subIndex !== undefined && newData.experience) {
+        newData.experience[index].achievements[subIndex] = value;
+    }
+    
+    if (field === 'keyAchievement' && index !== undefined && newData.keyAchievements) {
+        newData.keyAchievements[index] = value;
+    }
+    
+    if (field === 'education' && index !== undefined && newData.education) {
+        // Simple heuristic for education string edit
+        newData.education[index].degree = value;
+    }
+
+    onUpdate(newData);
   };
 
   // Check valid LinkedIn
   const hasLinkedIn = data.linkedin && data.linkedin !== 'null' && data.linkedin !== 'N/A' && data.linkedin.trim() !== '';
 
-  // Contact Info Parts
-  const contactInfo = [
-    data.location,
-    data.phone,
-    data.email,
-    hasLinkedIn && (
-      <a 
-        key="linkedin" 
-        href={data.linkedin} 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        style={{ color: '#4a4a4a', textDecoration: 'none' }}
-      >
-        {data.linkedin!.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, 'in/')}
-      </a>
-    )
-  ].filter(Boolean);
-
   return (
-    <div className="cv-absolute-container cv-preview-background" style={styles.container}>
+    <div className={`cv-absolute-container cv-preview-background ${isEditable ? 'master-edit-active' : ''}`} style={styles.container}>
       {/* Header Section */}
       <header style={styles.header}>
-        <h1 style={styles.name}>{data.name}</h1>
-        <div style={styles.title}>{data.title}</div>
+        <h1 
+          style={styles.name} 
+          contentEditable={isEditable} 
+          suppressContentEditableWarning 
+          onBlur={(e) => handleBlur('name', e.currentTarget.innerText)}
+        >
+          {data.name}
+        </h1>
+        <div 
+          style={styles.title} 
+          contentEditable={isEditable} 
+          suppressContentEditableWarning 
+          onBlur={(e) => handleBlur('title', e.currentTarget.innerText)}
+        >
+          {data.title}
+        </div>
         <div style={styles.contact}>
-           {contactInfo.map((item, index) => (
-              <span key={index}>
-                {item}
-                {index < contactInfo.length - 1 && <span style={styles.separator}>|</span>}
-              </span>
-           ))}
+           {data.location} | {data.phone} | {data.email} {hasLinkedIn && `| ${data.linkedin}`}
         </div>
       </header>
 
@@ -178,7 +220,14 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
       {data.summary && (
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>PROFESSIONAL SUMMARY</h2>
-          <p style={styles.summaryText}>{data.summary}</p>
+          <p 
+            style={styles.summaryText} 
+            contentEditable={isEditable} 
+            suppressContentEditableWarning 
+            onBlur={(e) => handleBlur('summary', e.currentTarget.innerText)}
+          >
+            {data.summary}
+          </p>
         </section>
       )}
 
@@ -189,7 +238,14 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
           <div style={styles.skillsGrid}>
             {data.skills.map((skill, index) => (
               <div key={index} style={styles.skillItem} className="no-break">
-                <span style={styles.skillCategory}>{skill.category}:</span> {skill.items}
+                <span style={styles.skillCategory}>{skill.category}:</span> 
+                <span 
+                  contentEditable={isEditable} 
+                  suppressContentEditableWarning 
+                  onBlur={(e) => handleBlur('skill', e.currentTarget.innerText, index)}
+                >
+                  {skill.items}
+                </span>
               </div>
             ))}
           </div>
@@ -202,15 +258,33 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
           <h2 style={styles.sectionTitle}>PROFESSIONAL EXPERIENCE</h2>
           {data.experience.map((job, index) => (
             <div key={index} style={styles.experienceItem} className="no-break">
-              {/* Use Table for Title/Date alignment to support DOCX conversion better than Flexbox */}
               <table style={styles.jobHeader}>
                 <tbody>
                   <tr>
                     <td style={{ verticalAlign: 'top' }}>
-                      <h3 style={styles.jobTitle}>{job.title}</h3>
-                      <div style={styles.companyName}>{job.company}</div>
+                      <h3 
+                        style={styles.jobTitle} 
+                        contentEditable={isEditable} 
+                        suppressContentEditableWarning 
+                        onBlur={(e) => handleBlur('jobTitle', e.currentTarget.innerText, index)}
+                      >
+                        {job.title}
+                      </h3>
+                      <div 
+                        style={styles.companyName} 
+                        contentEditable={isEditable} 
+                        suppressContentEditableWarning 
+                        onBlur={(e) => handleBlur('jobCompany', e.currentTarget.innerText, index)}
+                      >
+                        {job.company}
+                      </div>
                     </td>
-                    <td style={styles.jobDates}>
+                    <td 
+                      style={styles.jobDates} 
+                      contentEditable={isEditable} 
+                      suppressContentEditableWarning 
+                      onBlur={(e) => handleBlur('jobDates', e.currentTarget.innerText, index)}
+                    >
                       {job.dates}
                     </td>
                   </tr>
@@ -218,7 +292,15 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
               </table>
               <ul style={styles.achievementsList}>
                 {job.achievements.map((achievement, i) => (
-                  <li key={i} style={styles.achievementItem}>{achievement}</li>
+                  <li 
+                    key={i} 
+                    style={styles.achievementItem} 
+                    contentEditable={isEditable} 
+                    suppressContentEditableWarning 
+                    onBlur={(e) => handleBlur('jobAchievement', e.currentTarget.innerText, index, i)}
+                  >
+                    {achievement}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -232,7 +314,15 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
           <h2 style={styles.sectionTitle}>KEY ACHIEVEMENTS</h2>
           <ul style={styles.achievementsList}>
             {data.keyAchievements.map((achievement, index) => (
-              <li key={index} style={styles.achievementItem}>{achievement}</li>
+              <li 
+                key={index} 
+                style={styles.achievementItem} 
+                contentEditable={isEditable} 
+                suppressContentEditableWarning 
+                onBlur={(e) => handleBlur('keyAchievement', e.currentTarget.innerText, index)}
+              >
+                {achievement}
+              </li>
             ))}
           </ul>
         </section>
@@ -243,7 +333,14 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data }) => {
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>EDUCATION</h2>
           {data.education.map((edu, index) => (
-            <div key={index} style={styles.educationItem} className="no-break">
+            <div 
+              key={index} 
+              style={styles.educationItem} 
+              className="no-break" 
+              contentEditable={isEditable} 
+              suppressContentEditableWarning 
+              onBlur={(e) => handleBlur('education', e.currentTarget.innerText, index)}
+            >
               <strong>{edu.degree}</strong>
               {edu.institution && <span> — {edu.institution}</span>}
               {edu.year && <span> ({edu.year})</span>}

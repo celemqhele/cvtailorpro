@@ -2,13 +2,11 @@
 
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
-import { TIER_1_PROMPT, TIER_2_PROMPT, TIER_3_PROMPT, ANALYSIS_PROMPT, CEREBRAS_KEY, CEREBRAS_KEY_2, GEMINI_KEY_1, GEMINI_KEY_2, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT, SKELETON_FILLER_PROMPT } from "../constants";
+import { TIER_1_PROMPT, TIER_2_PROMPT, TIER_3_PROMPT, ANALYSIS_PROMPT, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT, SKELETON_FILLER_PROMPT } from "../constants";
 import { GoogleGenAI } from "@google/genai";
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, CVData } from "../types";
 import { naturalizeObject, naturalizeText } from "../utils/textHelpers";
 import { errorService } from "./errorService";
-
-const OCR_SPACE_KEY = "K88916317488957";
 
 /**
  * Scrapes job content using Jina.ai.
@@ -53,41 +51,27 @@ export const scrapeJobFromUrl = async (url: string): Promise<string> => {
 };
 
 /**
- * Helper: Call OCR.space API
+ * Helper: Call OCR Proxy
  */
 async function extractTextFromPdfOcrSpace(base64: string): Promise<string> {
-    const formData = new FormData();
-    formData.append("base64Image", `data:application/pdf;base64,${base64}`);
-    formData.append("apikey", OCR_SPACE_KEY);
-    formData.append("language", "eng");
-    formData.append("isOverlayRequired", "false");
-    formData.append("OCREngine", "2"); // Engine 2 is often better for text-heavy documents
-
-    const response = await fetch("https://api.ocr.space/parse/image", {
+    const response = await fetch("/api/ocr-proxy", {
         method: "POST",
-        body: formData
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ base64 })
     });
 
-    const data = await response.json();
-
-    if (data.IsErroredOnProcessing) {
-        const errorMsg = Array.isArray(data.ErrorMessage) ? data.ErrorMessage.join(', ') : (data.ErrorMessage || "Unknown OCR Error");
+    if (!response.ok) {
+        const err = await response.json();
         errorService.logError({
-            message: `OCR API Error: ${errorMsg}`,
+            message: `OCR Proxy Error: ${err.error}`,
             path: '/extractTextFromPdfOcrSpace',
             metadata: { type: 'api_failure' }
         });
-        throw new Error(`OCR API Error: ${errorMsg}`);
+        throw new Error(`OCR Error: ${err.error}`);
     }
 
-    if (!data.ParsedResults || data.ParsedResults.length === 0) {
-        throw new Error("No parsed results from OCR");
-    }
-
-    const text = data.ParsedResults.map((p: any) => p.ParsedText).join('\n');
-    if (!text || !text.trim()) throw new Error("OCR returned empty text");
-
-    return text;
+    const data = await response.json();
+    return data.text;
 }
 
 /**
@@ -167,128 +151,32 @@ export async function extractTextFromFile(file: FileData): Promise<string> {
 /**
  * Executes a call to AI Provider (Cerebras).
  */
-async function callCerebras(modelName: string, systemPrompt: string, userPrompt: string, temperature: number, apiKey: string, jsonMode: boolean = false): Promise<string> {
-  try {
-    const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: modelName,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        temperature: temperature,
-        max_tokens: 4096,
-        response_format: jsonMode ? { type: "json_object" } : undefined
-      })
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error(`Provider API Error (${modelName}):`, response.status, errText);
-      throw new Error(`Provider API Error (${modelName}): ${response.status} ${errText}`);
-    }
-
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || "";
-  } catch (e) {
-    console.error(`Call failed for ${modelName}:`, e);
-    throw e;
-  }
-}
-
-/**
- * Executes a call to AI Provider (Gemini).
- */
-async function callGemini(modelName: string, systemPrompt: string, userPrompt: string, temperature: number, apiKey: string, jsonMode: boolean = false): Promise<string> {
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: userPrompt,
-      config: {
-        systemInstruction: systemPrompt,
-        temperature: temperature,
-        responseMimeType: jsonMode ? "application/json" : "text/plain"
-      }
-    });
-
-    return response.text || "";
-  } catch (e) {
-    console.error(`Gemini call failed for ${modelName}:`, e);
-    throw e;
-  }
-}
-
 async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string): Promise<string> {
     const isJsonMode = systemInstruction.includes("JSON") || systemInstruction.includes("json");
 
-    // 1. MAIN: Gemini (Strongest to Weakest)
-    const geminiKeys = [GEMINI_KEY_1, GEMINI_KEY_2];
-    const geminiModels = ["gemini-3.1-pro-preview", "gemini-3-flash-preview"];
+    try {
+        const response = await fetch("/api/ai-proxy", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                systemPrompt: systemInstruction,
+                userPrompt: userMessage,
+                temperature,
+                jsonMode: isJsonMode
+            })
+        });
 
-    for (const gKey of geminiKeys) {
-        if (!gKey) continue;
-        for (const gModel of geminiModels) {
-            try {
-                console.log(`Attempting Gemini: ${gModel}...`);
-                return await callGemini(gModel, systemInstruction, userMessage, temperature, gKey, isJsonMode);
-            } catch (gError: any) {
-                console.warn(`Gemini ${gModel} failed:`, gError.message);
-            }
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || "AI Proxy failed");
         }
+
+        const data = await response.json();
+        return data.text;
+    } catch (e: any) {
+        console.error("AI Proxy Call Failed:", e);
+        throw new Error("Service Unavailable: AI models failed to respond. Please try again later.");
     }
-
-    // 2. FALLBACK: Cerebras (Strongest to Weakest)
-    const cerebrasKeys = [CEREBRAS_KEY, CEREBRAS_KEY_2];
-    const cerebrasModels = [
-        "llama-3.3-70b",
-        "llama-3.1-70b",
-        "llama-3.1-8b",
-        "llama3.1-70b",
-        "llama3.1-8b"
-    ];
-
-    // Truncate user message more aggressively for Cerebras context windows
-    const truncatedMessage = userMessage.length > 15000 ? userMessage.substring(0, 15000) + "... [Truncated to fit context window]" : userMessage;
-
-    const getTierPrompt = (model: string) => {
-        if (model.includes("qwen") || model.includes("zai-glm")) return TIER_1_PROMPT;
-        if (model.includes("llama")) return TIER_2_PROMPT;
-        if (model.includes("gpt-oss")) return TIER_3_PROMPT;
-        return TIER_1_PROMPT; // Default to Tier 1
-    };
-
-    for (const key of cerebrasKeys) {
-        console.log(`Attempting Cerebras Fallback with key: ${key.substring(0, 8)}...`);
-        for (const model of cerebrasModels) {
-            try {
-                console.log(`Attempting Model: ${model}...`);
-                
-                let finalSystemInstruction = systemInstruction;
-                if (systemInstruction.includes("CV") || systemInstruction.includes("Cover Letter")) {
-                    finalSystemInstruction = getTierPrompt(model) + "\n\n" + systemInstruction;
-                }
-
-                return await callCerebras(model, finalSystemInstruction, truncatedMessage, temperature, key, isJsonMode);
-            } catch (e: any) {
-                console.warn(`Model ${model} failed with key ${key.substring(0, 8)}:`, e.message);
-                errorService.logError({
-                    message: `Cerebras Model Failure: ${model}`,
-                    stack: e.stack,
-                    path: '/runAIChain',
-                    metadata: { model, error: e.message, type: 'ai_failure', key_hint: key.substring(0, 8) }
-                });
-            }
-        }
-    }
-
-    console.error("All AI services and keys failed.");
-    throw new Error("Service Unavailable: All AI models failed to respond. Please try again later.");
 }
 
 export const analyzeMatch = async (
@@ -762,62 +650,29 @@ export const generateFictionalCV = async (
 };
 
 export const chatWithSupport = async (messageHistory: {role: 'user'|'assistant', content: string}[], userMessage: string): Promise<string> => {
-    // 1. MAIN: Gemini (Strongest to Weakest)
-    const geminiKeys = [GEMINI_KEY_1, GEMINI_KEY_2];
-    const geminiModels = ["gemini-3.1-pro-preview", "gemini-3-flash-preview"];
+    try {
+        const response = await fetch("/api/ai-proxy", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                systemPrompt: CHAT_SYSTEM_PROMPT,
+                userPrompt: `Conversation History:\n${JSON.stringify(messageHistory)}\n\nUser Message: ${userMessage}`,
+                temperature: 0.7,
+                jsonMode: false
+            })
+        });
 
-    for (const gKey of geminiKeys) {
-        if (!gKey) continue;
-        for (const gModel of geminiModels) {
-            try {
-                console.log(`Chat Attempting Gemini: ${gModel}...`);
-                return await callGemini(gModel, CHAT_SYSTEM_PROMPT, `Conversation History:\n${JSON.stringify(messageHistory)}\n\nUser Message: ${userMessage}`, 0.7, gKey, false);
-            } catch (gError: any) {
-                console.warn(`Chat Gemini ${gModel} failed:`, gError.message);
-            }
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || "Chat Proxy failed");
         }
+
+        const data = await response.json();
+        return naturalizeText(data.text);
+    } catch (e: any) {
+        console.error("Chat Proxy Call Failed:", e);
+        return "I'm having trouble connecting to the server. Please try again later or email support.";
     }
-
-    // 2. FALLBACK: Cerebras
-    const cerebrasKeys = [CEREBRAS_KEY, CEREBRAS_KEY_2];
-    const truncatedMsg = userMessage.length > 10000 ? userMessage.substring(0, 10000) + "... [Truncated]" : userMessage;
-
-    for (const key of cerebrasKeys) {
-        try {
-            const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${key}`
-                },
-                body: JSON.stringify({
-                    model: "llama-3.1-8b", 
-                    messages: [
-                        { role: "system", content: CHAT_SYSTEM_PROMPT },
-                        ...messageHistory,
-                        { role: "user", content: truncatedMsg }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 1024
-                })
-            });
-
-            if (!response.ok) {
-                const errText = await response.text();
-                console.warn(`Chat API Error with key ${key.substring(0, 8)}:`, response.status, errText);
-                continue; 
-            }
-
-            const data = await response.json();
-            const content = data.choices?.[0]?.message?.content || "I apologize, I'm having trouble thinking right now.";
-            return naturalizeText(content);
-        } catch (e) {
-            console.error(`Chat attempt failed with key ${key.substring(0, 8)}:`, e);
-            continue; 
-        }
-    }
-
-    return "I'm having trouble connecting to the server. Please try again later or email support.";
 };
 
 /**

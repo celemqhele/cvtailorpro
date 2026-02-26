@@ -4,6 +4,7 @@ import { useParams, useNavigate, Link, useOutletContext, useLocation } from 'rea
 import { authService } from '../services/authService';
 import { smartEditCV, smartEditCoverLetter } from '../services/geminiService';
 import { SavedApplication, CVData } from '../types';
+import { PLANS } from '../services/subscriptionService';
 import CVTemplate from '../components/CVTemplate';
 import CoverLetterTemplate from '../components/CoverLetterTemplate';
 import { SmartEditor } from '../components/SmartEditor';
@@ -20,10 +21,15 @@ export const GeneratedCV: React.FC = () => {
   const location = useLocation();
   const { user, triggerAuth, triggerPayment, isPaidUser, showToast } = useOutletContext<any>();
   
+  const hasMasterEditorAccess = user?.plan_id && (PLANS.find(p => p.id === user.plan_id) as any)?.hasMasterEditor;
+
   const [application, setApplication] = useState<SavedApplication | null>(null);
   const [cvData, setCvData] = useState<CVData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'cv' | 'cl'>('cv');
+  
+  // Master Editor State
+  const [isMasterEditMode, setIsMasterEditMode] = useState(false);
   
   // Smart Edit State
   const [isSmartEditing, setIsSmartEditing] = useState(false);
@@ -429,6 +435,17 @@ export const GeneratedCV: React.FC = () => {
                        )}
                    </div>
 
+                   {/* Master Editor Toggle */}
+                   {hasMasterEditorAccess && (
+                        <button 
+                            onClick={() => setIsMasterEditMode(!isMasterEditMode)}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm ${isMasterEditMode ? 'bg-emerald-600 text-white shadow-emerald-200' : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'}`}
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            {isMasterEditMode ? 'Exit Master Editor' : 'Master Editor'}
+                        </button>
+                    )}
+
                    {/* Cover Letter Download Button */}
                    {application.cl_content && (
                        <div className="relative">
@@ -523,16 +540,33 @@ export const GeneratedCV: React.FC = () => {
                 </div>
 
                 {/* Preview Wrapper */}
-                <div className="bg-white rounded-2xl shadow-xl overflow-hidden min-h-[1100px] border border-slate-200 preview-wrapper">
+                <div className={`bg-white rounded-2xl shadow-xl overflow-hidden min-h-[1100px] border border-slate-200 preview-wrapper ${isMasterEditMode ? 'ring-4 ring-emerald-500/20' : ''}`}>
+                    {isMasterEditMode && (
+                        <div className="bg-emerald-50 border-b border-emerald-100 px-4 py-2 text-center">
+                            <p className="text-xs font-bold text-emerald-700 flex items-center justify-center gap-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                MASTER EDITOR ACTIVE: Click any text to edit directly. Changes save automatically on blur.
+                            </p>
+                        </div>
+                    )}
                     <div className="overflow-x-auto bg-slate-100/50 p-8 md:p-12 flex justify-center preview-wrapper">
                         {viewMode === 'cv' ? (
                             <div id="cv-render-target" className="bg-white shadow-2xl origin-top scale-90 md:scale-100 transition-transform duration-200">
-                                <CVTemplate data={cvData} />
+                                <CVTemplate 
+                                    data={cvData} 
+                                    isEditable={isMasterEditMode} 
+                                    onUpdate={handleManualUpdate}
+                                />
                             </div>
                         ) : (
                             <div id="cl-render-target" className="bg-white shadow-2xl origin-top scale-90 md:scale-100 transition-transform duration-200">
                                 {application.cl_content ? (
-                                    <CoverLetterTemplate content={application.cl_content} userData={cvData} />
+                                    <CoverLetterTemplate 
+                                        content={application.cl_content} 
+                                        userData={cvData} 
+                                        isEditable={isMasterEditMode}
+                                        onUpdate={handleManualUpdateCL}
+                                    />
                                 ) : (
                                     <div className="w-[816px] h-[1056px] flex items-center justify-center text-slate-400">
                                         No Cover Letter generated for this application.

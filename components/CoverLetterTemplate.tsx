@@ -5,9 +5,11 @@ import { CVData } from '../types';
 interface CoverLetterTemplateProps {
   content: string;
   userData: CVData;
+  isEditable?: boolean;
+  onUpdate?: (newContent: string) => void;
 }
 
-const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, userData }) => {
+const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, userData, isEditable = false, onUpdate }) => {
   // Styles based on MEASUREMENTS_SPEC for A4/Letter consistency
   const styles = {
     container: {
@@ -22,6 +24,7 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
       backgroundColor: 'white',
       boxSizing: 'border-box' as const,
       textAlign: 'left' as const,
+      outline: isEditable ? '2px dashed #10b981' : 'none',
     },
     header: {
       textAlign: 'center' as const,
@@ -41,11 +44,16 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
     },
     body: {
       textAlign: 'left' as const, // Changed from justify to left to prevent PDF artifacts
+      outline: 'none',
     },
     paragraph: {
       marginBottom: '12pt', // Distinct paragraph spacing for Word/PDF
       minHeight: '12pt', // Ensures empty lines are preserved
     }
+  };
+
+  const handleBlur = (newContent: string) => {
+    if (onUpdate) onUpdate(newContent);
   };
 
   // Check valid LinkedIn
@@ -58,11 +66,8 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
     hasLinkedIn ? userData.linkedin?.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, 'in/') : null
   ].filter(Boolean);
 
-  // Split content by newlines to create explicit paragraphs for DOCX conversion
-  const paragraphs = content.split('\n');
-
   return (
-    <div className="cv-absolute-container cv-preview-background" style={styles.container}>
+    <div className={`cv-absolute-container cv-preview-background ${isEditable ? 'master-edit-active' : ''}`} style={styles.container}>
       {/* Consistent Header with CV */}
       <div style={styles.header}>
         <div style={styles.name}>{userData.name}</div>
@@ -72,10 +77,14 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
       </div>
 
       {/* Main Content (Date, Recipient, Body, Sign-off) */}
-      <div style={styles.body}>
-        {paragraphs.map((line, index) => (
+      <div 
+        style={styles.body} 
+        contentEditable={isEditable} 
+        suppressContentEditableWarning 
+        onBlur={(e) => handleBlur(e.currentTarget.innerText)}
+      >
+        {content.split('\n').map((line, index) => (
           <div key={index} style={styles.paragraph}>
-            {/* If line is empty, render a non-breaking space to maintain layout structure */}
             {line.trim() === '' ? '\u00A0' : line}
           </div>
         ))}

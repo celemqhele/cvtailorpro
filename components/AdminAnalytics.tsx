@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { analyticsService } from '../services/analyticsService';
 import { metricsService } from '../services/metricsService';
 import { errorService } from '../services/errorService';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, AreaChart, Area } from 'recharts';
 
 export const AdminAnalytics: React.FC = () => {
     const [trafficData, setTrafficData] = useState<any[]>([]);
@@ -11,6 +11,11 @@ export const AdminAnalytics: React.FC = () => {
     const [metrics, setMetrics] = useState<any>(null);
     const [errorLogs, setErrorLogs] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // GA4 State
+    const [ga4Data, setGa4Data] = useState<any>(null);
+    const [ga4Error, setGa4Error] = useState<string | null>(null);
+    const [useGA4, setUseGA4] = useState(true);
 
     useEffect(() => {
         loadAllData();
@@ -27,6 +32,22 @@ export const AdminAnalytics: React.FC = () => {
                 metricsService.getDashboardData(),
                 errorService.getLogs()
             ]);
+
+            // Fetch GA4 Data
+            try {
+                const ga4Response = await fetch('/api/ga4-data');
+                if (ga4Response.ok) {
+                    const data = await ga4Response.json();
+                    setGa4Data(data);
+                    setGa4Error(null);
+                } else {
+                    const err = await ga4Response.json();
+                    setGa4Error(err.error || 'Failed to fetch GA4 data');
+                }
+            } catch (err) {
+                console.error("GA4 Fetch Error:", err);
+                setGa4Error("GA4 API Route not responding");
+            }
 
             // Process traffic for graph
             const dailyTraffic: Record<string, number> = {};
@@ -68,12 +89,47 @@ export const AdminAnalytics: React.FC = () => {
 
     return (
         <div className="space-y-8 animate-fade-in pb-20">
+            {/* GA4 Integration Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 p-6 rounded-2xl text-white">
+                <div>
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                        <svg className="w-6 h-6 text-orange-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
+                        Google Analytics 4 Live
+                    </h2>
+                    <p className="text-slate-400 text-sm mt-1">Direct data extraction from Google Analytics Data API</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase ${ga4Data ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                        <div className={`w-2 h-2 rounded-full ${ga4Data ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}></div>
+                        {ga4Data ? 'Connected' : 'Disconnected'}
+                    </div>
+                    <button 
+                        onClick={() => setUseGA4(!useGA4)}
+                        className="px-4 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition-colors"
+                    >
+                        {useGA4 ? 'Show Internal Data' : 'Show GA4 Data'}
+                    </button>
+                </div>
+            </div>
+
+            {ga4Error && useGA4 && (
+                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 text-sm flex items-start gap-3">
+                    <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <div>
+                        <p className="font-bold">GA4 Configuration Required</p>
+                        <p className="opacity-80">{ga4Error}</p>
+                    </div>
+                </div>
+            )}
+
             {/* Realtime Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Live (30m)</p>
-                    <h3 className="text-3xl font-black text-indigo-600">{realtime?.last30m || 0}</h3>
-                    <p className="text-slate-500 text-xs mt-2">Active sessions</p>
+                    <h3 className="text-3xl font-black text-indigo-600">
+                        {useGA4 && ga4Data ? ga4Data.realtime.activeUsers : (realtime?.last30m || 0)}
+                    </h3>
+                    <p className="text-slate-500 text-xs mt-2">{useGA4 && ga4Data ? 'Active users (GA4)' : 'Active sessions (Internal)'}</p>
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Last Hour</p>
@@ -89,21 +145,104 @@ export const AdminAnalytics: React.FC = () => {
 
             {/* Traffic Graph */}
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                <h3 className="text-lg font-bold text-slate-800 mb-6">Traffic Overview (Daily)</h3>
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-bold text-slate-800">Traffic Overview (Daily)</h3>
+                    {useGA4 && ga4Data && <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-2 py-1 rounded">GA4 DATA SOURCE</span>}
+                </div>
                 <div className="h-[300px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={trafficData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="date" fontSize={10} tickMargin={10} axisLine={false} tickLine={false} />
-                            <YAxis fontSize={10} axisLine={false} tickLine={false} />
-                            <Tooltip 
-                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                            />
-                            <Line type="monotone" dataKey="count" stroke="#4f46e5" strokeWidth={3} dot={{ r: 4, fill: '#4f46e5' }} activeDot={{ r: 6 }} />
-                        </LineChart>
+                        {useGA4 && ga4Data ? (
+                            <AreaChart data={ga4Data.daily}>
+                                <defs>
+                                    <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis 
+                                    dataKey="date" 
+                                    fontSize={10} 
+                                    tickMargin={10} 
+                                    axisLine={false} 
+                                    tickLine={false}
+                                    tickFormatter={(val) => {
+                                        const year = val.substring(0, 4);
+                                        const month = val.substring(4, 6);
+                                        const day = val.substring(6, 8);
+                                        return `${day}/${month}`;
+                                    }}
+                                />
+                                <YAxis fontSize={10} axisLine={false} tickLine={false} />
+                                <Tooltip 
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                    labelFormatter={(val) => {
+                                        const year = val.substring(0, 4);
+                                        const month = val.substring(4, 6);
+                                        const day = val.substring(6, 8);
+                                        return `${day}/${month}/${year}`;
+                                    }}
+                                />
+                                <Area type="monotone" dataKey="users" stroke="#f59e0b" strokeWidth={3} fillOpacity={1} fill="url(#colorUsers)" />
+                            </AreaChart>
+                        ) : (
+                            <LineChart data={trafficData}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis dataKey="date" fontSize={10} tickMargin={10} axisLine={false} tickLine={false} />
+                                <YAxis fontSize={10} axisLine={false} tickLine={false} />
+                                <Tooltip 
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                />
+                                <Line type="monotone" dataKey="count" stroke="#4f46e5" strokeWidth={3} dot={{ r: 4, fill: '#4f46e5' }} activeDot={{ r: 6 }} />
+                            </LineChart>
+                        )}
                     </ResponsiveContainer>
                 </div>
             </div>
+
+            {useGA4 && ga4Data && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Top Pages (GA4) */}
+                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+                        <h3 className="text-lg font-bold text-slate-800 mb-6">Top Pages (Last 30 Days)</h3>
+                        <div className="space-y-4">
+                            {ga4Data.pageViews.map((page: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xs font-bold text-slate-400 w-4">{idx + 1}</span>
+                                        <span className="text-sm text-slate-600 font-medium truncate max-w-[200px]">{page.path}</span>
+                                    </div>
+                                    <div className="flex items-center gap-4 flex-1 ml-4">
+                                        <div className="h-2 bg-slate-100 rounded-full flex-1 overflow-hidden">
+                                            <div 
+                                                className="h-full bg-indigo-500 rounded-full" 
+                                                style={{ width: `${(page.views / ga4Data.pageViews[0].views) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-900 w-12 text-right">{page.views}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Top Events (GA4) */}
+                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+                        <h3 className="text-lg font-bold text-slate-800 mb-6">Top Events (Last 30 Days)</h3>
+                        <div className="space-y-4">
+                            {ga4Data.events.sort((a: any, b: any) => b.count - a.count).slice(0, 10).map((event: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xs font-bold text-slate-400 w-4">{idx + 1}</span>
+                                        <span className="text-sm text-slate-600 font-medium">{event.name}</span>
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-900 px-2 py-1 bg-slate-100 rounded-md">{event.count}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* CV Generations Graph */}

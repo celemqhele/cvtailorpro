@@ -147,6 +147,66 @@ export const Home: React.FC = () => {
           </div>
       </div>
 
+      {/* MASTER EDITOR MARKETING SECTION */}
+      <div className="bg-white py-24 sm:py-32 overflow-hidden">
+          <div className="mx-auto max-w-7xl px-6 lg:px-8">
+              <div className="mx-auto grid max-w-2xl grid-cols-1 gap-x-8 gap-y-16 sm:gap-y-20 lg:mx-0 lg:max-w-none lg:grid-cols-2 items-center">
+                  <div className="lg:pr-8 lg:pt-4">
+                      <div className="lg:max-w-lg">
+                          <h2 className="text-base font-semibold leading-7 text-indigo-600">Total Control</h2>
+                          <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Introducing Master Editor</p>
+                          <p className="mt-6 text-lg leading-8 text-slate-600">
+                              Sometimes AI gets close, but you want to tweak that one specific word or date yourself. <strong>Master Editor</strong> turns your CV preview into a live, editable document.
+                          </p>
+                          <dl className="mt-10 max-w-xl space-y-8 text-base leading-7 text-slate-600 lg:max-w-none">
+                              <div className="relative pl-9">
+                                  <dt className="inline font-bold text-slate-900">
+                                      <svg className="absolute left-1 top-1 h-5 w-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                      Edit Like Word.
+                                  </dt>
+                                  <dd className="inline"> Click any text on the CV and type. No forms, no prompts, just direct editing.</dd>
+                              </div>
+                              <div className="relative pl-9">
+                                  <dt className="inline font-bold text-slate-900">
+                                      <svg className="absolute left-1 top-1 h-5 w-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                                      Auto-Sync.
+                                  </dt>
+                                  <dd className="inline"> Your manual changes are saved instantly to your profile and reflected in your PDF/Word downloads.</dd>
+                              </div>
+                              <div className="relative pl-9">
+                                  <dt className="inline font-bold text-slate-900">
+                                      <svg className="absolute left-1 top-1 h-5 w-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                                      Perfect Accuracy.
+                                  </dt>
+                                  <dd className="inline"> Use it to fix specific dates, names, or niche technical terms that require human precision.</dd>
+                              </div>
+                          </dl>
+                      </div>
+                  </div>
+                  <div className="relative">
+                      <div className="relative rounded-xl bg-slate-900/5 p-2 ring-1 ring-inset ring-slate-900/10 lg:-m-4 lg:rounded-2xl lg:p-4 shadow-2xl">
+                          <div className="bg-white rounded-lg border border-emerald-500 ring-4 ring-emerald-500/10 p-8">
+                             <div className="flex items-center gap-2 mb-4">
+                                <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                                <div className="w-3 h-3 rounded-full bg-amber-400"></div>
+                                <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
+                                <div className="ml-4 bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Master Editor Active</div>
+                             </div>
+                             <div className="space-y-4">
+                                <div className="h-8 bg-slate-100 rounded w-1/2"></div>
+                                <div className="h-4 bg-slate-50 rounded w-3/4"></div>
+                                <div className="border-t border-slate-100 pt-4">
+                                    <p className="text-sm text-slate-400 italic">"Click here to type your own custom achievement..."</p>
+                                    <div className="mt-2 h-4 bg-indigo-50 rounded w-full border-l-2 border-indigo-500"></div>
+                                </div>
+                             </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+
       {/* Feature Section */}
       <div className="bg-slate-50 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
