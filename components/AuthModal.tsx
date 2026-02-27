@@ -11,6 +11,7 @@ interface AuthModalProps {
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [keepLoggedIn, setKeepLoggedIn] = useState(false);
@@ -36,7 +37,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
     try {
       if (mode === 'signup') {
-        await authService.signUp(email, password);
+        await authService.signUp(email, password, fullName);
         setShowVerification(true);
       } else if (mode === 'signin') {
         await authService.signIn(email, password, keepLoggedIn);
@@ -56,6 +57,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   const handleClose = () => {
     setShowVerification(false);
     setMode('signin');
+    setFullName('');
     setError(null);
     setSuccessMsg(null);
     setKeepLoggedIn(false);
@@ -124,6 +126,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === 'signup' && (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Full Name</label>
+              <input 
+                type="text" 
+                required
+                className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                placeholder="John Doe"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Email Address</label>
             <input 

@@ -1,3 +1,4 @@
+
 -- ==========================================
 -- 1. PROFILES TABLE & SECURITY
 -- ==========================================
@@ -17,24 +18,17 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
+-- Allow users to view/edit ONLY their own profile
 DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
-CREATE POLICY "Users can view own profile"
-  ON profiles FOR SELECT
-  USING (auth.uid() = id);
+CREATE POLICY "Users can view own profile" ON profiles 
+  FOR SELECT USING (auth.uid() = id);
 
 DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
-CREATE POLICY "Users can update own profile"
-  ON profiles FOR UPDATE
-  USING (auth.uid() = id);
-
--- ✅ NEW: Allow users to insert their own profile
-CREATE POLICY IF NOT EXISTS "Users can insert own profile"
-  ON profiles FOR INSERT
-  WITH CHECK (auth.uid() = id);
-
+CREATE POLICY "Users can update own profile" ON profiles 
+  FOR UPDATE USING (auth.uid() = id);
 
 -- ==========================================
--- 2. APPLICATIONS TABLE
+-- 2. APPLICATIONS TABLE (User History)
 -- ==========================================
 
 CREATE TABLE IF NOT EXISTS applications (
@@ -52,32 +46,34 @@ CREATE TABLE IF NOT EXISTS applications (
 
 ALTER TABLE applications ENABLE ROW LEVEL SECURITY;
 
+-- Users view their own apps
 DROP POLICY IF EXISTS "Users view own applications" ON applications;
-CREATE POLICY "Users view own applications"
-  ON applications FOR SELECT
-  USING (auth.uid() = user_id);
+CREATE POLICY "Users view own applications" ON applications
+  FOR SELECT USING (auth.uid() = user_id);
 
+-- Creation: Authenticated users insert with their ID. Guests insert with NULL.
+-- FIX: Replaces permissive "true" check with strict ownership check
 DROP POLICY IF EXISTS "Allow insert for creation" ON applications;
-CREATE POLICY "Allow insert for creation"
-  ON applications FOR INSERT
-  WITH CHECK (
-    (auth.uid() = user_id) OR
+CREATE POLICY "Allow insert for creation" ON applications
+  FOR INSERT WITH CHECK (
+    (auth.uid() = user_id) OR 
     (auth.uid() IS NULL AND user_id IS NULL)
   );
 
+-- Claiming: Users can update rows that belong to them OR rows that are currently Guest (null)
 DROP POLICY IF EXISTS "Allow claim of guest apps" ON applications;
-CREATE POLICY "Allow claim of guest apps"
-  ON applications FOR UPDATE
-  USING (auth.uid() = user_id OR user_id IS NULL);
+CREATE POLICY "Allow claim of guest apps" ON applications
+  FOR UPDATE USING (
+    auth.uid() = user_id OR user_id IS NULL
+  );
 
+-- Deletion: Users delete their own.
 DROP POLICY IF EXISTS "Users delete own applications" ON applications;
-CREATE POLICY "Users delete own applications"
-  ON applications FOR DELETE
-  USING (auth.uid() = user_id);
-
+CREATE POLICY "Users delete own applications" ON applications
+  FOR DELETE USING (auth.uid() = user_id);
 
 -- ==========================================
--- 3. JOB LISTINGS
+-- 3. JOB LISTINGS (Strict Admin Only)
 -- ==========================================
 
 CREATE TABLE IF NOT EXISTS job_listings (
@@ -88,34 +84,33 @@ CREATE TABLE IF NOT EXISTS job_listings (
   summary text,
   description text,
   original_link text,
-  example_cv_content text,
+  example_cv_content text, -- Fictional CV JSON for preview
   created_at timestamptz DEFAULT now()
 );
 
 ALTER TABLE job_listings ENABLE ROW LEVEL SECURITY;
 
+-- Public Read
 DROP POLICY IF EXISTS "Public read access to jobs" ON job_listings;
-CREATE POLICY "Public read access to jobs"
-  ON job_listings FOR SELECT USING (true);
+CREATE POLICY "Public read access to jobs" ON job_listings
+  FOR SELECT USING (true);
 
+-- Admin Write (Insert/Update/Delete) - LOCKED DOWN to your specific email
+-- FIX: Replaces permissive "Enable delete/insert for all users" policies
 DROP POLICY IF EXISTS "Admin only insert" ON job_listings;
-CREATE POLICY "Admin only insert"
-  ON job_listings FOR INSERT
-  WITH CHECK (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+CREATE POLICY "Admin only insert" ON job_listings
+  FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
 
 DROP POLICY IF EXISTS "Admin only update" ON job_listings;
-CREATE POLICY "Admin only update"
-  ON job_listings FOR UPDATE
-  USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+CREATE POLICY "Admin only update" ON job_listings
+  FOR UPDATE USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
 
 DROP POLICY IF EXISTS "Admin only delete" ON job_listings;
-CREATE POLICY "Admin only delete"
-  ON job_listings FOR DELETE
-  USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
-
+CREATE POLICY "Admin only delete" ON job_listings
+  FOR DELETE USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
 
 -- ==========================================
--- 4. ARTICLES
+-- 4. ARTICLES (Dynamic SEO Content)
 -- ==========================================
 
 CREATE TABLE IF NOT EXISTS articles (
@@ -131,32 +126,63 @@ CREATE TABLE IF NOT EXISTS articles (
 
 ALTER TABLE articles ENABLE ROW LEVEL SECURITY;
 
+-- Public Read
 DROP POLICY IF EXISTS "Public read access to articles" ON articles;
-CREATE POLICY "Public read access to articles"
-  ON articles FOR SELECT USING (true);
+CREATE POLICY "Public read access to articles" ON articles
+  FOR SELECT USING (true);
 
+-- Admin Write (Strict)
 DROP POLICY IF EXISTS "Admin only insert articles" ON articles;
-CREATE POLICY "Admin only insert articles"
-  ON articles FOR INSERT
-  WITH CHECK (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+CREATE POLICY "Admin only insert articles" ON articles
+  FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
 
 DROP POLICY IF EXISTS "Admin only update articles" ON articles;
-CREATE POLICY "Admin only update articles"
-  ON articles FOR UPDATE
-  USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+CREATE POLICY "Admin only update articles" ON articles
+  FOR UPDATE USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
 
 DROP POLICY IF EXISTS "Admin only delete articles" ON articles;
-CREATE POLICY "Admin only delete articles"
-  ON articles FOR DELETE
-  USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
-
+CREATE POLICY "Admin only delete articles" ON articles
+  FOR DELETE USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
 
 -- ==========================================
--- 5. DAILY USAGE + FUNCTIONS
+-- 5. ORDERS & SUBSCRIPTIONS
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS orders (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users NOT NULL,
+  plan_id text NOT NULL,
+  amount numeric,
+  status text,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users view own orders" ON orders;
+CREATE POLICY "Users view own orders" ON orders
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users create own orders" ON orders;
+CREATE POLICY "Users create own orders" ON orders
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Legacy table cleanup (if it exists from previous attempts)
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users
+);
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+-- Lock it down completely just in case
+DROP POLICY IF EXISTS "Admin only subscriptions" ON subscriptions;
+CREATE POLICY "Admin only subscriptions" ON subscriptions FOR ALL USING (false); 
+
+-- ==========================================
+-- 6. DAILY USAGE (Strict Logic)
 -- ==========================================
 
 CREATE TABLE IF NOT EXISTS daily_usage (
-  identifier text NOT NULL,
+  identifier text NOT NULL, -- IP or User UUID
   date date DEFAULT CURRENT_DATE,
   cv_count int DEFAULT 0,
   search_count int DEFAULT 0,
@@ -165,62 +191,223 @@ CREATE TABLE IF NOT EXISTS daily_usage (
 
 ALTER TABLE daily_usage ENABLE ROW LEVEL SECURITY;
 
+-- Public Read (So UI can show "2/5 used")
 DROP POLICY IF EXISTS "Allow read usage" ON daily_usage;
-CREATE POLICY "Allow read usage"
-  ON daily_usage FOR SELECT USING (true);
+CREATE POLICY "Allow read usage" ON daily_usage
+  FOR SELECT USING (true);
 
+-- WRITE SECURITY:
+-- We DO NOT add Insert/Update policies here for public access.
+-- This fixes the "Allow anonymous access for ALL" alert.
+-- All writes must go through the Secure Functions below.
 
 -- ==========================================
--- ✅ UPDATED HANDLE NEW USER FUNCTION
+-- 7. SECURE FUNCTIONS (Fixes Mutable Search Path)
 -- ==========================================
 
-CREATE OR REPLACE FUNCTION public.handle_new_user()
+-- 1. Reset Credits (Admin)
+CREATE OR REPLACE FUNCTION reset_all_daily_credits()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public -- FIX: Security Alert Resolved
+AS $$
+BEGIN
+  -- Double check admin status inside function for extra safety
+  IF auth.jwt() ->> 'email' = 'mqhele03@gmail.com' THEN
+    DELETE FROM daily_usage WHERE date = CURRENT_DATE;
+  END IF;
+END;
+$$;
+
+-- 2. Get Stats
+CREATE OR REPLACE FUNCTION get_user_usage_stats(user_identifier text)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public -- FIX: Security Alert Resolved
+AS $$
+DECLARE
+  usage_val int;
+  seconds_left int;
+BEGIN
+  SELECT cv_count INTO usage_val FROM daily_usage
+  WHERE identifier = user_identifier AND date = CURRENT_DATE;
+
+  IF usage_val IS NULL THEN usage_val := 0; END IF;
+
+  seconds_left := EXTRACT(EPOCH FROM ((CURRENT_DATE + 1)::timestamptz - now()));
+
+  RETURN json_build_object('count', usage_val, 'seconds_left', seconds_left);
+END;
+$$;
+
+-- 3. Increment Usage (Secure Write)
+CREATE OR REPLACE FUNCTION increment_usage_secure(user_identifier text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public -- FIX: Security Alert Resolved
+AS $$
+BEGIN
+  INSERT INTO daily_usage (identifier, date, cv_count, search_count)
+  VALUES (user_identifier, CURRENT_DATE, 1, 0)
+  ON CONFLICT (identifier, date)
+  DO UPDATE SET cv_count = daily_usage.cv_count + 1;
+END;
+$$;
+
+-- 4. Sync IP Usage to User (Secure Write)
+CREATE OR REPLACE FUNCTION sync_usage_from_ip(ip_address text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public -- FIX: Security Alert Resolved
+AS $$
+DECLARE
+  ip_count int;
+  user_count int;
+  current_user_id uuid;
+BEGIN
+  current_user_id := auth.uid();
+  IF current_user_id IS NULL THEN RETURN; END IF;
+
+  -- 1. Get usage for the IP address
+  SELECT cv_count INTO ip_count FROM daily_usage WHERE identifier = ip_address AND date = CURRENT_DATE;
+  IF ip_count IS NULL THEN ip_count := 0; END IF;
+
+  -- 2. Get usage for the User ID
+  SELECT cv_count INTO user_count FROM daily_usage WHERE identifier = current_user_id::text AND date = CURRENT_DATE;
+  IF user_count IS NULL THEN user_count := 0; END IF;
+
+  -- 3. Sync if IP has data
+  IF ip_count > user_count THEN
+    INSERT INTO daily_usage (identifier, date, cv_count, search_count)
+    VALUES (current_user_id::text, CURRENT_DATE, ip_count, 0)
+    ON CONFLICT (identifier, date)
+    DO UPDATE SET cv_count = ip_count;
+  END IF;
+END;
+$$;
+
+-- 5. Handle New User Trigger
+CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public -- FIX: Security Alert Resolved
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name)
+  VALUES (new.id, new.email, new.raw_user_meta_data->>'full_name')
+  ON CONFLICT (id) DO NOTHING;
+  RETURN new;
+END;
+$$;
+
+-- Trigger for new user creation
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- ==========================================
+-- 8. MIGRATIONS (Run these if column missing)
+-- ==========================================
+
+-- ==========================================
+-- 9. QUICK APPLY USAGE (Strict IP Limit)
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS quick_apply_usage (
+  ip_address text NOT NULL,
+  last_used_at date DEFAULT CURRENT_DATE,
+  PRIMARY KEY (ip_address)
+);
+
+ALTER TABLE quick_apply_usage ENABLE ROW LEVEL SECURITY;
+
+-- No public access policies needed as we use secure functions below
+
+-- Function to check if IP is allowed (True if not used today)
+CREATE OR REPLACE FUNCTION check_quick_apply_eligibility(user_ip text)
+RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  _err text;
+  last_date date;
 BEGIN
-  BEGIN
-    INSERT INTO public.profiles (id, email, full_name)
-    VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data->>'full_name')
-    ON CONFLICT (id) DO UPDATE SET
-      email = COALESCE(EXCLUDED.email, public.profiles.email),
-      full_name = COALESCE(EXCLUDED.full_name, public.profiles.full_name);
-  EXCEPTION WHEN OTHERS THEN
-    _err := SQLERRM;
-
-    INSERT INTO public.error_logs (user_id, message, stack, path, metadata)
-    VALUES (
-      NEW.id,
-      left(_err, 1000),
-      NULL,
-      'handle_new_user',
-      jsonb_build_object('new', row_to_json(NEW))
-    );
-  END;
-
-  RETURN NEW;
-END;
-$$;
-
-
--- ✅ ENSURE TRIGGER EXISTS
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_trigger t
-    JOIN pg_class c ON t.tgrelid = c.oid
-    WHERE t.tgname = 'trigger_handle_new_user'
-      AND c.relname = 'users'
-  ) THEN
-    CREATE TRIGGER trigger_handle_new_user
-    AFTER INSERT ON auth.users
-    FOR EACH ROW
-    EXECUTE FUNCTION public.handle_new_user();
+  SELECT last_used_at INTO last_date FROM quick_apply_usage WHERE ip_address = user_ip;
+  
+  -- If no record, or last used date is before today, return true
+  IF last_date IS NULL OR last_date < CURRENT_DATE THEN
+    RETURN true;
+  ELSE
+    RETURN false;
   END IF;
 END;
 $$;
+
+-- Function to record usage
+CREATE OR REPLACE FUNCTION record_quick_apply_usage(user_ip text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO quick_apply_usage (ip_address, last_used_at)
+  VALUES (user_ip, CURRENT_DATE)
+  ON CONFLICT (ip_address)
+  DO UPDATE SET last_used_at = CURRENT_DATE;
+END;
+$$;
+
+-- ==========================================
+-- 10. ANALYTICS & LOGGING
+-- ==========================================
+
+-- Error Logs
+CREATE TABLE IF NOT EXISTS error_logs (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE SET NULL,
+  message text NOT NULL,
+  stack text,
+  path text,
+  metadata jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE error_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin only view error logs" ON error_logs;
+CREATE POLICY "Admin only view error logs" ON error_logs
+  FOR SELECT USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
+DROP POLICY IF EXISTS "Allow public insert error logs" ON error_logs;
+CREATE POLICY "Allow public insert error logs" ON error_logs
+  FOR INSERT WITH CHECK (true);
+
+-- Page Views (Traffic)
+CREATE TABLE IF NOT EXISTS page_views (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE SET NULL,
+  session_id text,
+  path text NOT NULL,
+  referrer text,
+  user_agent text,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE page_views ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin only view page views" ON page_views;
+CREATE POLICY "Admin only view page views" ON page_views
+  FOR SELECT USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
+DROP POLICY IF EXISTS "Allow public insert page views" ON page_views;
+CREATE POLICY "Allow public insert page views" ON page_views
+  FOR INSERT WITH CHECK (true);
+

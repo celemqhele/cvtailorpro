@@ -4,10 +4,15 @@ import { UserProfile, SavedApplication } from '../types';
 import { naturalizeText } from '../utils/textHelpers';
 
 export const authService = {
-  async signUp(email: string, password: string) {
+  async signUp(email: string, password: string, fullName?: string) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName || '',
+        }
+      }
     });
     if (error) throw error;
     return data;
