@@ -11,7 +11,8 @@ export const authService = {
       options: {
         data: {
           full_name: fullName || '',
-        }
+        },
+        emailRedirectTo: window.location.origin + '/account?confirmed=true'
       }
     });
     if (error) throw error;
