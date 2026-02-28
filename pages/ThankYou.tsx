@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Link, useLocation, Navigate, useOutletContext } from 'react-router-dom';
 import { PLANS } from '../services/subscriptionService';
@@ -8,7 +7,7 @@ export const ThankYou: React.FC = () => {
   const { user } = useOutletContext<any>();
   const { planId, isUpgrade } = location.state || {};
 
-  const plan = PLANS.find(p => p.id === planId);
+  const plan = PLANS.find((p: any) => p.id === planId);
   const planName = plan ? plan.name : 'Pro Plan';
 
   useEffect(() => {

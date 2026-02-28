@@ -1,15 +1,14 @@
-
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 
 // Import API handlers
-import ga4Handler from "./api/ga4-data.js";
-import aiProxyHandler from "./api/ai-proxy.js";
-import pdfProxyHandler from "./api/pdf-proxy.js";
-import ocrProxyHandler from "./api/ocr-proxy.js";
-import paystackVerifyHandler from "./api/paystack-verify.js";
+import ga4Handler from "./api/ga4-data";
+import aiProxyHandler from "./api/ai-proxy";
+import pdfProxyHandler from "./api/pdf-proxy";
+import ocrProxyHandler from "./api/ocr-proxy";
+import paystackVerifyHandler from "./api/paystack-verify";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

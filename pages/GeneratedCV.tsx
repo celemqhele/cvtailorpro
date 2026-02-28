@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link, useOutletContext, useLocation } from 'react-router-dom';
 import { authService } from '../services/authService';
@@ -20,7 +19,7 @@ export const GeneratedCV: React.FC = () => {
   const location = useLocation();
   const { user, triggerAuth, triggerPayment, isPaidUser, showToast } = useOutletContext<any>();
   
-  const hasMasterEditorAccess = user?.plan_id && (PLANS.find(p => p.id === user.plan_id) as any)?.hasMasterEditor;
+  const hasMasterEditorAccess = user?.plan_id && (PLANS.find((p: any) => p.id === user.plan_id) as any)?.hasMasterEditor;
 
   const [application, setApplication] = useState<SavedApplication | null>(null);
   const [cvData, setCvData] = useState<CVData | null>(null);

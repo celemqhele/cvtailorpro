@@ -16,11 +16,22 @@ const getIpAddress = async (): Promise<string> => {
 };
 
 /**
- * Determines the tracking identifier: User ID (if logged in) OR IP Address (if guest).
+ * Determines the tracking identifier: User ID (if logged in) OR Persistent Guest ID (if guest).
  */
 const getIdentifier = async (userId?: string): Promise<string> => {
     if (userId) return userId;
-    return await getIpAddress();
+    
+    // For guests, use a persistent ID in localStorage
+    let guestId = localStorage.getItem('cv_tailor_guest_id');
+    if (!guestId) {
+        // Generate a reasonably unique ID if not present
+        guestId = 'guest_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('cv_tailor_guest_id', guestId);
+    }
+    
+    // We still use IP as a secondary/fallback identifier in the backend if needed,
+    // but the primary identifier should be the guestId for consistency across refreshes.
+    return guestId;
 };
 
 /**
@@ -93,22 +104,26 @@ export const getUsageCount = async (userId?: string): Promise<number> => {
 };
 
 /**
- * Syncs usage from the User's IP address to their new User ID.
- * Uses secure RPC 'sync_usage_from_ip'.
+ * Syncs usage from the Guest ID to their new User ID.
  */
 export const syncIpUsageToUser = async (userId: string): Promise<void> => {
     try {
-        const ip = await getIpAddress();
-        
-        // Call secure RPC
+        const guestId = localStorage.getItem('cv_tailor_guest_id');
+        if (!guestId) return;
+
+        // Call secure RPC - we keep the name for compatibility if it's hardcoded in DB,
+        // but we pass the guestId as the identifier to sync from.
         const { error } = await supabase
-            .rpc('sync_usage_from_ip', { ip_address: ip });
+            .rpc('sync_usage_from_ip', { ip_address: guestId });
 
         if (error) {
-            console.error("Failed to sync IP usage via RPC:", error);
+            console.error("Failed to sync guest usage via RPC:", error);
+        } else {
+            // Clear guest ID after successful sync to avoid double syncing
+            localStorage.removeItem('cv_tailor_guest_id');
         }
     } catch (e) {
-        console.error("Failed to sync IP usage to user:", e);
+        console.error("Failed to sync guest usage to user:", e);
     }
 };
 

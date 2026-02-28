@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useOutletContext, useNavigate, useLocation, Link } from 'react-router-dom';

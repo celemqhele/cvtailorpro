@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
@@ -8,7 +7,7 @@ import { emailService } from '../services/emailService';
 import { supabase } from '../services/supabaseClient';
 import { UserProfile } from '../types';
 import { AuthModal } from './AuthModal';
-import { PaymentModal } from './DonationModal';
+import { PaymentModal } from './PaymentModal';
 import { CookieConsent } from './CookieConsent';
 import { isPreviewOrAdmin } from '../utils/envHelper';
 import { ChatWidget } from './ChatWidget';
@@ -36,6 +35,7 @@ export const Layout: React.FC = () => {
   const [isPaidUser, setIsPaidUser] = useState(false);
   const [isMaxPlan, setIsMaxPlan] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false); // Mobile menu state
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   // Toast State
   const [toast, setToast] = useState<{ msg: string; type: ToastType; visible: boolean }>({
@@ -60,6 +60,7 @@ export const Layout: React.FC = () => {
   };
 
   const checkUserSession = async () => {
+    setIsAuthLoading(true);
     const profile = await authService.getCurrentProfile();
     setUser(profile);
     
@@ -89,6 +90,7 @@ export const Layout: React.FC = () => {
     setDailyLimit(planLimit);
     setIsPaidUser(isPaid);
     setIsMaxPlan(maxPlan);
+    setIsAuthLoading(false);
   };
 
   useEffect(() => {
@@ -136,8 +138,14 @@ export const Layout: React.FC = () => {
   }, [location, user?.id, user?.email]); // Re-run if location or user changes
 
   useEffect(() => {
-    setTimeout(() => fetchStats(user?.id), 0);
-    const handleFocus = () => fetchStats(user?.id);
+    if (!isAuthLoading) {
+        setTimeout(() => fetchStats(user?.id), 0);
+    }
+    
+    const handleFocus = () => {
+        if (!isAuthLoading) fetchStats(user?.id);
+    };
+    
     window.addEventListener('focus', handleFocus);
 
     // Global Error Listener
@@ -165,11 +173,11 @@ export const Layout: React.FC = () => {
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
     return () => {
-        window.removeEventListener('focus', () => fetchStats(user?.id));
+        window.removeEventListener('focus', handleFocus);
         window.removeEventListener('error', handleError);
         window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
-  }, [user]);
+  }, [user, isAuthLoading]);
 
   const handlePaymentSuccess = async (planId: string, reference: string) => {
     if (user) {
