@@ -29,7 +29,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden relative border border-slate-200">
         
         {/* Header Icon */}
@@ -46,10 +46,10 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
         </div>
 
         <div className="p-6 text-center space-y-4">
-            <h3 className="text-2xl font-bold text-slate-800">{title || "Daily Limit Reached"}</h3>
+            <h3 className="text-2xl font-bold text-slate-800">{title || "Oops! Limit Reached"}</h3>
             
             <p className="text-slate-600 text-sm leading-relaxed">
-                {message || `You have used all your ${isPaidUser ? 'plan' : 'free'} CV generations for today (${limit}/${limit}).`}
+                {message || `You have used all your ${isPaidUser ? 'plan' : 'free'} CV generations for today (${limit}/${limit}). Please wait for tomorrow or upgrade to continue.`}
             </p>
 
             {eligibleForDiscount && (
@@ -60,7 +60,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
                 </div>
             )}
             
-            {!eligibleForDiscount && (
+            {!eligibleForDiscount && !isMaxPlan && (
                  <p className="font-semibold text-slate-800 text-sm">Upgrade now to continue creating.</p>
             )}
 
@@ -78,7 +78,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
                       ) : (
                           <>
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                            {isPaidUser ? 'Upgrade to Higher Tier' : 'Upgrade Plan'}
+                            Check Plans
                           </>
                       )}
                   </button>
@@ -92,7 +92,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
                     onClick={onClose}
                     className="w-full py-2 text-slate-400 hover:text-slate-600 text-sm font-medium"
                 >
-                    Close
+                    I'll wait
                 </button>
             </div>
         </div>

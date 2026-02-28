@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { getUsageStats, syncIpUsageToUser } from '../services/usageService';
-import { getPlanDetails, updateUserSubscription } from '../services/subscriptionService';
+import { getPlanDetails, updateUserSubscription, verifyPayment } from '../services/subscriptionService';
 import { emailService } from '../services/emailService';
 import { supabase } from '../services/supabaseClient';
 import { UserProfile } from '../types';
@@ -171,44 +171,36 @@ export const Layout: React.FC = () => {
     };
   }, [user]);
 
-  const handlePaymentSuccess = async (planId: string, isSubscription: boolean) => {
+  const handlePaymentSuccess = async (planId: string, reference: string) => {
     if (user) {
-        // Detect if this is an upgrade (User has a cheaper plan active, and buys a more expensive one)
-        // Note: PaymentModal already handled the price difference charging logic.
-        // We just need to tell updateUserSubscription to reset the timer (isUpgrade = true) instead of extending.
+        showToast("Verifying payment...", "info");
         
-        let isUpgrade = false;
-        if (user.plan_id && user.plan_id !== 'free' && user.subscription_end_date) {
-            const currentPlan = getPlanDetails(user.plan_id);
-            const newPlan = getPlanDetails(planId);
-            const isNotExpired = new Date(user.subscription_end_date) > new Date();
-            
-            // If upgrading to higher price tier while active, consider it a reset/upgrade
-            if (isNotExpired && newPlan.price > currentPlan.price) {
-                isUpgrade = true;
-            }
+        // 1. Verify with Backend
+        const verification = await verifyPayment(reference, planId, user.id);
+        
+        if (!verification.success) {
+            showToast(verification.error || "Payment verification failed. Please contact support.", "error");
+            return;
         }
 
-        const success = await updateUserSubscription(user.id, planId, paymentDiscount, isUpgrade);
-        if (success) {
-            // 1. Refresh session
-            await checkUserSession();
-            
-            // 2. Send Receipt Email via SendGrid (Supabase Edge Function)
-            const plan = getPlanDetails(planId);
-            const amount = paymentDiscount ? Math.round(plan.price * 0.5) : plan.price;
-            
-            // Send receipt in background
-            emailService.sendReceipt(
-                user.email,
-                user.full_name || 'Valued User',
-                plan.name,
-                amount
-            ).catch(console.error);
+        // 2. Refresh session
+        await checkUserSession();
+        
+        // 3. Send Receipt Email
+        const plan = getPlanDetails(planId);
+        const amount = paymentDiscount ? Math.round(plan.price * 0.5) : plan.price;
+        
+        emailService.sendReceipt(
+            user.email,
+            user.full_name || 'Valued User',
+            plan.name,
+            amount
+        ).catch(console.error);
 
-            // 3. Redirect to Thank You page for Tracking
-            navigate('/thank-you', { state: { planId, isUpgrade, amount } });
-        }
+        // 4. Redirect to Thank You page
+        navigate('/thank-you', { state: { planId, amount, reference } });
+        
+        showToast("Account upgraded successfully!", "success");
     }
     setPaymentTriggerPlan(null);
     setPaymentDiscount(false);
@@ -448,6 +440,7 @@ export const Layout: React.FC = () => {
             triggerPlanId={paymentTriggerPlan}
             discountActive={paymentDiscount}
             userEmail={user?.email}
+            userId={user?.id}
             currentPlanId={user?.plan_id}
             subscriptionEndDate={user?.subscription_end_date}
        />

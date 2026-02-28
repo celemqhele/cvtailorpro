@@ -9,6 +9,7 @@ import ga4Handler from "./api/ga4-data.js";
 import aiProxyHandler from "./api/ai-proxy.js";
 import pdfProxyHandler from "./api/pdf-proxy.js";
 import ocrProxyHandler from "./api/ocr-proxy.js";
+import paystackVerifyHandler from "./api/paystack-verify.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,6 +35,7 @@ async function startServer() {
   app.post("/api/ai-proxy", wrap(aiProxyHandler));
   app.post("/api/pdf-proxy", wrap(pdfProxyHandler));
   app.post("/api/ocr-proxy", wrap(ocrProxyHandler));
+  app.post("/api/paystack-verify", wrap(paystackVerifyHandler));
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

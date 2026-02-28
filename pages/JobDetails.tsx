@@ -119,6 +119,7 @@ export const JobDetails: React.FC = () => {
     
     if (!allowedQuickApply) {
         setLimitType('quick');
+        setShowApplyModal(false);
         setShowLimitModal(true);
         return;
     }
@@ -127,6 +128,7 @@ export const JobDetails: React.FC = () => {
     const allowedDaily = await usageService.checkUsageLimit(user?.id, dailyLimit);
     if (!allowedDaily) {
         setLimitType('daily');
+        setShowApplyModal(false);
         setShowLimitModal(true);
         return;
     }

@@ -455,9 +455,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const handleGenerate = async (forceOverride: boolean = false, isDirectTitleMode: boolean = false, bypassAd: boolean = false) => {
     // 1. Check if user is free and needs to watch ad or is blocked
     if (!isPaidUser && !bypassAd) {
-        // If they hit the limit (5), they are done. No more ads. Must upgrade.
-        const atLimit = await checkUsageLimit(user?.id, dailyLimit);
-        if (!atLimit) {
+        // If they hit the limit, they are done. No more ads. Must upgrade.
+        const canProceed = await checkUsageLimit(user?.id, dailyLimit);
+        if (!canProceed) {
+            setShowAdDecisionModal(false);
             setShowLimitModal(true); // Block them
             return;
         }
