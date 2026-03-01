@@ -9,8 +9,11 @@ import CoverLetterTemplate from '../components/CoverLetterTemplate';
 import { SmartEditor } from '../components/SmartEditor';
 import { FeatureLockedModal } from '../components/FeatureLockedModal';
 import { SubscriptionModal } from '../components/SubscriptionModal';
+import { LeadCaptureModal } from '../components/LeadCaptureModal';
 import { createWordBlob } from '../utils/docHelper';
 import { generatePdfFromApi } from '../utils/pdfHelper';
+import { analytics } from '../services/analyticsService';
+import { supabase } from '../services/supabaseClient';
 import saveAs from 'file-saver';
 
 export const GeneratedCV: React.FC = () => {
@@ -41,6 +44,8 @@ export const GeneratedCV: React.FC = () => {
   
   // Subscription Popup State
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showLeadModal, setShowLeadModal] = useState(false);
+  const [pendingDownload, setPendingDownload] = useState<{ docType: 'cv' | 'cl', format: 'pdf' | 'docx' } | null>(null);
   
   // Click outside to close menus
   const menuRef = useRef<HTMLDivElement>(null);
@@ -219,6 +224,14 @@ export const GeneratedCV: React.FC = () => {
   const handleDownload = async (docType: 'cv' | 'cl', format: 'pdf' | 'docx') => {
       if (!application || !cvData) return;
       
+      // Check if lead capture is needed
+      const hasCapturedLead = localStorage.getItem(`lead_captured_${analytics.getToken()}`);
+      if (!isPaidUser && !hasCapturedLead) {
+          setPendingDownload({ docType, format });
+          setShowLeadModal(true);
+          return;
+      }
+
       const processId = `${docType}-${format}`;
       setProcessingType(processId);
       setActiveMenu(null); // Close menu immediately
@@ -276,6 +289,31 @@ export const GeneratedCV: React.FC = () => {
           showToast("An error occurred during download.", 'error');
       } finally {
           setProcessingType(null);
+      }
+  };
+
+  const handleLeadSubmit = async (email: string) => {
+      try {
+          await supabase.from('leads').insert({
+              email,
+              user_id: user?.id || null,
+              source: 'cv_download',
+              metadata: {
+                  job_title: application?.job_title,
+                  company_name: application?.company_name,
+                  session_token: analytics.getToken()
+              }
+          });
+          
+          localStorage.setItem(`lead_captured_${analytics.getToken()}`, 'true');
+          
+          if (pendingDownload) {
+              handleDownload(pendingDownload.docType, pendingDownload.format);
+              setPendingDownload(null);
+          }
+      } catch (err) {
+          console.error('Failed to save lead:', err);
+          throw err;
       }
   };
 
@@ -607,6 +645,12 @@ export const GeneratedCV: React.FC = () => {
        <SubscriptionModal 
           isOpen={showSubscriptionModal} 
           onClose={() => setShowSubscriptionModal(false)} 
+       />
+
+       <LeadCaptureModal 
+          isOpen={showLeadModal}
+          onClose={() => setShowLeadModal(false)}
+          onSubmit={handleLeadSubmit}
        />
 
        {/* Rate Us Floating Button */}

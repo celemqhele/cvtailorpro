@@ -79,8 +79,8 @@ class AnalyticsService {
         try {
             await supabase.from('error_logs').insert({
                 session_token: this.sessionToken,
-                error_message: message,
-                stack_trace: stack,
+                message: message,
+                stack: stack,
                 path: window.location.pathname
             });
         } catch (err) {

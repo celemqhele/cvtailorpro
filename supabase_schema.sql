@@ -369,14 +369,36 @@ $$;
 -- 10. ANALYTICS & LOGGING
 -- ==========================================
 
+-- Admin Activity Logs
+CREATE TABLE IF NOT EXISTS admin_logs (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  admin_email text NOT NULL,
+  action text NOT NULL,
+  target_id text,
+  details jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE admin_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin only view logs" ON admin_logs;
+CREATE POLICY "Admin only view logs" ON admin_logs
+  FOR SELECT USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
+DROP POLICY IF EXISTS "Admin only insert logs" ON admin_logs;
+CREATE POLICY "Admin only insert logs" ON admin_logs
+  FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
 -- Error Logs
 CREATE TABLE IF NOT EXISTS error_logs (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid REFERENCES auth.users ON DELETE SET NULL,
+  session_token text,
   message text NOT NULL,
   stack text,
   path text,
   metadata jsonb,
+  is_solved boolean DEFAULT false,
   created_at timestamptz DEFAULT now()
 );
 
@@ -386,8 +408,36 @@ DROP POLICY IF EXISTS "Admin only view error logs" ON error_logs;
 CREATE POLICY "Admin only view error logs" ON error_logs
   FOR SELECT USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
 
+DROP POLICY IF EXISTS "Admin only update error logs" ON error_logs;
+CREATE POLICY "Admin only update error logs" ON error_logs
+  FOR UPDATE USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
 DROP POLICY IF EXISTS "Allow public insert error logs" ON error_logs;
 CREATE POLICY "Allow public insert error logs" ON error_logs
+  FOR INSERT WITH CHECK (true);
+
+-- Leads Table
+CREATE TABLE IF NOT EXISTS leads (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  email text NOT NULL,
+  user_id uuid REFERENCES auth.users ON DELETE SET NULL,
+  source text DEFAULT 'cv_download',
+  metadata jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin only view leads" ON leads;
+CREATE POLICY "Admin only view leads" ON leads
+  FOR SELECT USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
+DROP POLICY IF EXISTS "Admin only delete leads" ON leads;
+CREATE POLICY "Admin only delete leads" ON leads
+  FOR DELETE USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
+DROP POLICY IF EXISTS "Allow public insert leads" ON leads;
+CREATE POLICY "Allow public insert leads" ON leads
   FOR INSERT WITH CHECK (true);
 
 -- Page Views (Traffic)

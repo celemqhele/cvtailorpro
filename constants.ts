@@ -10,8 +10,6 @@ export const GEMINI_KEY_2 = "";
 export const CEREBRAS_KEY = "";
 export const CEREBRAS_KEY_2 = "";
 export const HTML2PDF_KEY = "";
-export const CLOUDCONVERT_KEY = "";
-export const CLOUDCONVERT_KEY_BACKUP = "";
 
 export const ANALYSIS_PROMPT = `
 Role: Senior Technical Recruiter & ATS Specialist.

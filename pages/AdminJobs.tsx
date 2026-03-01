@@ -4,6 +4,7 @@ import { jobService } from '../services/jobService';
 import { contentService } from '../services/contentService';
 import { rewriteJobDescription, generateArticle, generateFictionalCV, extractLinkedInDataWithJina, generateJobSpecFromCandidateProfile } from '../services/geminiService';
 import { resetAllDailyCredits } from '../services/usageService';
+import { adminLogService } from '../services/adminLogService';
 import { JobListing } from '../types';
 import { ContentItem } from '../data/blogData';
 import { Button } from '../components/Button';
@@ -124,6 +125,12 @@ export const AdminJobs: React.FC = () => {
         summary: aiResult.summary,
         example_cv_content: exampleCvJson || undefined
       });
+
+      await adminLogService.logAction('CREATE_JOB', newJob.id, {
+        title: newJob.title,
+        company: newJob.company
+      });
+
       setLastCreatedJob(newJob);
       setJobTitle(''); setJobCompany(''); setJobLocation(''); setJobLink(''); setJobRawDesc('');
       loadJobs();
@@ -132,7 +139,11 @@ export const AdminJobs: React.FC = () => {
 
   const handleJobDelete = async (id: string) => {
     if (!confirm('Delete job?')) return;
-    try { await jobService.deleteJob(id); loadJobs(); } catch (e: any) { showToast(`Error: ${e.message}`, 'error'); }
+    try { 
+      await jobService.deleteJob(id); 
+      await adminLogService.logAction('DELETE_JOB', id);
+      loadJobs(); 
+    } catch (e: any) { showToast(`Error: ${e.message}`, 'error'); }
   };
 
   // --- Article Handlers ---
@@ -154,7 +165,11 @@ export const AdminJobs: React.FC = () => {
       if (!generatedArticle) return;
       setIsLoading(true);
       try {
-          await contentService.createArticle(generatedArticle);
+          const newArticle = await contentService.createArticle(generatedArticle);
+          await adminLogService.logAction('PUBLISH_ARTICLE', (newArticle as any)?.id || generatedArticle.slug, {
+              title: generatedArticle.title,
+              category: generatedArticle.category
+          });
           setLastPublishedSlug(generatedArticle.slug);
           setGeneratedArticle(null);
           setTopic('');
@@ -169,7 +184,11 @@ export const AdminJobs: React.FC = () => {
   const handleArticleDelete = async (id: string) => {
       if (id.length < 5) { showToast("Cannot delete static/legacy articles.", 'info'); return; } // Simple check for legacy IDs (usually '1', 'v1')
       if (!confirm('Delete article?')) return;
-      try { await contentService.deleteArticle(id); loadArticles(); } catch (e: any) { showToast(`Error: ${e.message}`, 'error'); }
+      try { 
+          await contentService.deleteArticle(id); 
+          await adminLogService.logAction('DELETE_ARTICLE', id);
+          loadArticles(); 
+      } catch (e: any) { showToast(`Error: ${e.message}`, 'error'); }
   };
 
   // --- LinkedIn Handlers ---
@@ -187,6 +206,11 @@ export const AdminJobs: React.FC = () => {
           
           // 2. Generate Job Spec via AI
           const spec = await generateJobSpecFromCandidateProfile(profileData, "");
+          
+          await adminLogService.logAction('GENERATE_JOB_SPEC', adminLinkedinUrl, {
+              profile_name: (profileData as any).name || 'Unknown'
+          });
+
           setGeneratedJobSpec(spec);
           showToast("Job Spec generated successfully!", 'success');
       } catch (e: any) {
@@ -197,7 +221,12 @@ export const AdminJobs: React.FC = () => {
   };
 
   const performGlobalReset = async () => {
-      try { await resetAllDailyCredits(); setShowConfirmModal(false); setShowSuccessModal(true); } catch (e: any) { showToast(`Failed: ${e.message}`, 'error'); }
+      try { 
+          await resetAllDailyCredits(); 
+          await adminLogService.logAction('RESET_DAILY_CREDITS');
+          setShowConfirmModal(false); 
+          setShowSuccessModal(true); 
+      } catch (e: any) { showToast(`Failed: ${e.message}`, 'error'); }
   };
 
   if (isChecking) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>;

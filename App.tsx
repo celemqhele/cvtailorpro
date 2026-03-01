@@ -19,6 +19,7 @@ import { GeneratedCV } from './pages/GeneratedCV';
 import { WhyUs } from './pages/WhyUs';
 import { ThankYou } from './pages/ThankYou';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { AdminLeads } from './pages/AdminLeads';
 import { AnalyticsTracker } from './components/AnalyticsTracker';
 
 export const App: React.FC = () => {
@@ -64,6 +65,7 @@ export const App: React.FC = () => {
 
         {/* Admin Routes */}
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
+        <Route path="/admin-leads" element={<AdminLeads />} />
 
         {/* Protected Pages */}
         <Route path="/account" element={<Account />} />

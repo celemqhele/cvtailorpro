@@ -8,10 +8,12 @@ import {
 import { 
   Users, Eye, FileText, DollarSign, AlertCircle, 
   TrendingUp, Clock, MousePointer, ChevronRight,
-  Activity, Shield, Zap
+  Activity, Shield, Zap, CheckCircle, Brain, X
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { isPreviewOrAdmin } from '../utils/envHelper';
+import { adminLogService } from '../services/adminLogService';
+import { GoogleGenAI } from '@google/genai';
 
 interface VisitorSession {
   session_token: string;
@@ -30,9 +32,20 @@ interface PageView {
 }
 
 interface ErrorLog {
-  id: number;
-  error_message: string;
+  id: string;
+  message: string;
+  stack: string;
   path: string;
+  is_solved: boolean;
+  created_at: string;
+}
+
+interface AdminLog {
+  id: string;
+  admin_email: string;
+  action: string;
+  target_id: string | null;
+  details: any;
   created_at: string;
 }
 
@@ -43,9 +56,13 @@ export const AdminDashboard: React.FC = () => {
   const [sessions, setSessions] = useState<VisitorSession[]>([]);
   const [pageViews, setPageViews] = useState<PageView[]>([]);
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
+  const [adminLogs, setAdminLogs] = useState<AdminLog[]>([]);
   const [totalGenerations, setTotalGenerations] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [selectedError, setSelectedError] = useState<ErrorLog | null>(null);
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [isExplaining, setIsExplaining] = useState(false);
 
   // Robust Admin Check on Mount
   useEffect(() => {
@@ -95,12 +112,13 @@ export const AdminDashboard: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [sessionsRes, viewsRes, errorsRes, gensRes, paymentsRes] = await Promise.all([
+      const [sessionsRes, viewsRes, errorsRes, gensRes, paymentsRes, adminLogsRes] = await Promise.all([
         supabase.from('visitor_sessions').select('*').order('last_active_at', { ascending: false }),
         supabase.from('page_views').select('*').order('created_at', { ascending: false }).limit(1000),
-        supabase.from('error_logs').select('*').order('created_at', { ascending: false }).limit(50),
+        supabase.from('error_logs').select('*').eq('is_solved', false).order('created_at', { ascending: false }).limit(50),
         supabase.from('cv_applications').select('id', { count: 'exact' }),
-        supabase.from('payments').select('amount')
+        supabase.from('payments').select('amount'),
+        adminLogService.getLogs(50)
       ]);
 
       if (sessionsRes.data) setSessions(sessionsRes.data);
@@ -111,6 +129,7 @@ export const AdminDashboard: React.FC = () => {
         const revenue = paymentsRes.data.reduce((acc, curr) => acc + (curr.amount || 0), 0);
         setTotalRevenue(revenue);
       }
+      if (adminLogsRes) setAdminLogs(adminLogsRes);
     } catch (err) {
       console.error('Error fetching admin data:', err);
     } finally {
@@ -142,6 +161,50 @@ export const AdminDashboard: React.FC = () => {
       views: count
     };
   });
+
+  const handleMarkSolved = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('error_logs')
+        .update({ is_solved: true })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setErrorLogs(prev => prev.filter(log => log.id !== id));
+      if (selectedError?.id === id) setSelectedError(null);
+      
+      adminLogService.logAction('MARK_ERROR_SOLVED', id, { timestamp: new Date().toISOString() });
+    } catch (err) {
+      console.error('Error marking as solved:', err);
+    }
+  };
+
+  const handleExplainError = async (log: ErrorLog) => {
+    setIsExplaining(true);
+    setAiExplanation(null);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Analyze this application error and provide:
+1. A clear explanation of what likely went wrong.
+2. A technical guess on the root cause.
+3. A suggested prompt that the developer can send to an AI assistant to fix this specific issue.
+
+Error Message: ${log.message}
+Stack Trace: ${log.stack || 'N/A'}
+Path: ${log.path}
+`,
+      });
+      setAiExplanation(response.text || "Failed to generate explanation.");
+    } catch (err) {
+      console.error('AI Explanation failed:', err);
+      setAiExplanation("Error communicating with AI service.");
+    } finally {
+      setIsExplaining(false);
+    }
+  };
 
   if (isChecking || loading) {
     return (
@@ -185,12 +248,14 @@ export const AdminDashboard: React.FC = () => {
             icon={<DollarSign className="text-emerald-500" />} 
             trend="Live" 
           />
-          <StatCard 
-            title="Returning Users" 
-            value={returningUsers.toString()} 
-            icon={<Users className="text-blue-500" />} 
-            trend={`${((returningUsers / (sessions.length || 1)) * 100).toFixed(0)}%`} 
-          />
+          <div onClick={() => navigate('/admin-leads')} className="cursor-pointer">
+            <StatCard 
+              title="Total Leads" 
+              value="View Leads" 
+              icon={<Users className="text-blue-500" />} 
+              trend="New" 
+            />
+          </div>
           <StatCard 
             title="New Users" 
             value={newUsers.toString()} 
@@ -282,9 +347,25 @@ export const AdminDashboard: React.FC = () => {
                 {errorLogs.length === 0 ? (
                   <p className="text-sm text-zinc-500 italic">No errors reported recently.</p>
                 ) : (
-                  errorLogs.slice(0, 5).map((log) => (
-                    <div key={log.id} className="p-3 bg-red-500/5 border border-red-500/10 rounded-xl">
-                      <p className="text-xs font-mono text-red-400 truncate mb-1">{log.error_message}</p>
+                  errorLogs.slice(0, 8).map((log) => (
+                    <div 
+                      key={log.id} 
+                      onClick={() => setSelectedError(log)}
+                      className="p-3 bg-red-500/5 border border-red-500/10 rounded-xl cursor-pointer hover:bg-red-500/10 transition-colors group"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs font-mono text-red-400 truncate mb-1 flex-1">{log.message}</p>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkSolved(log.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-emerald-500/20 rounded text-emerald-500 transition-all"
+                          title="Mark as Solved"
+                        >
+                          <CheckCircle size={14} />
+                        </button>
+                      </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] text-zinc-500">{log.path}</span>
                         <span className="text-[10px] text-zinc-500">{new Date(log.created_at).toLocaleTimeString()}</span>
@@ -295,6 +376,99 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
+            {/* Error Detail Modal */}
+            <AnimatePresence>
+              {selectedError && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+                  >
+                    <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <AlertCircle className="text-red-500" />
+                        <h2 className="text-xl font-bold">Error Details</h2>
+                      </div>
+                      <button onClick={() => { setSelectedError(null); setAiExplanation(null); }} className="text-zinc-500 hover:text-white">
+                        <X size={24} />
+                      </button>
+                    </div>
+
+                    <div className="p-6 overflow-y-auto space-y-6">
+                      <div>
+                        <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Message</h4>
+                        <p className="text-red-400 font-mono text-sm bg-red-500/5 p-3 rounded-lg border border-red-500/10">
+                          {selectedError.message}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Path</h4>
+                          <p className="text-sm text-zinc-300">{selectedError.path}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Timestamp</h4>
+                          <p className="text-sm text-zinc-300">{new Date(selectedError.created_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+
+                      {selectedError.stack && (
+                        <div>
+                          <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Stack Trace</h4>
+                          <pre className="text-[10px] font-mono text-zinc-500 bg-black/40 p-4 rounded-lg overflow-x-auto max-h-40">
+                            {selectedError.stack}
+                          </pre>
+                        </div>
+                      )}
+
+                      <div className="pt-4 border-t border-zinc-800">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-sm font-bold flex items-center gap-2">
+                            <Brain size={16} className="text-emerald-500" />
+                            AI Explanation
+                          </h4>
+                          {!aiExplanation && !isExplaining && (
+                            <button 
+                              onClick={() => handleExplainError(selectedError)}
+                              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-medium transition-colors"
+                            >
+                              Generate Explanation
+                            </button>
+                          )}
+                        </div>
+
+                        {isExplaining && (
+                          <div className="flex items-center gap-3 text-zinc-500 text-sm animate-pulse">
+                            <Brain className="animate-bounce" size={16} />
+                            Analyzing error patterns...
+                          </div>
+                        )}
+
+                        {aiExplanation && (
+                          <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-4 text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                            {aiExplanation}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-6 border-t border-zinc-800 bg-zinc-900/50 flex items-center justify-end gap-3">
+                      <button 
+                        onClick={() => handleMarkSolved(selectedError.id)}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-all"
+                      >
+                        <CheckCircle size={18} />
+                        Mark as Solved
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+
             {/* Platform Health */}
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
               <h3 className="text-lg font-semibold mb-6">Platform Health</h3>
@@ -303,6 +477,34 @@ export const AdminDashboard: React.FC = () => {
                 <HealthMetric label="Gemini AI API" status="Operational" />
                 <HealthMetric label="Payment Gateway" status="Operational" />
                 <HealthMetric label="Email Service" status="Operational" />
+              </div>
+            </div>
+
+            {/* Admin Activity Logs */}
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+              <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                <Shield size={18} className="text-emerald-500" />
+                Admin Activity Logs
+              </h3>
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {adminLogs.length === 0 ? (
+                  <p className="text-sm text-zinc-500 italic">No admin activity recorded.</p>
+                ) : (
+                  adminLogs.map((log) => (
+                    <div key={log.id} className="p-3 bg-zinc-800/50 border border-zinc-700/50 rounded-xl">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">{log.action}</span>
+                        <span className="text-[10px] text-zinc-500">{new Date(log.created_at).toLocaleTimeString()}</span>
+                      </div>
+                      <p className="text-xs text-zinc-300 mb-1">{log.target_id || 'Global Action'}</p>
+                      {log.details && Object.keys(log.details).length > 0 && (
+                        <div className="text-[10px] text-zinc-500 bg-black/20 p-1.5 rounded font-mono truncate">
+                          {JSON.stringify(log.details)}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
