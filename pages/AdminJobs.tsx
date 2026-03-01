@@ -9,14 +9,13 @@ import { ContentItem } from '../data/blogData';
 import { Button } from '../components/Button';
 import { isPreviewOrAdmin } from '../utils/envHelper';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { AdminAnalytics } from '../components/AdminAnalytics';
 import { supabase } from '../services/supabaseClient';
 
 export const AdminJobs: React.FC = () => {
   const navigate = useNavigate();
   const { user, showToast } = useOutletContext<any>();
   const [isChecking, setIsChecking] = useState(true);
-  const [activeTab, setActiveTab] = useState<'jobs' | 'articles' | 'linkedin' | 'analytics'>('jobs');
+  const [activeTab, setActiveTab] = useState<'jobs' | 'articles' | 'linkedin'>('jobs');
 
   // Robust Admin Check on Mount
   useEffect(() => {
@@ -218,7 +217,6 @@ export const AdminJobs: React.FC = () => {
                 <button onClick={() => setActiveTab('jobs')} className={`px-4 py-2 rounded-md font-bold text-sm transition-all ${activeTab === 'jobs' ? 'bg-white text-indigo-700 shadow' : 'text-slate-500'}`}>Jobs</button>
                 <button onClick={() => setActiveTab('articles')} className={`px-4 py-2 rounded-md font-bold text-sm transition-all ${activeTab === 'articles' ? 'bg-white text-indigo-700 shadow' : 'text-slate-500'}`}>Articles (AI)</button>
                 <button onClick={() => setActiveTab('linkedin')} className={`px-4 py-2 rounded-md font-bold text-sm transition-all ${activeTab === 'linkedin' ? 'bg-white text-indigo-700 shadow' : 'text-slate-500'}`}>LinkedIn Scraper</button>
-                <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded-md font-bold text-sm transition-all ${activeTab === 'analytics' ? 'bg-white text-indigo-700 shadow' : 'text-slate-500'}`}>Analytics</button>
             </div>
         </div>
 
@@ -416,9 +414,6 @@ export const AdminJobs: React.FC = () => {
                 </div>
             </div>
         )}
-
-        {/* ================= ANALYTICS TAB ================= */}
-        {activeTab === 'analytics' && <AdminAnalytics />}
 
         {showConfirmModal && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">

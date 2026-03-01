@@ -113,121 +113,105 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     paystack.openIframe();
   };
 
-  const renderPlans = () => (
-      <div className="space-y-6">
-           <div className="text-center">
-              <h3 className="text-2xl font-bold text-slate-900">
-                  {discountActive ? 'Special Offer Unlocked! 🎉' : tradeInValue > 0 ? 'Upgrade Your Plan' : 'Upgrade for More Power'}
-              </h3>
-              {discountActive ? (
-                  <p className="text-indigo-600 font-bold mt-1 text-sm">
-                      50% OFF all plans for your first upgrade.
-                  </p>
-              ) : tradeInValue > 0 ? (
-                  <p className="text-green-600 font-bold mt-1 text-sm">
-                      Credit applied for your remaining days.
-                  </p>
-              ) : (
-                  <p className="text-slate-500 mt-1 text-sm">
-                      Get unlimited access and premium features.
-                  </p>
-              )}
-              
-              {/* Reassurance Badge */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-4 mb-2 mx-auto max-w-lg shadow-sm">
-                  <div className="flex items-center justify-center gap-2 mb-1">
-                     <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                     <p className="text-green-800 text-sm font-bold uppercase tracking-wide">No Strings Attached!</p>
+  const renderCheckoutSummary = () => {
+      const plan = PLANS.find(p => p.id === selectedPlanId);
+      if (!plan) return null;
+      
+      let finalPrice = plan.price;
+      if (discountActive) finalPrice = Math.round(plan.price * 0.5);
+      
+      let appliedTradeIn = 0;
+      if (tradeInValue > 0) {
+          const potentialPrice = finalPrice - tradeInValue;
+          if (potentialPrice < 5) {
+              appliedTradeIn = finalPrice - 5;
+              finalPrice = 5;
+          } else {
+              appliedTradeIn = tradeInValue;
+              finalPrice = potentialPrice;
+          }
+      }
+
+      return (
+          <div className="space-y-6 max-w-md mx-auto">
+              <div className="text-center mb-4">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold uppercase tracking-wider mb-2">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                      No Strings Attached!
                   </div>
-                  <p className="text-green-700 text-xs leading-relaxed">
-                      All plans are <strong>strictly one-time payments</strong>. They automatically expire after 30 days. <br/>
-                      <strong>No auto-renewals. No hidden fees. Total flexibility.</strong>
-                  </p>
+                  <h3 className="text-2xl font-bold text-slate-900">Checkout Summary</h3>
+                  <p className="text-slate-500 mt-1 text-sm">Review your selected plan before paying.</p>
               </div>
-           </div>
 
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              {PLANS.filter(p => p.price > 0).map((plan) => {
-                  const isSelected = selectedPlanId === plan.id;
-                  const isPopular = plan.id === 'tier_2';
+              <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
+                  <div className="flex justify-between items-center mb-4 border-b border-slate-200 pb-4">
+                      <div>
+                          <h4 className="font-bold text-lg text-slate-800">{plan.name} Plan</h4>
+                          <p className="text-sm text-slate-500">{plan.description}</p>
+                      </div>
+                      <div className="text-right">
+                          {(discountActive || tradeInValue > 0) && <div className="text-xs text-slate-400 line-through">R{plan.price}</div>}
+                          <div className="text-2xl font-bold text-indigo-600">R{Math.round(finalPrice)}</div>
+                      </div>
+                  </div>
+
+                  <ul className="space-y-3 text-sm text-slate-600 mb-6">
+                      <li className="flex items-start gap-2">
+                          <svg className="w-5 h-5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          <span><strong>One-Time Payment:</strong> No subscriptions, no hidden fees.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                          <svg className="w-5 h-5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          <span><strong>Auto-Cancels:</strong> Access automatically expires after 30 days.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                          <svg className="w-5 h-5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          <span><strong>Instant Access:</strong> Premium features unlocked immediately.</span>
+                      </li>
+                  </ul>
+
+                  {tradeInValue > 0 && (
+                      <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm mb-4 border border-green-200">
+                          <strong>Credit Applied:</strong> -R{Math.round(appliedTradeIn)} for your remaining days on the current plan.
+                      </div>
+                  )}
                   
-                  // Price Calculation for Display
-                  let displayPrice = discountActive ? Math.round(plan.price * 0.5) : plan.price;
-                  let showTradeIn = false;
+                  {discountActive && (
+                      <div className="bg-indigo-50 text-indigo-700 p-3 rounded-lg text-sm mb-4 border border-indigo-200">
+                          <strong>Discount Applied:</strong> 50% OFF your first upgrade!
+                      </div>
+                  )}
+
+                  <button 
+                      onClick={() => handlePayment(plan.id)}
+                      className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 hover:shadow-xl transition-all flex items-center justify-center gap-2"
+                  >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                      Pay Securely (R{Math.round(finalPrice)})
+                  </button>
                   
-                  // Only show trade-in if upgrading to a more expensive plan (or same) logic
-                  // If current plan is worth MORE than new plan, we don't refund, just price is R5 min.
-                  if (tradeInValue > 0) {
-                      displayPrice = displayPrice - tradeInValue;
-                      showTradeIn = true;
-                      if (displayPrice < 5) displayPrice = 5; // Min transaction
-                  }
-
-                  // Don't show price for current plan if it's the one they are on? 
-                  // No, they might want to extend.
-                  const isCurrent = currentPlanId === plan.id;
-
-                  return (
-                    <div 
-                        key={plan.id}
-                        onClick={() => setSelectedPlanId(plan.id)}
-                        className={`cursor-pointer rounded-xl border-2 p-4 transition-all relative flex flex-col justify-between
-                            ${isSelected ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600 transform scale-105 z-10' : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'}
-                            ${isCurrent ? 'opacity-75' : ''}
-                        `}
-                    >
-                        {isPopular && (
-                            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-amber-500 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase shadow-sm whitespace-nowrap">
-                                Most Popular
-                            </div>
-                        )}
-                        <div className="text-center space-y-1 mb-4 pt-2">
-                            <h4 className="font-bold text-slate-700 text-sm uppercase">{plan.name}</h4>
-                            <div className="flex flex-col items-center">
-                                {(discountActive || showTradeIn) && (
-                                    <span className="text-xs text-slate-400 line-through">R{plan.price}</span>
-                                )}
-                                <div className="text-2xl font-bold text-indigo-700">R{Math.round(displayPrice)}</div>
-                                {showTradeIn && (
-                                    <span className="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded">
-                                        Includes -R{Math.round(tradeInValue)} credit
-                                    </span>
-                                )}
-                            </div>
-                            <div className="text-xs font-bold text-slate-900 bg-white border border-slate-200 rounded-full py-1 px-2 inline-block mt-1">
-                                {plan.description}
-                            </div>
-                        </div>
-                        <ul className="text-[11px] text-slate-600 space-y-1 mb-4 text-left pl-2">
-                            <li className="flex items-center gap-1 text-green-700 font-medium">✅ One-Time Payment</li>
-                            <li className="flex items-center gap-1">✅ No Auto-Renewal</li>
-                            <li className="flex items-center gap-1">✅ No Ads</li>
-                            <li className="flex items-center gap-1">✅ Priority PDF</li>
-                        </ul>
-                        <div className={`w-full h-4 rounded-full ${isSelected ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
-                    </div>
-                  );
-              })}
-           </div>
-
-           <button 
-              onClick={() => handlePayment()}
-              className={`w-full py-4 px-4 font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700`}
-            >
-              Get {PLANS.find(p => p.id === selectedPlanId)?.name} Access
-            </button>
-            
-            <div className="text-center">
-                 <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm">Cancel</button>
-            </div>
-      </div>
-  );
+                  <p className="text-[10px] text-slate-400 text-center mt-3 px-4">
+                      This is a <strong>one-time payment</strong>. Your access will automatically expire after 30 days. No recurring charges.
+                  </p>
+                  
+                  <div className="mt-4 text-center">
+                      <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm font-medium">Cancel</button>
+                  </div>
+              </div>
+              
+              <div className="text-center text-xs text-slate-400 flex items-center justify-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                  Payments processed securely by Paystack
+              </div>
+          </div>
+      );
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]">
         <div className="p-6 md:p-8 overflow-y-auto">
-            {renderPlans()}
+            {renderCheckoutSummary()}
         </div>
       </div>
     </div>

@@ -1,17 +1,81 @@
 
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { AdBanner } from '../components/AdBanner';
 import { PlansSection } from '../components/PlansSection';
 import { Testimonials } from '../components/Testimonials';
+import { motion, AnimatePresence } from 'motion/react';
+import { Cookie, ShieldCheck, X } from 'lucide-react';
 
 export const Home: React.FC = () => {
   const { user, triggerAuth, isPaidUser, triggerPayment } = useOutletContext<any>();
+  const [showConsent, setShowConsent] = useState(false);
+
+  useEffect(() => {
+    const consent = localStorage.getItem('cv_tailor_cookie_consent');
+    if (!consent) {
+      // Delay showing it slightly for better UX
+      const timer = setTimeout(() => setShowConsent(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleAccept = () => {
+    localStorage.setItem('cv_tailor_cookie_consent', 'true');
+    setShowConsent(false);
+  };
 
   return (
-    <div className="animate-fade-in font-sans">
+    <div className="animate-fade-in font-sans relative">
+      {/* Cookie Consent Disclaimer */}
+      <AnimatePresence>
+        {showConsent && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-6 left-6 right-6 md:left-auto md:right-8 md:w-[400px] z-[100]"
+          >
+            <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl p-6 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-indigo-600"></div>
+              <div className="flex items-start gap-4">
+                <div className="bg-indigo-50 p-2 rounded-lg text-indigo-600 shrink-0">
+                  <Cookie size={24} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    Cookie & Analytics Notice
+                    <ShieldCheck size={14} className="text-emerald-500" />
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                    We use cookies and session tokens to understand how you use our site and to distinguish between new and returning visitors. This helps us improve your experience.
+                  </p>
+                  <div className="mt-4 flex items-center gap-3">
+                    <button 
+                      onClick={handleAccept}
+                      className="bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                    >
+                      Accept & Continue
+                    </button>
+                    <Link to="/privacy" className="text-[10px] text-slate-400 hover:text-indigo-600 underline">
+                      Privacy Policy
+                    </Link>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowConsent(false)}
+                  className="text-slate-300 hover:text-slate-500 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-white pb-16 pt-16 md:pt-24 lg:pb-32 lg:pt-32">
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

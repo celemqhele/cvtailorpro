@@ -121,20 +121,12 @@ export const Layout: React.FC = () => {
     window.scrollTo(0, 0);
     setTimeout(() => setIsMenuOpen(false), 0);
 
-    // 2. Admin Exclusion for Analytics
-    if (user?.email === 'mqhele03@gmail.com') {
-      return;
-    }
-
-    // 3. Fire Google Tracking
+    // 2. Fire Google Tracking
     if (window.gtag) {
       window.gtag('config', 'G-216SJPZ17Y', {
         page_path: location.pathname + location.search
       });
     }
-
-    // 4. Fire Custom Analytics Tracking
-    analyticsService.trackPageView(location.pathname + location.search, user?.id);
   }, [location, user?.id, user?.email]); // Re-run if location or user changes
 
   useEffect(() => {
@@ -184,7 +176,7 @@ export const Layout: React.FC = () => {
         showToast("Verifying payment...", "info");
         
         // 1. Verify with Backend
-        const verification = await verifyPayment(reference, planId, user.id);
+        const verification = await verifyPayment(reference, planId, user.id, paymentDiscount);
         
         if (!verification.success) {
             showToast(verification.error || "Payment verification failed. Please contact support.", "error");
@@ -292,7 +284,12 @@ export const Layout: React.FC = () => {
                  <Link to="/content" className={`text-sm font-medium transition-colors ${isActiveParent('/content')}`}>Content</Link>
                  <Link to="/pricing" className={`text-sm font-medium transition-colors ${isActive('/pricing')}`}>Pricing</Link>
                  
-                 {showAdmin && <Link to="/admin-jobs" className="text-sm font-bold text-red-500">Admin</Link>}
+                 {showAdmin && (
+                   <div className="flex items-center gap-4">
+                     <Link to="/admin-jobs" className="text-sm font-bold text-red-500 hover:text-red-600 transition-colors">Jobs</Link>
+                     <Link to="/admin-dashboard" className="text-sm font-bold text-emerald-600 hover:text-emerald-700 transition-colors">Analytics</Link>
+                   </div>
+                 )}
 
                  {/* Credits Counter - Visible to all */}
                  <div className="flex flex-col items-end">
@@ -446,7 +443,7 @@ export const Layout: React.FC = () => {
             documentTitle="Pro Plan" 
             existingOrderId={null} 
             triggerPlanId={paymentTriggerPlan}
-            discountActive={paymentDiscount}
+            discountActive={paymentDiscount && !user?.has_used_discount}
             userEmail={user?.email}
             userId={user?.id}
             currentPlanId={user?.plan_id}

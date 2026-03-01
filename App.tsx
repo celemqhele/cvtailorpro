@@ -18,10 +18,14 @@ import { AdminJobs } from './pages/AdminJobs';
 import { GeneratedCV } from './pages/GeneratedCV';
 import { WhyUs } from './pages/WhyUs';
 import { ThankYou } from './pages/ThankYou';
+import { AdminDashboard } from './pages/AdminDashboard';
+import { AnalyticsTracker } from './components/AnalyticsTracker';
 
 export const App: React.FC = () => {
   return (
-    <Routes>
+    <>
+      <AnalyticsTracker />
+      <Routes>
       <Route element={<Layout />}>
         {/* Public Pages */}
         <Route path="/" element={<Home />} />
@@ -58,9 +62,13 @@ export const App: React.FC = () => {
         {/* Post-Purchase Page */}
         <Route path="/thank-you" element={<ThankYou />} />
 
+        {/* Admin Routes */}
+        <Route path="/admin-dashboard" element={<AdminDashboard />} />
+
         {/* Protected Pages */}
         <Route path="/account" element={<Account />} />
       </Route>
     </Routes>
+    </>
   );
 };

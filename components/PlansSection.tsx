@@ -25,7 +25,7 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
              const isPopular = plan.id === 'tier_2'; // Growth
              
              // Feature Checks
-             const hasReferenceUpload = ['tier_2', 'tier_3', 'tier_4'].includes(plan.id);
+             const hasReferenceUpload = plan.hasReferenceUpload;
              const hasSkeletonMode = plan.hasSkeletonMode;
              const hasAutoFill = plan.hasAutoFill;
              const hasMasterEditor = (plan as any).hasMasterEditor;
@@ -59,6 +59,12 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
                         <li className="flex items-center gap-2 text-sm text-slate-700 font-medium">
                            <svg className="w-5 h-5 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                            <span>AI Smart Editor (Unlimited)</span>
+                        </li>
+                    )}
+                    {hasReferenceUpload && (
+                        <li className="flex items-center gap-2 text-sm text-blue-700 font-bold bg-blue-50 p-1 rounded-md -ml-1">
+                           <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                           <span>Reference CV Upload</span>
                         </li>
                     )}
                     {hasSkeletonMode && (

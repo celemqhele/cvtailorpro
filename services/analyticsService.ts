@@ -1,96 +1,158 @@
-import { supabase } from "./supabaseClient";
+import { supabase } from './supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
-// Simple session management
-const SESSION_KEY = 'cv_tailor_session_id';
-const getSessionId = () => {
-    let sessionId = localStorage.getItem(SESSION_KEY);
-    if (!sessionId) {
-        sessionId = uuidv4();
-        localStorage.setItem(SESSION_KEY, sessionId);
-    }
-    return sessionId;
-};
+const SESSION_KEY = 'cv_tailor_session_token';
 
-export const analyticsService = {
-    async trackPageView(path: string, userId?: string) {
-        try {
-            const sessionId = getSessionId();
-            const { error } = await supabase
-                .from('page_views')
-                .insert([{
-                    user_id: userId || null,
-                    session_id: sessionId,
-                    path,
-                    referrer: document.referrer || null,
-                    user_agent: navigator.userAgent,
-                    created_at: new Date().toISOString()
-                }]);
-            
-            if (error) console.error("Failed to track page view:", error);
-        } catch (e) {
-            console.error("Analytics tracking failed:", e);
+export interface AnalyticsEvent {
+    path: string;
+    referrer?: string;
+    duration?: number;
+}
+
+class AnalyticsService {
+    private sessionToken: string;
+    private isReturning: boolean = false;
+
+    constructor() {
+        const token = localStorage.getItem(SESSION_KEY);
+        if (token) {
+            this.sessionToken = token;
+            this.isReturning = true;
+        } else {
+            this.sessionToken = uuidv4();
+            localStorage.setItem(SESSION_KEY, this.sessionToken);
+            this.isReturning = false;
         }
-    },
+        this.initSession();
+    }
 
-    async getTrafficStats(days = 30) {
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - days);
+    private async initSession() {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            // Ignore admin activity
+            if (user?.email === 'mqhele03@gmail.com') {
+                return;
+            }
 
+            // Upsert session
+            await supabase.from('visitor_sessions').upsert({
+                session_token: this.sessionToken,
+                user_id: user?.id || null,
+                is_returning: this.isReturning,
+                browser_info: {
+                    userAgent: navigator.userAgent,
+                    language: navigator.language,
+                    platform: navigator.platform,
+                    screen: `${window.screen.width}x${window.screen.height}`
+                },
+                last_active_at: new Date().toISOString()
+            }, { onConflict: 'session_token' });
+        } catch (err) {
+            console.error('Failed to init analytics session:', err);
+        }
+    }
+
+    async trackPageView(path: string, referrer?: string) {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.email === 'mqhele03@gmail.com') {
+                return;
+            }
+
+            await supabase.from('page_views').insert({
+                session_token: this.sessionToken,
+                path,
+                referrer: referrer || document.referrer
+            });
+            
+            // Update last active
+            await supabase.from('visitor_sessions')
+                .update({ last_active_at: new Date().toISOString() })
+                .eq('session_token', this.sessionToken);
+        } catch (err) {
+            console.error('Failed to track page view:', err);
+        }
+    }
+
+    async logError(message: string, stack?: string) {
+        try {
+            await supabase.from('error_logs').insert({
+                session_token: this.sessionToken,
+                error_message: message,
+                stack_trace: stack,
+                path: window.location.pathname
+            });
+        } catch (err) {
+            console.error('Failed to log error:', err);
+        }
+    }
+
+    getToken() {
+        return this.sessionToken;
+    }
+
+    isReturningUser() {
+        return this.isReturning;
+    }
+
+    async getTrafficStats() {
         const { data, error } = await supabase
             .from('page_views')
-            .select('created_at, path, session_id')
-            .gte('created_at', startDate.toISOString());
+            .select('*')
+            .order('created_at', { ascending: false });
         
         if (error) throw error;
         return data;
-    },
+    }
 
     async getRealtimeUsers() {
-        // Users active in the last 30 mins, 1 hour, 24 hours
         const now = new Date();
-        const thirtyMinsAgo = new Date(now.getTime() - 30 * 60 * 1000);
-        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const last30m = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
+        const last1h = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+        const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-        const { data, error } = await supabase
-            .from('page_views')
-            .select('session_id, created_at')
-            .gte('created_at', twentyFourHoursAgo.toISOString());
-        
-        if (error) throw error;
+        const [res30m, res1h, res24h] = await Promise.all([
+            supabase.from('visitor_sessions').select('session_token', { count: 'exact' }).gt('last_active_at', last30m),
+            supabase.from('visitor_sessions').select('session_token', { count: 'exact' }).gt('last_active_at', last1h),
+            supabase.from('visitor_sessions').select('session_token', { count: 'exact' }).gt('last_active_at', last24h)
+        ]);
 
-        const stats = {
-            last30m: new Set(data.filter(v => new Date(v.created_at) >= thirtyMinsAgo).map(v => v.session_id)).size,
-            last1h: new Set(data.filter(v => new Date(v.created_at) >= oneHourAgo).map(v => v.session_id)).size,
-            last24h: new Set(data.map(v => v.session_id)).size
+        return {
+            last30m: res30m.count || 0,
+            last1h: res1h.count || 0,
+            last24h: res24h.count || 0
         };
-
-        return stats;
-    },
+    }
 
     async getUserJourneys() {
+        // Fetch recent page views and group by session
         const { data, error } = await supabase
             .from('page_views')
-            .select('session_id, path, created_at, user_id')
-            .order('created_at', { ascending: true });
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(500);
         
         if (error) throw error;
 
-        // Group by session
-        const journeys: Record<string, any[]> = {};
-        data.forEach(view => {
-            if (!journeys[view.session_id]) {
-                journeys[view.session_id] = [];
+        const journeys: Record<string, any> = {};
+        data.forEach((view: any) => {
+            if (!journeys[view.session_token]) {
+                journeys[view.session_token] = {
+                    sessionId: view.session_token,
+                    startTime: view.created_at,
+                    steps: []
+                };
             }
-            journeys[view.session_id].push(view);
+            journeys[view.session_token].steps.unshift({
+                path: view.path,
+                time: view.created_at
+            });
         });
 
-        return Object.entries(journeys).map(([sessionId, steps]) => ({
-            sessionId,
-            userId: steps[0].user_id,
-            startTime: steps[0].created_at,
-            steps: steps.map(s => ({ path: s.path, time: s.created_at }))
-        })).sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+        return Object.values(journeys);
     }
-};
+}
+
+export const analyticsService = new AnalyticsService();
+export const analytics = analyticsService;

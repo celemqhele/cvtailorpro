@@ -311,7 +311,7 @@ export const generateTailoredApplication = async (
 
   const jobContext = targetType === 'specific' 
     ? `TARGET JOB DESCRIPTION (KEYWORDS TO INJECT):\n${jobSpec}`
-    : `TARGET JOB TITLE (General Optimization): ${jobSpec}`;
+    : `TARGET JOB TITLE (General Optimization): ${jobSpec}\n\nCRITICAL INSTRUCTION: You are optimizing the candidate's EXISTING CV for this job title. DO NOT create a skeleton. DO NOT use placeholders like [Company Name], [Date], or [Metric %]. You MUST use the candidate's ACTUAL experience, companies, dates, and metrics from the provided Candidate CV Data. If a detail is missing from the candidate's CV, omit it or use what is available. DO NOT invent facts or add placeholders for the user to fill in later. The output must be a ready-to-use CV based on the candidate's real history.`;
 
   const linkedinInstruction = linkedinUrl && linkedinUrl.trim() !== ''
     ? `MANDATORY LINKEDIN INSTRUCTION: The user provided this LinkedIn URL: ${linkedinUrl}. Insert this into the "linkedin" field in the JSON.`

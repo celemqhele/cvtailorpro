@@ -547,9 +547,9 @@ export const GeneratedCV: React.FC = () => {
                             </p>
                         </div>
                     )}
-                    <div className="overflow-x-auto bg-slate-100/50 p-8 md:p-12 flex justify-center preview-wrapper">
+                    <div className="overflow-x-auto bg-slate-100/50 p-4 md:p-12 flex justify-start md:justify-center preview-wrapper">
                         {viewMode === 'cv' ? (
-                            <div id="cv-render-target" className="bg-white shadow-2xl origin-top scale-90 md:scale-100 transition-transform duration-200">
+                            <div id="cv-render-target" className="bg-white shadow-2xl origin-top-left md:origin-top scale-[0.85] md:scale-100 transition-transform duration-200 shrink-0 mb-[-150px] md:mb-0">
                                 <CVTemplate 
                                     data={cvData} 
                                     isEditable={isMasterEditMode} 
@@ -557,7 +557,7 @@ export const GeneratedCV: React.FC = () => {
                                 />
                             </div>
                         ) : (
-                            <div id="cl-render-target" className="bg-white shadow-2xl origin-top scale-90 md:scale-100 transition-transform duration-200">
+                            <div id="cl-render-target" className="bg-white shadow-2xl origin-top-left md:origin-top scale-[0.85] md:scale-100 transition-transform duration-200 shrink-0 mb-[-150px] md:mb-0">
                                 {application.cl_content ? (
                                     <CoverLetterTemplate 
                                         content={application.cl_content} 

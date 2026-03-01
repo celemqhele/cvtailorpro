@@ -82,8 +82,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   
   // Additional Info State (New Feature)
   const [additionalInfo, setAdditionalInfo] = useState('');
+  const [referenceCvText, setReferenceCvText] = useState<string | null>(null);
+  const [referenceCvFilename, setReferenceCvFilename] = useState<string | null>(null);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [isProcessingRef, setIsProcessingRef] = useState(false);
   const additionalFileRef = useRef<HTMLInputElement>(null);
+  const referenceFileRef = useRef<HTMLInputElement>(null);
   
   // --- Manual Form State ---
   const [manualData, setManualData] = useState<ManualCVData>({
@@ -115,6 +119,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   // Check Plan Details for Features
   const userPlan = user?.plan_id ? getPlanDetails(user.plan_id) : getPlanDetails('free');
   const hasSkeletonAccess = userPlan.hasSkeletonMode;
+  const hasReferenceAccess = userPlan.hasReferenceUpload;
 
   // Load Saved CV from User Profile
   useEffect(() => {
@@ -341,6 +346,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       }
   };
 
+  const handleReferenceFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (!hasReferenceAccess) {
+          showToast("Reference CV Upload is a Growth+ feature.", 'info');
+          return;
+      }
+
+      setIsProcessingRef(true);
+      try {
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+              const base64Content = (reader.result as string).split(',')[1];
+              const fileData: FileData = {
+                  base64: base64Content,
+                  mimeType: file.type || 'text/plain',
+                  name: file.name
+              };
+              
+              const text = await extractTextFromFile(fileData);
+              setReferenceCvText(text);
+              setReferenceCvFilename(file.name);
+              showToast("Reference CV uploaded successfully!", 'success');
+              
+              if (referenceFileRef.current) referenceFileRef.current.value = '';
+          };
+          reader.readAsDataURL(file);
+      } catch (err) {
+          console.error("Failed to read reference file", err);
+          showToast("Could not read reference file.", 'error');
+      } finally {
+          setIsProcessingRef(false);
+      }
+  };
+
   const handleScanAndAnalyze = async () => {
       if (!validateInputs()) return;
       if (cvInputMode === 'skeleton') {
@@ -485,7 +526,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     setResult(null);
     setGeneratedCvId(null);
     try {
-      
+      const combinedAdditionalInfo = referenceCvText 
+          ? `${additionalInfo}\n\n--- REFERENCE CV CONTENT ---\n${referenceCvText}`
+          : additionalInfo;
+
       if (cvInputMode === 'upload' && !useSavedCv && file) {
           const extractedText = await extractTextFromFile(file);
           await authService.saveCVToProfile(file.name, extractedText);
@@ -504,7 +548,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           force,
           linkedinUrl,
           (useSavedCv && savedCvText) ? savedCvText : undefined,
-          additionalInfo // Pass additional info
+          combinedAdditionalInfo // Pass combined info
       );
       if (response.outcome !== 'REJECT') {
           setResult(response);
@@ -625,6 +669,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
   return (
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-8">
+            {/* Limited Time Offer Banner */}
+            {discountEligible && (
+                <div className="mb-8 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 p-[1px] rounded-2xl shadow-lg shadow-indigo-100 overflow-hidden">
+                    <div className="bg-white rounded-[15px] p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-indigo-100 p-3 rounded-xl">
+                                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" /></svg>
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-slate-900 leading-tight">Limited Time: 50% OFF First Upgrade!</h3>
+                                <p className="text-sm text-slate-500">Unlock all Pro features including AI Smart Editor & Unlimited Cover Letters.</p>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={() => triggerPayment(undefined, true)}
+                            className="whitespace-nowrap px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 active:scale-95"
+                        >
+                            Claim Discount
+                        </button>
+                    </div>
+                </div>
+            )}
             <div className="flex justify-between items-center mb-6">
                  <div>
                     <h1 className="text-2xl font-bold text-slate-900">{mode === 'guest' ? 'Free CV Generator' : 'Professional Dashboard'}</h1>
@@ -782,41 +848,66 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                     
                     {/* 3. ADDITIONAL INFO (Optional) - Hide for Skeleton */}
                     {cvInputMode !== 'skeleton' && (
-                        <div className="mt-6 bg-white p-6 rounded-xl border border-slate-300">
-                             <div className="flex items-center justify-between mb-4">
-                                 <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide">3. Additional Context (Optional)</h2>
+                        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                             {/* Additional Context */}
+                             <div className="bg-white p-6 rounded-xl border border-slate-300">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide">3. Additional Context</h2>
+                                </div>
+                                <p className="text-xs text-slate-500 mb-2">Include extra certifications or cover letter notes.</p>
+                                <div className="relative">
+                                    <textarea 
+                                        className="w-full p-3 text-sm border border-slate-300 rounded-lg h-24 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        placeholder="e.g. I recently completed a React Native certification..."
+                                        value={additionalInfo}
+                                        onChange={(e) => setAdditionalInfo(e.target.value)}
+                                    />
+                                    <div className="absolute bottom-3 right-3">
+                                        <input type="file" ref={additionalFileRef} className="hidden" accept=".pdf,.docx,.txt" onChange={handleAdditionalFileUpload} />
+                                        <button onClick={() => additionalFileRef.current?.click()} disabled={isProcessingFile} className="flex items-center gap-1 text-xs font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-slate-200 transition-colors">
+                                            {isProcessingFile ? <span>...</span> : <><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg> Attach</>}
+                                        </button>
+                                    </div>
+                                </div>
                              </div>
-                             <p className="text-xs text-slate-500 mb-2">Include extra certifications, cover letter notes, or updated skills that aren't in your main CV.</p>
-                             <div className="relative">
-                                 <textarea 
-                                    className="w-full p-3 text-sm border border-slate-300 rounded-lg h-24 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    placeholder="e.g. I recently completed a React Native certification. Also, please emphasize my leadership experience..."
-                                    value={additionalInfo}
-                                    onChange={(e) => setAdditionalInfo(e.target.value)}
-                                 />
-                                 <div className="absolute bottom-3 right-3">
-                                     <input 
-                                        type="file" 
-                                        ref={additionalFileRef}
-                                        className="hidden" 
-                                        accept=".pdf,.docx,.txt"
-                                        onChange={handleAdditionalFileUpload}
-                                     />
-                                     <button 
-                                        onClick={() => additionalFileRef.current?.click()}
-                                        disabled={isProcessingFile}
-                                        className="flex items-center gap-1 text-xs font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-slate-200 transition-colors"
-                                     >
-                                        {isProcessingFile ? (
-                                            <span>Processing...</span>
-                                        ) : (
-                                            <>
-                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                                                Attach File
-                                            </>
-                                        )}
-                                     </button>
-                                 </div>
+
+                             {/* Reference CV Upload */}
+                             <div className={`p-6 rounded-xl border transition-all ${hasReferenceAccess ? 'bg-white border-slate-300' : 'bg-slate-50 border-slate-200 opacity-80'}`}>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide">4. Reference CV</h2>
+                                    {!hasReferenceAccess && <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">GROWTH+</span>}
+                                </div>
+                                <p className="text-xs text-slate-500 mb-2">Upload a CV you like the style or content of. We'll use it as a reference.</p>
+                                
+                                {referenceCvFilename ? (
+                                    <div className="border border-blue-200 bg-blue-50 rounded-lg p-3 flex items-center justify-between">
+                                        <div className="flex items-center gap-2 overflow-hidden">
+                                            <svg className="w-4 h-4 text-blue-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                            <span className="text-xs font-medium text-blue-800 truncate">{referenceCvFilename}</span>
+                                        </div>
+                                        <button onClick={() => { setReferenceCvText(null); setReferenceCvFilename(null); }} className="text-blue-400 hover:text-red-500">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="relative">
+                                        <input type="file" ref={referenceFileRef} className="hidden" accept=".pdf,.docx,.txt" onChange={handleReferenceFileUpload} />
+                                        <button 
+                                            onClick={() => hasReferenceAccess ? referenceFileRef.current?.click() : triggerPayment('tier_2')}
+                                            disabled={isProcessingRef}
+                                            className={`w-full py-6 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition-all ${hasReferenceAccess ? 'border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/30' : 'border-slate-200 cursor-pointer'}`}
+                                        >
+                                            {isProcessingRef ? (
+                                                <span className="text-xs font-bold text-slate-400">Processing...</span>
+                                            ) : (
+                                                <>
+                                                    <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                                                    <span className="text-xs font-bold text-slate-500">{hasReferenceAccess ? 'Upload Reference CV' : 'Unlock Reference Upload'}</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                )}
                              </div>
                         </div>
                     )}

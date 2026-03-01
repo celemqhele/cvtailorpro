@@ -40,6 +40,23 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
              .cv-preview-background { background: none !important; }
              .no-break { page-break-inside: avoid; break-inside: avoid; }
              .cv-absolute-container { transform: none !important; margin: 0 auto !important; width: 100% !important; height: auto !important; box-shadow: none !important; }
+             
+             @page {
+                 margin: 20mm;
+             }
+             @media print {
+                 .cv-absolute-container {
+                     padding: 0 !important;
+                 }
+                 h2 {
+                     page-break-after: avoid;
+                     break-after: avoid;
+                 }
+                 .section-container {
+                     page-break-inside: avoid;
+                     break-inside: avoid;
+                 }
+             }
         </style>
     </head>
     <body>

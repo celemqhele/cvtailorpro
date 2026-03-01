@@ -74,6 +74,8 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
       paddingBottom: '4px',
       borderBottom: '1.5px solid #95a5a6',
       outline: 'none',
+      pageBreakAfter: 'avoid' as const,
+      breakAfter: 'avoid' as const,
     },
     summaryText: {
       margin: '0',
@@ -218,7 +220,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
 
       {/* Professional Summary */}
       {data.summary && (
-        <section style={styles.section}>
+        <section style={styles.section} className="section-container">
           <h2 style={styles.sectionTitle}>PROFESSIONAL SUMMARY</h2>
           <p 
             style={styles.summaryText} 
@@ -233,7 +235,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
 
       {/* Core Competencies */}
       {data.skills && data.skills.length > 0 && (
-        <section style={styles.section}>
+        <section style={styles.section} className="section-container">
           <h2 style={styles.sectionTitle}>CORE COMPETENCIES</h2>
           <div style={styles.skillsGrid}>
             {data.skills.map((skill, index) => (
@@ -310,7 +312,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
 
       {/* Key Achievements */}
       {data.keyAchievements && data.keyAchievements.length > 0 && (
-        <section style={styles.section}>
+        <section style={styles.section} className="section-container">
           <h2 style={styles.sectionTitle}>KEY ACHIEVEMENTS</h2>
           <ul style={styles.achievementsList}>
             {data.keyAchievements.map((achievement, index) => (
@@ -330,7 +332,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
 
       {/* Education */}
       {data.education && data.education.length > 0 && (
-        <section style={styles.section}>
+        <section style={styles.section} className="section-container">
           <h2 style={styles.sectionTitle}>EDUCATION</h2>
           {data.education.map((edu, index) => (
             <div 
@@ -351,7 +353,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
 
       {/* References */}
       {data.references && data.references.length > 0 && (
-        <section style={styles.section}>
+        <section style={styles.section} className="section-container">
           <h2 style={styles.sectionTitle}>REFERENCES</h2>
           <div style={styles.skillsGrid}>
             {data.references.map((ref, index) => (

@@ -30,6 +30,15 @@ async function startServer() {
   };
 
   // API Routes
+  app.get("/api/ip", (req, res) => {
+    let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown_ip';
+    if (typeof ip === 'string') {
+        ip = ip.split(',')[0].trim();
+    } else if (Array.isArray(ip)) {
+        ip = ip[0].trim();
+    }
+    res.json({ ip });
+  });
   app.get("/api/ga4-data", wrap(ga4Handler));
   app.post("/api/ai-proxy", wrap(aiProxyHandler));
   app.post("/api/pdf-proxy", wrap(pdfProxyHandler));

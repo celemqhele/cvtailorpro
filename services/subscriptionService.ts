@@ -10,14 +10,15 @@ export interface SubscriptionPlan {
   hasSkeletonMode: boolean; // New feature flag
   hasAutoFill: boolean; // New feature flag for Auto-Filling Skeleton
   hasMasterEditor: boolean; // New feature flag for Master Editor
+  hasReferenceUpload: boolean; // New feature flag for Reference CV Upload
 }
 
 export const PLANS: SubscriptionPlan[] = [
-  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 1, description: '1 CV / Day (Ads)', hasSkeletonMode: false, hasAutoFill: false, hasMasterEditor: false },
-  { id: 'tier_1', name: 'Starter', price: 19.99, durationDays: 30, dailyLimit: 5, description: '5 CVs / Day', hasSkeletonMode: false, hasAutoFill: false, hasMasterEditor: false },
-  { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 10, description: 'Skeleton Mode', hasSkeletonMode: true, hasAutoFill: false, hasMasterEditor: false },
-  { id: 'tier_3', name: 'Pro', price: 99.99, durationDays: 30, dailyLimit: 25, description: 'Auto-Fill Skeleton', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true },
-  { id: 'tier_4', name: 'Unlimited', price: 199.99, durationDays: 30, dailyLimit: 1000000, description: 'Unlimited + All Features', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true },
+  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 1, description: '1 CV / Day (Ads)', hasSkeletonMode: false, hasAutoFill: false, hasMasterEditor: false, hasReferenceUpload: false },
+  { id: 'tier_1', name: 'Starter', price: 19.99, durationDays: 30, dailyLimit: 5, description: '5 CVs / Day', hasSkeletonMode: false, hasAutoFill: false, hasMasterEditor: false, hasReferenceUpload: false },
+  { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 10, description: 'Skeleton Mode', hasSkeletonMode: true, hasAutoFill: false, hasMasterEditor: false, hasReferenceUpload: true },
+  { id: 'tier_3', name: 'Pro', price: 99.99, durationDays: 30, dailyLimit: 25, description: 'Auto-Fill Skeleton', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true },
+  { id: 'tier_4', name: 'Unlimited', price: 199.99, durationDays: 30, dailyLimit: 1000000, description: 'Unlimited + All Features', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true },
 ];
 
 export const getPlanDetails = (planId: string) => {
@@ -37,13 +38,14 @@ export const createSubscription = async (
 export const verifyPayment = async (
     reference: string, 
     planId: string, 
-    userId: string
+    userId: string,
+    discountUsed: boolean = false
 ): Promise<{ success: boolean; message?: string; error?: string }> => {
     try {
         const response = await fetch('/api/paystack-verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reference, planId, userId })
+            body: JSON.stringify({ reference, planId, userId, discountUsed })
         });
 
         const data = await response.json();

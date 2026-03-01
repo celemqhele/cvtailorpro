@@ -5,7 +5,7 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { reference, planId, userId } = req.body;
+  const { reference, planId, userId, discountUsed } = req.body;
 
   if (!reference || !planId || !userId) {
     return res.status(400).json({ error: 'Missing required parameters' });
@@ -58,13 +58,19 @@ export default async function handler(req: any, res: any) {
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + 30);
 
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({
+    const updates: any = {
         plan_id: planId,
         is_pro_plus: true,
         subscription_end_date: endDate.toISOString()
-      })
+    };
+
+    if (discountUsed) {
+        updates.has_used_discount = true;
+    }
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update(updates)
       .eq('id', userId);
 
     if (updateError) {

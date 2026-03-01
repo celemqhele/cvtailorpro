@@ -6,7 +6,7 @@ import { supabase } from './supabaseClient';
  */
 const getIpAddress = async (): Promise<string> => {
     try {
-        const response = await fetch('https://api64.ipify.org?format=json');
+        const response = await fetch('/api/ip');
         const data = await response.json();
         return data.ip || 'unknown_ip';
     } catch (e) {
@@ -16,21 +16,53 @@ const getIpAddress = async (): Promise<string> => {
 };
 
 /**
+ * Generates a simple browser fingerprint.
+ */
+const getFingerprint = (): string => {
+    try {
+        const components = [
+            navigator.userAgent,
+            navigator.language,
+            window.screen.colorDepth,
+            window.screen.width + 'x' + window.screen.height,
+            new Date().getTimezoneOffset(),
+            navigator.hardwareConcurrency,
+            (navigator as any).deviceMemory
+        ];
+        const str = components.join('###');
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return `fp_${Math.abs(hash)}`;
+    } catch (e) {
+        return 'fp_unknown';
+    }
+};
+
+/**
  * Determines the tracking identifier: User ID (if logged in) OR Persistent Guest ID (if guest).
  */
 const getIdentifier = async (userId?: string): Promise<string> => {
     if (userId) return userId;
     
-    // For guests, use a persistent ID in localStorage
+    // For guests, use the IP address + Fingerprint to prevent incognito/cache clearing bypass
+    const ip = await getIpAddress();
+    const fp = getFingerprint();
+    
+    if (ip !== 'unknown_ip') {
+        // Use a combination of IP and fingerprint for better accuracy
+        return `guest_${ip}_${fp}`;
+    }
+
+    // Fallback to localStorage ONLY if IP fetch fails (very rare)
     let guestId = localStorage.getItem('cv_tailor_guest_id');
     if (!guestId) {
-        // Generate a reasonably unique ID if not present
-        guestId = 'guest_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        guestId = `guest_fallback_${fp}_` + Math.random().toString(36).substring(2, 15);
         localStorage.setItem('cv_tailor_guest_id', guestId);
     }
-    
-    // We still use IP as a secondary/fallback identifier in the backend if needed,
-    // but the primary identifier should be the guestId for consistency across refreshes.
     return guestId;
 };
 
@@ -108,13 +140,16 @@ export const getUsageCount = async (userId?: string): Promise<number> => {
  */
 export const syncIpUsageToUser = async (userId: string): Promise<void> => {
     try {
-        const guestId = localStorage.getItem('cv_tailor_guest_id');
-        if (!guestId) return;
+        const ip = await getIpAddress();
+        const fp = getFingerprint();
+        const identifier = ip !== 'unknown_ip' ? `guest_${ip}_${fp}` : localStorage.getItem('cv_tailor_guest_id');
+        
+        if (!identifier) return;
 
         // Call secure RPC - we keep the name for compatibility if it's hardcoded in DB,
         // but we pass the guestId as the identifier to sync from.
         const { error } = await supabase
-            .rpc('sync_usage_from_ip', { ip_address: guestId });
+            .rpc('sync_usage_from_ip', { ip_address: identifier });
 
         if (error) {
             console.error("Failed to sync guest usage via RPC:", error);
@@ -151,7 +186,9 @@ export const checkQuickApplyLimit = async (userPlanId?: string): Promise<boolean
 
     try {
         const ip = await getIpAddress();
-        const { data, error } = await supabase.rpc('check_quick_apply_eligibility', { user_ip: ip });
+        const fp = getFingerprint();
+        const identifier = ip !== 'unknown_ip' ? `guest_${ip}_${fp}` : 'unknown_ip';
+        const { data, error } = await supabase.rpc('check_quick_apply_eligibility', { user_ip: identifier });
         
         if (error) {
             console.error("Quick Apply Check Error:", error);
@@ -170,7 +207,9 @@ export const checkQuickApplyLimit = async (userPlanId?: string): Promise<boolean
 export const incrementQuickApply = async (): Promise<void> => {
     try {
         const ip = await getIpAddress();
-        const { error } = await supabase.rpc('record_quick_apply_usage', { user_ip: ip });
+        const fp = getFingerprint();
+        const identifier = ip !== 'unknown_ip' ? `guest_${ip}_${fp}` : 'unknown_ip';
+        const { error } = await supabase.rpc('record_quick_apply_usage', { user_ip: identifier });
         
         if (error) {
             console.error("Failed to record Quick Apply usage:", error);

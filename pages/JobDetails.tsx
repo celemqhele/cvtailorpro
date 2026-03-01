@@ -297,58 +297,61 @@ export const JobDetails: React.FC = () => {
 
         {/* Skeleton Preview Modal (New View) */}
         {showSkeletonPreview && skeletonData && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md animate-fade-in">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl h-[90vh] flex overflow-hidden relative">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-900/90 backdrop-blur-md animate-fade-in">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl h-[95vh] sm:h-[90vh] flex flex-col md:flex-row overflow-hidden relative">
                     
                     {/* Close Button */}
                     <button 
                         onClick={() => setShowSkeletonPreview(false)} 
-                        className="absolute top-4 right-4 z-20 bg-white/10 hover:bg-slate-100 text-slate-500 p-2 rounded-full transition-colors"
+                        className="absolute top-2 right-2 sm:top-4 sm:right-4 z-20 bg-slate-200/50 hover:bg-slate-200 text-slate-600 p-2 rounded-full transition-colors"
                     >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
 
                     {/* Left Panel: Controls & Upload */}
-                    <div className="w-1/3 bg-slate-50 border-r border-slate-200 p-8 flex flex-col overflow-y-auto">
-                        <div className="mb-8">
-                            <h2 className="text-2xl font-bold text-slate-900 mb-2">Skeleton CV Ready</h2>
-                            <p className="text-slate-600 text-sm">
+                    <div className="w-full md:w-1/3 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200 p-4 sm:p-6 md:p-8 flex flex-col overflow-y-auto z-10 shrink-0">
+                        <div className="mb-4 sm:mb-6 md:mb-8">
+                            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-1 sm:mb-2">Skeleton CV Ready</h2>
+                            <p className="text-slate-600 text-xs sm:text-sm">
                                 We've generated a tailored structure based on the job description. 
                             </p>
                         </div>
 
-                        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6 mb-8">
-                            <h3 className="font-bold text-indigo-900 mb-2 flex items-center gap-2">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 md:mb-8">
+                            <h3 className="font-bold text-indigo-900 mb-2 flex items-center gap-2 text-sm sm:text-base">
+                                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                                 Free Skeleton Mode
                             </h3>
-                            <p className="text-sm text-indigo-700 mb-4">
+                            <p className="text-xs sm:text-sm text-indigo-700 mb-3 sm:mb-4">
                                 This is your free daily generation. Upload your current CV below to automatically fill in the placeholders with your actual data.
                             </p>
-                            <div className="text-xs text-indigo-600 font-medium bg-white/50 p-2 rounded border border-indigo-100 inline-block">
+                            <div className="text-[10px] sm:text-xs text-indigo-600 font-medium bg-white/50 p-2 rounded border border-indigo-100 inline-block">
                                 Free Version: 1 per day for Find Jobs applications only.
                             </div>
                         </div>
 
-                        <div className="mt-auto">
-                            <h3 className="font-bold text-slate-900 mb-4">Complete Your CV</h3>
+                        <div className="mt-auto pt-4">
+                            <h3 className="font-bold text-slate-900 mb-2 sm:mb-4 text-sm sm:text-base">Complete Your CV</h3>
                             <Button 
                                 onClick={() => setShowUploadModal(true)}
-                                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-200 flex items-center justify-center gap-2"
+                                className="w-full py-3 sm:py-4 bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-200 flex items-center justify-center gap-2 text-sm sm:text-base"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                                 Upload CV to Fill Placeholders
                             </Button>
-                            <p className="text-xs text-center text-slate-400 mt-3">
+                            <p className="text-[10px] sm:text-xs text-center text-slate-400 mt-2 sm:mt-3">
                                 Supports PDF, DOCX, TXT. We'll extract your details.
                             </p>
                         </div>
                     </div>
 
                     {/* Right Panel: Preview */}
-                    <div className="w-2/3 bg-slate-200/50 p-8 overflow-y-auto flex justify-center">
-                        <div className="bg-white shadow-2xl min-h-[1123px] w-[794px] transform scale-75 origin-top">
-                            <CVTemplate data={skeletonData} />
+                    <div className="w-full md:w-2/3 bg-slate-200/50 p-4 sm:p-8 overflow-x-auto overflow-y-auto flex justify-start md:justify-center items-start">
+                        {/* Wrapper to handle scaling and prevent huge whitespace */}
+                        <div className="w-[794px] min-h-[1123px] transform scale-90 md:scale-75 origin-top-left md:origin-top mb-[-112px] md:mb-[-280px] shrink-0">
+                            <div className="bg-white shadow-2xl w-full h-full">
+                                <CVTemplate data={skeletonData} />
+                            </div>
                         </div>
                     </div>
                 </div>
