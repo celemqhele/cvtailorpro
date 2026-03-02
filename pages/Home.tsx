@@ -80,6 +80,22 @@ export const Home: React.FC = () => {
       <div className="relative overflow-hidden bg-white pb-16 pt-16 md:pt-24 lg:pb-32 lg:pt-32">
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
+                {/* Mode Switcher */}
+                <div className="inline-flex p-1 bg-slate-100 rounded-2xl border border-slate-200 mb-8">
+                  <Link 
+                    to="/" 
+                    className="px-6 py-2 rounded-xl text-sm font-bold bg-white text-indigo-600 shadow-sm"
+                  >
+                    For Applicants
+                  </Link>
+                  <Link 
+                    to="/recruiter" 
+                    className="px-6 py-2 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-700"
+                  >
+                    For Recruiters
+                  </Link>
+                </div>
+
                 <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-6xl">
                     Tailor Your CV for <br/>
                     <span className="text-indigo-600">Every Job Application</span>
@@ -87,21 +103,21 @@ export const Home: React.FC = () => {
                 <p className="mt-6 text-lg leading-8 text-slate-600">
                     Stop getting rejected by ATS robots. Our AI analyzes the job description and rewrites your CV to match the keywords perfectly—without inventing facts.
                 </p>
-                <div className="mt-10 flex items-center justify-center gap-x-6">
+                <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
                     {/* Primary CTA changes based on auth state */}
                     <Link 
                         to={user ? "/dashboard" : "/guestuserdashboard"} 
-                        className="rounded-full bg-indigo-600 px-8 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-transform hover:-translate-y-1"
+                        className="w-full sm:w-auto rounded-full bg-indigo-600 px-8 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-transform hover:-translate-y-1"
                     >
                         {user ? "Go to Dashboard" : "Get Free CV"}
                     </Link>
                     
-                    {/* Sign In only appears if NOT logged in */}
-                    {!user && (
-                        <button onClick={triggerAuth} className="text-sm font-semibold leading-6 text-slate-900 hover:text-indigo-600">
-                            Sign In <span aria-hidden="true">→</span>
-                        </button>
-                    )}
+                    <Link 
+                        to="/recruiter" 
+                        className="w-full sm:w-auto rounded-full bg-white border border-slate-200 px-8 py-3.5 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50 transition-transform hover:-translate-y-1 flex items-center justify-center gap-2"
+                    >
+                        I'm a Recruiter
+                    </Link>
                 </div>
             </div>
             

@@ -251,38 +251,52 @@ export const Layout: React.FC = () => {
   const isActive = (path: string) => location.pathname === path ? 'text-indigo-600 font-bold' : 'text-slate-600 hover:text-indigo-600';
   const isActiveParent = (path: string) => location.pathname.startsWith(path) ? 'text-indigo-600 font-bold' : 'text-slate-600 hover:text-indigo-600';
 
+  const isRecruiterMode = location.pathname.startsWith('/recruiter') || location.pathname.startsWith('/recruiter-dashboard');
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
        {/* Sophisticated Sticky Navigation */}
        <nav className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 transition-all duration-300">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
             {/* Logo Area */}
-            <Link to="/" className="flex items-center gap-2 group">
-                <div className="bg-white p-1 rounded-xl group-hover:scale-110 transition-transform duration-200 shadow-sm shadow-indigo-100 overflow-hidden border border-slate-100">
-                    <img 
-                      src="/apple-touch-icon.png" 
-                      alt="CV Tailor Pro" 
-                      className="w-8 h-8 object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        e.currentTarget.parentElement?.querySelector('svg')?.classList.remove('hidden');
-                      }}
-                    />
-                    <svg className="w-8 h-8 text-indigo-600 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 011.414.586l4 4a1 1 0 01.586 1.414V19a2 2 0 01-2 2z" /></svg>
-                </div>
-                <div>
-                   <h1 className="font-bold text-xl tracking-tight text-slate-800 leading-none">CV Tailor <span className="text-indigo-600">Pro</span></h1>
-                   <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">By GoApply</p>
-                </div>
-            </Link>
+            <div className="flex items-center gap-6">
+              <Link to={isRecruiterMode ? "/recruiter" : "/"} className="flex items-center gap-2 group">
+                  <div className="bg-white p-1 rounded-xl group-hover:scale-110 transition-transform duration-200 shadow-sm shadow-indigo-100 overflow-hidden border border-slate-100">
+                      <img 
+                        src="/apple-touch-icon.png" 
+                        alt="CV Tailor Pro" 
+                        className="w-8 h-8 object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.parentElement?.querySelector('svg')?.classList.remove('hidden');
+                        }}
+                      />
+                      <svg className="w-8 h-8 text-indigo-600 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 011.414.586l4 4a1 1 0 01.586 1.414V19a2 2 0 01-2 2z" /></svg>
+                  </div>
+                  <div>
+                    <h1 className="font-bold text-xl tracking-tight text-slate-800 leading-none">CV Tailor <span className={isRecruiterMode ? "text-blue-600" : "text-indigo-600"}>Pro</span></h1>
+                    <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">{isRecruiterMode ? 'For Recruiters' : 'By GoApply'}</p>
+                  </div>
+              </Link>
+            </div>
 
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center gap-8">
-                 <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/')}`}>Home</Link>
-                 <Link to="/why-us" className={`text-sm font-medium transition-colors ${isActive('/why-us')}`}>Why Us</Link>
-                 <Link to="/find-jobs" className={`text-sm font-medium transition-colors ${isActiveParent('/find-jobs')}`}>Find Jobs</Link>
-                 <Link to="/content" className={`text-sm font-medium transition-colors ${isActiveParent('/content')}`}>Content</Link>
-                 <Link to="/pricing" className={`text-sm font-medium transition-colors ${isActive('/pricing')}`}>Pricing</Link>
+                 {!isRecruiterMode ? (
+                   <>
+                     <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/')}`}>Home</Link>
+                     <Link to="/why-us" className={`text-sm font-medium transition-colors ${isActive('/why-us')}`}>Why Us</Link>
+                     <Link to="/find-jobs" className={`text-sm font-medium transition-colors ${isActiveParent('/find-jobs')}`}>Find Jobs</Link>
+                     <Link to="/content" className={`text-sm font-medium transition-colors ${isActiveParent('/content')}`}>Content</Link>
+                     <Link to="/pricing" className={`text-sm font-medium transition-colors ${isActive('/pricing')}`}>Pricing</Link>
+                   </>
+                 ) : (
+                   <>
+                     <Link to="/recruiter" className={`text-sm font-medium transition-colors ${isActive('/recruiter')}`}>Home</Link>
+                     <Link to="/recruiter-dashboard" className={`text-sm font-medium transition-colors ${isActive('/recruiter-dashboard')}`}>Talent Search</Link>
+                     <Link to="/pricing?tab=recruiter" className={`text-sm font-medium transition-colors ${location.search.includes('tab=recruiter') ? 'text-blue-600 font-bold' : 'text-slate-600 hover:text-blue-600'}`}>Pricing</Link>
+                   </>
+                 )}
                  
                  {showAdmin && (
                    <div className="flex items-center gap-4">
@@ -345,11 +359,22 @@ export const Layout: React.FC = () => {
          {/* Mobile Menu Dropdown */}
          {isMenuOpen && (
              <div className="md:hidden bg-white border-b border-slate-200 px-4 py-6 space-y-4 shadow-lg animate-fade-in">
-                 <Link to="/" className="block text-base font-medium text-slate-600">Home</Link>
-                 <Link to="/why-us" className="block text-base font-medium text-slate-600">Why Us</Link>
-                 <Link to="/find-jobs" className="block text-base font-medium text-slate-600">Find Jobs</Link>
-                 <Link to="/content" className="block text-base font-medium text-slate-600">Content</Link>
-                 <Link to="/pricing" className="block text-base font-medium text-slate-600">Pricing</Link>
+                 {!isRecruiterMode ? (
+                   <>
+                     <Link to="/" className="block text-base font-medium text-slate-600">Home</Link>
+                     <Link to="/why-us" className="block text-base font-medium text-slate-600">Why Us</Link>
+                     <Link to="/find-jobs" className="block text-base font-medium text-slate-600">Find Jobs</Link>
+                     <Link to="/content" className="block text-base font-medium text-slate-600">Content</Link>
+                     <Link to="/pricing" className="block text-base font-medium text-slate-600">Pricing</Link>
+                   </>
+                 ) : (
+                   <>
+                     <Link to="/recruiter" className="block text-base font-medium text-slate-600">Home</Link>
+                     <Link to="/recruiter-dashboard" className="block text-base font-medium text-slate-600">Talent Search</Link>
+                     <Link to="/pricing?tab=recruiter" className="block text-base font-medium text-slate-600">Pricing</Link>
+                   </>
+                 )}
+                 
                  {showAdmin && <Link to="/admin-jobs" className="block text-base font-bold text-red-500">Admin</Link>}
                  
                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
@@ -421,8 +446,8 @@ export const Layout: React.FC = () => {
                <div className="border-t border-slate-100 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-slate-400">
                    <p>© {new Date().getFullYear()} CV Tailor Pro by GoApply. All rights reserved.</p>
                    <div className="flex gap-4 mt-2 md:mt-0">
-                      <Link to="/privacy-policy" className="hover:text-indigo-600">Privacy</Link>
-                      <Link to="/terms-and-conditions" className="hover:text-indigo-600">Terms</Link>
+                       <Link to="/privacy-policy" className="hover:text-indigo-600">Privacy</Link>
+                       <Link to="/terms-and-conditions" className="hover:text-indigo-600">Terms</Link>
                    </div>
                </div>
            </div>

@@ -20,6 +20,34 @@ export interface UserProfile {
   last_cv_content?: string;
   last_cv_filename?: string;
   has_used_discount?: boolean;
+  role: 'candidate' | 'recruiter' | 'admin';
+  opt_in_headhunter?: boolean;
+  credits?: number;
+}
+
+export interface CandidateProfile {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  location: string;
+  summary: string;
+  skills: string[];
+  experience: CVExperience[];
+  education: CVEducation[];
+  seniority: string;
+  job_type: string;
+  cv_text: string;
+  created_at: string;
+}
+
+export interface RecruiterSearch {
+  id: string;
+  recruiter_id: string;
+  query_text: string;
+  query_params: any;
+  results_count: number;
+  created_at: string;
 }
 
 export interface SavedApplication {
@@ -140,6 +168,35 @@ export interface MatchAnalysis {
   reasoning: string;
   jobTitle?: string;
   company?: string;
+}
+
+// --- Analytics Types ---
+export interface AnalyticsSummary {
+  traffic_total: number;
+  revenue_total: number;
+  cv_generated: number;
+  new_users: number;
+  returning_users: number;
+  errors_unsolved: number;
+  use_own_cv_clicks: number;
+  continue_to_app_clicks: number;
+}
+
+export interface AnalyticsDataPoint {
+  time_bucket: string;
+  metric_value: number;
+}
+
+export interface LiveSessionDetail {
+  session_token: string;
+  current_page: string;
+  view_count: number;
+  session_duration_seconds: number;
+}
+
+export interface UserJourneyPoint {
+  path: string;
+  created_at: string;
 }
 
 // --- Job Listing Type ---

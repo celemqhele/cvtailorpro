@@ -11,6 +11,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 10"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@google-analytics/data": "^5.2.1",
     "@google/genai": "^1.42.0",
     "@sparticuz/chromium": "^119.0.0",

@@ -148,9 +148,9 @@ export async function extractTextFromFile(file: FileData): Promise<string> {
 }
 
 /**
- * Executes a call to AI Provider (Cerebras).
+ * Executes a call to AI Provider via backend proxy with fallback support.
  */
-async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string): Promise<string> {
+async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string, task: string = 'cv_generation'): Promise<string> {
     const isJsonMode = systemInstruction.includes("JSON") || systemInstruction.includes("json");
 
     try {
@@ -161,7 +161,8 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
                 systemPrompt: systemInstruction,
                 userPrompt: userMessage,
                 temperature,
-                jsonMode: isJsonMode
+                jsonMode: isJsonMode,
+                task
             })
         });
 
@@ -208,7 +209,7 @@ export const analyzeMatch = async (
         ${candidateText.substring(0, 15000)}
         `;
         
-        const responseText = await runAIChain(ANALYSIS_PROMPT, userMessage, 0.2, apiKey);
+        const responseText = await runAIChain(ANALYSIS_PROMPT, userMessage, 0.2, apiKey, 'analyse_match');
         return JSON.parse(responseText) as MatchAnalysis;
 
     } catch (clientError: any) {
@@ -352,7 +353,7 @@ export const generateTailoredApplication = async (
       
       Perform the generation and return the JSON object.`;
 
-  const responseText = await runAIChain(systemContent, userMessage, 0.6, apiKey);
+  const responseText = await runAIChain(systemContent, userMessage, 0.6, apiKey, 'cv_generation');
   return parseAndProcessResponse(responseText);
 };
 
@@ -419,7 +420,7 @@ export const generateSkeletonCV = async (
     Generate the Skeleton CV JSON now.
     `;
 
-    const responseText = await runAIChain(SCHEMA_INSTRUCTION, userMessage, 0.7, apiKey);
+    const responseText = await runAIChain(SCHEMA_INSTRUCTION, userMessage, 0.7, apiKey, 'cv_generation');
     return parseAndProcessResponse(responseText);
 };
 
@@ -438,7 +439,7 @@ export const smartEditCV = async (
     Please update the JSON accordingly.
     `;
 
-    const responseText = await runAIChain(SMART_EDIT_PROMPT, userMessage, 0.4, apiKey);
+    const responseText = await runAIChain(SMART_EDIT_PROMPT, userMessage, 0.4, apiKey, 'cv_generation');
     
     try {
         const result = JSON.parse(responseText);
@@ -464,7 +465,7 @@ export const fillSkeletonCV = async (
     Please merge the Real Candidate Facts into the Skeleton Structure, replacing [Placeholders].
     `;
 
-    const responseText = await runAIChain(SKELETON_FILLER_PROMPT, userMessage, 0.3, apiKey);
+    const responseText = await runAIChain(SKELETON_FILLER_PROMPT, userMessage, 0.3, apiKey, 'cv_generation');
     
     try {
         const result = JSON.parse(responseText);
@@ -491,7 +492,7 @@ export const smartEditCoverLetter = async (
     `;
 
     // Note: Use a higher temperature for creativity in CL
-    const responseText = await runAIChain(SMART_EDIT_CL_PROMPT, userMessage, 0.7, apiKey);
+    const responseText = await runAIChain(SMART_EDIT_CL_PROMPT, userMessage, 0.7, apiKey, 'cv_generation');
     
     // Sanitize markdown code blocks
     let cleanText = responseText.replace(/```(markdown|text|json)?/g, '').trim();
@@ -582,7 +583,7 @@ export const rewriteJobDescription = async (
     Please rewrite this now.
     `;
     
-    const responseText = await runAIChain(systemPrompt, userMessage, 0.5, apiKey);
+    const responseText = await runAIChain(systemPrompt, userMessage, 0.5, apiKey, 'admin_job_creation');
     const result = JSON.parse(responseText);
     return naturalizeObject(result);
 };
@@ -637,7 +638,7 @@ export const generateFictionalCV = async (
     ${jobDescription.substring(0, 10000)}
     `;
 
-    const responseText = await runAIChain(systemPrompt, userMessage, 0.7, apiKey);
+    const responseText = await runAIChain(systemPrompt, userMessage, 0.7, apiKey, 'cv_generation');
     
     // Ensure it's just the JSON part if there's extra text
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -701,7 +702,7 @@ export const generateArticle = async (topic: string, apiKey: string): Promise<an
 
     const userMessage = `TOPIC: ${topic}`;
 
-    const responseText = await runAIChain(systemPrompt, userMessage, 0.7, apiKey);
+    const responseText = await runAIChain(systemPrompt, userMessage, 0.7, apiKey, 'admin_job_creation');
     const result = JSON.parse(responseText);
     return naturalizeObject(result);
 };
@@ -802,6 +803,19 @@ export const generateJobSpecFromCandidateProfile = async (candidateData: string,
     Generate the Perfect Match Job Spec now.
     `;
 
-    const responseText = await runAIChain(systemPrompt, userMessage, 0.7, apiKey);
+    const responseText = await runAIChain(systemPrompt, userMessage, 0.7, apiKey, 'admin_job_creation');
     return naturalizeText(responseText);
+};
+
+export const extractJobRequirements = async (jobSpec: string, apiKey: string): Promise<any> => {
+    const systemPrompt = `Analyze this job specification and extract key skills, required seniority, and job type. Return as JSON: { "skills": string[], "seniority": string, "jobType": string }`;
+    const responseText = await runAIChain(systemPrompt, jobSpec, 0.3, apiKey, 'recruiter_candidate_finder');
+    return JSON.parse(responseText);
+};
+
+export const rankCandidates = async (requirements: any, candidates: any[], apiKey: string): Promise<string[]> => {
+    const systemPrompt = `Rank these candidates based on their suitability for the following job requirements. Return an array of candidate IDs in order of strongest to weakest match. Return ONLY the JSON array.`;
+    const userMessage = `Requirements: ${JSON.stringify(requirements)}\nCandidates: ${JSON.stringify(candidates)}`;
+    const responseText = await runAIChain(systemPrompt, userMessage, 0.3, apiKey, 'recruiter_candidate_finder');
+    return JSON.parse(responseText);
 };

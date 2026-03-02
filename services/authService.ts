@@ -4,13 +4,14 @@ import { UserProfile, SavedApplication } from '../types';
 import { naturalizeText } from '../utils/textHelpers';
 
 export const authService = {
-  async signUp(email: string, password: string, fullName?: string) {
+  async signUp(email: string, password: string, fullName?: string, role: 'candidate' | 'recruiter' = 'candidate') {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName || '',
+          role: role
         },
         emailRedirectTo: window.location.origin + '/account?confirmed=true'
       }
