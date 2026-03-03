@@ -1,1 +1,68 @@
-Not found
+/** Vercel Build Fix - TS1434 */
+import express from "express";
+import { createServer as createViteServer } from "vite";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Import API handlers
+import ga4Handler from "./api/ga4-data.js";
+import aiProxyHandler from "./api/ai-proxy.js";
+import pdfProxyHandler from "./api/generate-pdf.js";
+import ocrProxyHandler from "./api/ocr-proxy.js";
+import paystackVerifyHandler from "./api/paystack-verify.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+async function startServer() {
+  const app = express();
+  const PORT = 3000;
+
+  app.use(express.json({ limit: '50mb' }));
+
+  // Helper to wrap Vercel-style handlers for Express
+  const wrap = (handler: any) => async (req: express.Request, res: express.Response) => {
+    try {
+      await handler(req, res);
+    } catch (err: any) {
+      console.error("API Error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  };
+
+  // API Routes
+  app.get("/api/ip", (req, res) => {
+    let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown_ip';
+    if (typeof ip === 'string') {
+        ip = ip.split(',')[0].trim();
+    } else if (Array.isArray(ip)) {
+        ip = ip[0].trim();
+    }
+    res.json({ ip });
+  });
+  app.get("/api/ga4-data", wrap(ga4Handler));
+  app.post("/api/ai-proxy", wrap(aiProxyHandler));
+  app.post("/api/pdf-proxy", wrap(pdfProxyHandler));
+  app.post("/api/ocr-proxy", wrap(ocrProxyHandler));
+  app.post("/api/paystack-verify", wrap(paystackVerifyHandler));
+
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    app.use(express.static(path.join(__dirname, "dist")));
+    app.get("*", (req: express.Request, res: express.Response) => {
+      res.sendFile(path.join(__dirname, "dist", "index.html"));
+    });
+  }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+startServer();

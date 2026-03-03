@@ -108,13 +108,13 @@ export default async function handler(req: any, res: any) {
     try {
       if (step.provider === 'claude' && step.key) {
         const text = await callClaude(systemPrompt, userPrompt, temperature, step.key);
-        return res.status(200).json({ text });
+        return res.status(200).json({ text, provider: 'claude' });
       }
       if (step.provider === 'gemini' && step.keys.length > 0) {
         for (const key of step.keys) {
           try {
             const text = await callGemini(step.model, systemPrompt, userPrompt, temperature, key, jsonMode);
-            return res.status(200).json({ text });
+            return res.status(200).json({ text, provider: `gemini:${step.model}` });
           } catch (e) { continue; }
         }
       }
@@ -122,7 +122,7 @@ export default async function handler(req: any, res: any) {
         for (const key of step.keys) {
           try {
             const text = await callCerebras(step.model, systemPrompt, userPrompt, temperature, key, jsonMode);
-            return res.status(200).json({ text });
+            return res.status(200).json({ text, provider: `cerebras:${step.model}` });
           } catch (e) { continue; }
         }
       }
