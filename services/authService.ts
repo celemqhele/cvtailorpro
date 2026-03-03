@@ -132,7 +132,7 @@ export const authService = {
     const userId = user ? user.id : null;
     const expiresAt = user ? null : new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
-    const { data, error } = await supabase.from('applications').insert({
+    const { data, error } = await supabase.from('cv_applications').insert({
       user_id: userId,
       job_title: jobTitle,
       company_name: companyName,
@@ -155,7 +155,7 @@ export const authService = {
    */
   async updateApplication(id: string, cvContent: string, clContent: string) {
     const { error } = await supabase
-      .from('applications')
+      .from('cv_applications')
       .update({ 
         cv_content: cvContent,
         cl_content: clContent
@@ -172,7 +172,7 @@ export const authService = {
       if (!user) return false;
 
       const { error } = await supabase
-        .from('applications')
+        .from('cv_applications')
         .update({ 
             user_id: user.id,
             expires_at: null 
@@ -192,7 +192,7 @@ export const authService = {
     if (!user) return [];
 
     const { data, error } = await supabase
-      .from('applications')
+      .from('cv_applications')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
@@ -213,7 +213,7 @@ export const authService = {
 
   async getApplicationById(id: string): Promise<SavedApplication | null> {
     const { data, error } = await supabase
-      .from('applications')
+      .from('cv_applications')
       .select('*')
       .eq('id', id)
       .single();
@@ -231,7 +231,7 @@ export const authService = {
   },
 
   async deleteApplication(id: string) {
-    const { error } = await supabase.from('applications').delete().eq('id', id);
+    const { error } = await supabase.from('cv_applications').delete().eq('id', id);
     if (error) throw error;
   }
 };

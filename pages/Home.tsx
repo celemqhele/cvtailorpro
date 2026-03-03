@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { AdBanner } from '../components/AdBanner';
 import { PlansSection } from '../components/PlansSection';
+import { RecruiterPlansSection } from '../components/RecruiterPlansSection';
 import { Testimonials } from '../components/Testimonials';
 import { motion, AnimatePresence } from 'motion/react';
 import { Cookie, ShieldCheck, X, ArrowRight, CheckCircle2 } from 'lucide-react';
@@ -12,6 +13,7 @@ import { Cookie, ShieldCheck, X, ArrowRight, CheckCircle2 } from 'lucide-react';
 export const Home: React.FC = () => {
   const { user, triggerAuth, isPaidUser, triggerPayment } = useOutletContext<any>();
   const [showConsent, setShowConsent] = useState(false);
+  const [activePricingTab, setActivePricingTab] = useState<'applicant' | 'recruiter'>('applicant');
 
   useEffect(() => {
     const consent = localStorage.getItem('cv_tailor_cookie_consent');
@@ -436,10 +438,47 @@ export const Home: React.FC = () => {
       <Testimonials />
       
       {/* Plans Section */}
-      <PlansSection 
-        onSelectPlan={(planId) => triggerPayment(planId)}
-        userPlanId={user?.plan_id || 'free'}
-      />
+      <div className="bg-white py-16">
+          <div className="max-w-7xl mx-auto px-6 text-center mb-12">
+              <h2 className="text-3xl font-bold text-slate-900 mb-4">Simple, Transparent Pricing</h2>
+              <p className="text-slate-500 max-w-2xl mx-auto">Choose the perfect plan to accelerate your {activePricingTab === 'applicant' ? 'job search' : 'hiring process'}.</p>
+              
+              <div className="mt-8 inline-flex p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                <button
+                  onClick={() => setActivePricingTab('applicant')}
+                  className={`px-8 py-3 rounded-xl text-sm font-bold transition-all ${
+                    activePricingTab === 'applicant' 
+                    ? 'bg-white text-indigo-600 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  For Applicants
+                </button>
+                <button
+                  onClick={() => setActivePricingTab('recruiter')}
+                  className={`px-8 py-3 rounded-xl text-sm font-bold transition-all ${
+                    activePricingTab === 'recruiter' 
+                    ? 'bg-white text-blue-600 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  For Recruiters
+                </button>
+              </div>
+          </div>
+
+          {activePricingTab === 'applicant' ? (
+            <PlansSection 
+              onSelectPlan={(planId) => triggerPayment(planId)}
+              userPlanId={user?.plan_id || 'free'}
+            />
+          ) : (
+            <RecruiterPlansSection 
+              onSelectPlan={(planId) => triggerPayment(planId)}
+              userPlanId={user?.plan_id || 'free'}
+            />
+          )}
+      </div>
 
       {/* Bottom CTA */}
       <div className="bg-slate-50 border-t border-slate-200">

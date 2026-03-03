@@ -13,6 +13,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { isPreviewOrAdmin } from '../utils/envHelper';
 import { adminLogService } from '../services/adminLogService';
+import { analytics } from '../services/analyticsService';
 import { GoogleGenAI } from '@google/genai';
 
 interface VisitorSession {
@@ -58,6 +59,8 @@ export const AdminDashboard: React.FC = () => {
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
   const [adminLogs, setAdminLogs] = useState<AdminLog[]>([]);
   const [totalGenerations, setTotalGenerations] = useState(0);
+  const [recentGenerations, setRecentGenerations] = useState<any[]>([]);
+  const [cvStats, setCvStats] = useState({ last30m: 0, last1h: 0, last24h: 0 });
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalTraffic, setTotalTraffic] = useState(0);
   const [unsolvedErrorsCount, setUnsolvedErrorsCount] = useState(0);
@@ -67,6 +70,7 @@ export const AdminDashboard: React.FC = () => {
   const [isExplaining, setIsExplaining] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
   const [detailedData, setDetailedData] = useState<any[]>([]);
+  const [detailedEvents, setDetailedEvents] = useState<any[]>([]);
   const [timeRange, setTimeRange] = useState<string>('24h');
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [selectedSessionToken, setSelectedSessionToken] = useState<string | null>(null);
@@ -111,7 +115,7 @@ export const AdminDashboard: React.FC = () => {
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'visitor_sessions' }, () => fetchData())
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'page_views' }, () => fetchData())
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cv_applications' }, () => fetchData())
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'payments' }, () => fetchData())
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, () => fetchData())
           .subscribe();
 
         return () => {
@@ -129,6 +133,16 @@ export const AdminDashboard: React.FC = () => {
       });
       if (error) throw error;
       setDetailedData(data || []);
+
+      if (metric === 'cv_generated') {
+          const { data: events } = await supabase
+            .from('user_events')
+            .select('*')
+            .eq('event_name', 'cv_generated')
+            .order('created_at', { ascending: false })
+            .limit(50);
+          setDetailedEvents(events || []);
+      }
     } catch (err) {
       console.error('Error fetching detailed metric:', err);
     } finally {
@@ -192,6 +206,14 @@ export const AdminDashboard: React.FC = () => {
       if (sessionsRes.data) setSessions(sessionsRes.data);
       if (viewsRes.data) setPageViews(viewsRes.data);
       if (adminLogsRes) setAdminLogs(adminLogsRes);
+
+      // Fetch CV Generation Stats
+      const [cvStatsRes, recentGensRes] = await Promise.all([
+          analytics.getCVGenerationStats(),
+          analytics.getRecentCVGenerations(10)
+      ]);
+      setCvStats(cvStatsRes);
+      setRecentGenerations(recentGensRes);
       
       // Error logs are now in summary, but we might want the full list for the sidebar
       const { data: errorsRes } = await supabase.from('error_logs').select('*').eq('is_solved', false).order('created_at', { ascending: false }).limit(50);
@@ -308,7 +330,7 @@ Path: ${log.path}
         </header>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
           <StatCard 
             title="Total Revenue" 
             value={`R${totalRevenue.toFixed(2)}`} 
@@ -324,6 +346,13 @@ Path: ${log.path}
               trend="New" 
             />
           </div>
+          <StatCard 
+            title="CVs Generated" 
+            value={totalGenerations.toLocaleString()} 
+            icon={<FileText className="text-orange-500" />} 
+            trend={`+${cvStats.last24h}`} 
+            onClick={() => setSelectedMetric('cv_generated')}
+          />
           <StatCard 
             title="Daily Traffic" 
             value={totalTraffic.toLocaleString()} 
@@ -403,6 +432,35 @@ Path: ${log.path}
                       </div>
                     </div>
                     <ChevronRight size={16} className="text-zinc-600" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Recent CV Generations */}
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <FileText size={18} className="text-orange-500" />
+                  Recent CV Generations
+                </h3>
+                <div className="flex gap-4 text-xs font-bold">
+                    <span className="text-zinc-500">30m: <span className="text-orange-400">{cvStats.last30m}</span></span>
+                    <span className="text-zinc-500">1h: <span className="text-orange-400">{cvStats.last1h}</span></span>
+                    <span className="text-zinc-500">24h: <span className="text-orange-400">{cvStats.last24h}</span></span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {recentGenerations.map((gen, idx) => (
+                  <div key={idx} className="p-4 bg-zinc-800/30 rounded-xl border border-zinc-800/50 flex flex-col gap-2">
+                    <div className="flex justify-between items-start">
+                        <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">{gen.metadata?.mode || 'Tailored'}</span>
+                        <span className="text-[10px] text-zinc-500">{new Date(gen.created_at).toLocaleString()}</span>
+                    </div>
+                    <div>
+                        <p className="text-sm font-bold text-zinc-200 truncate">{gen.metadata?.job_title || 'Job Application'}</p>
+                        <p className="text-xs text-zinc-500 truncate">{gen.metadata?.company || 'Company'}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -675,6 +733,29 @@ Path: ${log.path}
                       </p>
                     </div>
                   </div>
+
+                  {selectedMetric === 'cv_generated' && detailedEvents.length > 0 && (
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-bold flex items-center gap-2">
+                            <FileText size={18} className="text-orange-500" />
+                            Recent Generations
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {detailedEvents.map((gen, idx) => (
+                                <div key={idx} className="p-4 bg-zinc-800/50 rounded-xl border border-zinc-700 flex flex-col gap-2">
+                                    <div className="flex justify-between items-start">
+                                        <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">{gen.metadata?.mode || 'Tailored'}</span>
+                                        <span className="text-[10px] text-zinc-500">{new Date(gen.created_at).toLocaleString()}</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-zinc-200 truncate">{gen.metadata?.job_title || 'Job Application'}</p>
+                                        <p className="text-xs text-zinc-500 truncate">{gen.metadata?.company || 'Company'}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

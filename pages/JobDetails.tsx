@@ -2,8 +2,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
+import { CheckCircle, Zap } from 'lucide-react';
 import { jobService } from '../services/jobService';
 import { authService } from '../services/authService';
+import { analytics } from '../services/analyticsService';
 import * as usageService from '../services/usageService';
 import * as geminiService from '../services/geminiService';
 import { JobListing, CVData, FileData } from '../types';
@@ -87,6 +89,13 @@ export const JobDetails: React.FC = () => {
                 if (data) {
                     setJob(data);
                     
+                    // Track Job View in Meta Pixel & DB
+                    analytics.trackEvent('view_job', {
+                        job_id: data.id,
+                        job_title: data.title,
+                        company: data.company
+                    });
+
                     // Handle Example CV
                     if (data.example_cv_content) {
                         try {
@@ -374,18 +383,57 @@ export const JobDetails: React.FC = () => {
                             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                         </div>
 
-                        <h2 className="text-2xl font-bold text-slate-900 mb-3">Boost Your Application?</h2>
-                        <p className="text-slate-600 mb-8 leading-relaxed">
-                            Look at the preview on the right. This is the kind of tailored, ATS-optimized CV we can generate for you in seconds based on this exact job description.
-                        </p>
+                        <h2 className="text-2xl font-bold text-slate-900 mb-3">Tailor Your CV for Free?</h2>
+                        <div className="space-y-4 text-slate-600 mb-8 leading-relaxed">
+                            <p>
+                                Get an ATS-optimized CV tailored specifically for this role in under 60 seconds. 
+                                <span className="font-bold text-indigo-600"> 100% Free. No credit card. No hidden fees.</span>
+                            </p>
+                            
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">The 60-Second Process:</h4>
+                                <ul className="text-sm space-y-3">
+                                    <li className="flex items-start gap-3">
+                                        <div className="bg-indigo-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center mt-0.5 shrink-0 shadow-sm">1</div>
+                                        <div>
+                                            <span className="font-bold text-slate-900">Tailor My CV:</span>
+                                            <p className="text-xs text-slate-500">We generate a custom structure for this job instantly.</p>
+                                        </div>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <div className="bg-indigo-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center mt-0.5 shrink-0 shadow-sm">2</div>
+                                        <div>
+                                            <span className="font-bold text-slate-900">Fill Details:</span>
+                                            <p className="text-xs text-slate-500">Upload your current CV to auto-fill the structure.</p>
+                                        </div>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <div className="bg-indigo-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center mt-0.5 shrink-0 shadow-sm">3</div>
+                                        <div>
+                                            <span className="font-bold text-slate-900">Done:</span>
+                                            <p className="text-xs text-slate-500">Download your ATS-optimized CV and apply!</p>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                            
+                            <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" /> No Redirection</span>
+                                <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" /> No Paywall</span>
+                                <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" /> No Login</span>
+                            </div>
+                        </div>
 
                         <div className="space-y-4">
                             <button 
                                 onClick={handleApplyTailor}
-                                className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2"
+                                className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all hover:scale-[1.02] flex flex-col items-center justify-center gap-0.5 group"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                                Tailor my CV for Free
+                                <span className="flex items-center gap-2">
+                                    <Zap className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+                                    Tailor My CV Now (100% Free)
+                                </span>
+                                <span className="text-[10px] opacity-80 font-normal">Takes ~30 seconds • No credit card required</span>
                             </button>
                             
                             <button 
@@ -407,9 +455,29 @@ export const JobDetails: React.FC = () => {
                                 Example Result
                             </div>
 
+                            {/* Action Buttons Overlay - To show what they get */}
+                            <div className="absolute bottom-6 left-0 right-0 z-30 px-6 flex flex-col gap-2">
+                                <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl border border-white/50 shadow-xl">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Generated Result</span>
+                                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">Ready</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <div className="flex-1 h-9 bg-indigo-600 rounded-lg flex items-center justify-center gap-2 text-white text-[10px] font-bold opacity-80 cursor-not-allowed">
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                            Free Download
+                                        </div>
+                                        <div className="flex-1 h-9 bg-slate-800 rounded-lg flex items-center justify-center gap-2 text-white text-[10px] font-bold opacity-80 cursor-not-allowed">
+                                            Continue to Application
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="w-full h-full overflow-hidden flex justify-center items-start pt-8 bg-slate-200/50">
                                 {/* Scaled CV Preview Container */}
-                                <div className="transform scale-[0.45] origin-top shadow-2xl rounded-sm">
+                                <div className="transform scale-[0.45] origin-top shadow-2xl rounded-sm blur-[1px] group-hover:blur-0 transition-all duration-500">
                                     <CVTemplate data={exampleCV} />
                                 </div>
                             </div>

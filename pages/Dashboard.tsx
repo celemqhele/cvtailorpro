@@ -562,6 +562,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           
           const savedId = await saveCurrentResultToHistory(response);
           if (savedId) {
+              // Track Generation in Meta Pixel & DB
+              analytics.trackEvent('cv_generated', {
+                  job_title: response.meta?.jobTitle,
+                  company: response.meta?.company,
+                  mode: 'tailored'
+              });
+
               // Determine if we should show the subscription popup
               // Logic: Came from Find Jobs Funnel AND is Free Tier/Guest
               const isJobBoardFlow = !!location.state?.autofillJobDescription;
@@ -625,6 +632,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
               }
               const savedId = await saveCurrentResultToHistory(response);
               if (savedId) {
+                  // Track Generation in Meta Pixel & DB
+                  analytics.trackEvent('cv_generated', {
+                      job_title: response.meta?.jobTitle,
+                      company: response.meta?.company,
+                      mode: 'skeleton'
+                  });
                   navigate(`/cv-generated/${savedId}`);
               }
           } else {

@@ -5,7 +5,6 @@ import {
   Search, 
   Users, 
   Briefcase, 
-  CreditCard, 
   ChevronRight, 
   Filter, 
   FileText, 
@@ -20,13 +19,8 @@ import {
 import { supabase } from '../services/supabaseClient';
 import { UserProfile, CandidateProfile, RecruiterSearch } from '../types';
 import { extractJobRequirements, rankCandidates } from '../services/geminiService';
-
-const RECRUITER_PLANS = [
-  { id: 'free', name: 'Free', price: 'R0', searches: 1, candidates: 2, description: 'Demo only' },
-  { id: 'starter', name: 'Starter', price: 'R2,500', searches: 10, candidates: 10, description: '100 total candidates' },
-  { id: 'growth', name: 'Growth', price: 'R7,500', searches: 30, candidates: 25, description: '750 total candidates' },
-  { id: 'pro', name: 'Pro', price: 'R25,000', searches: 'Unlimited', candidates: 'Full Access', description: 'Unlimited searches' },
-];
+import { RECRUITER_PLANS } from '../constants';
+import { analytics } from '../services/analyticsService';
 
 export const RecruiterDashboard: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -35,24 +29,42 @@ export const RecruiterDashboard: React.FC = () => {
   const [results, setResults] = useState<CandidateProfile[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateProfile | null>(null);
   const [recentSearches, setRecentSearches] = useState<RecruiterSearch[]>([]);
-  const [credits, setCredits] = useState(0);
+  const [searchCredits, setSearchCredits] = useState<{ used: number; limit: number | 'Unlimited' }>({ used: 0, limit: 1 });
 
   useEffect(() => {
-    fetchProfile();
+    fetchProfileAndCredits();
     fetchRecentSearches();
   }, []);
 
-  const fetchProfile = async () => {
+  const fetchProfileAndCredits = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { data } = await supabase
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
-      setProfile(data);
-      // Mock credits for now, in real app this would be in a table
-      setCredits(data?.plan_id === 'pro' ? 999 : 5);
+      
+      setProfile(profileData);
+
+      // Calculate searches used this month
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const { count, error } = await supabase
+        .from('recruiter_searches')
+        .select('*', { count: 'exact', head: true })
+        .eq('recruiter_id', user.id)
+        .gte('created_at', startOfMonth.toISOString());
+
+      if (!error) {
+        const plan = RECRUITER_PLANS.find(p => p.id === (profileData?.plan_id || 'free')) || RECRUITER_PLANS[0];
+        setSearchCredits({
+          used: count || 0,
+          limit: plan.searches as number | 'Unlimited'
+        });
+      }
     }
   };
 
@@ -70,7 +82,8 @@ export const RecruiterDashboard: React.FC = () => {
   };
 
   const handleSearch = async () => {
-    if (!jobSpec.trim() || credits <= 0) return;
+    const hasCredits = searchCredits.limit === 'Unlimited' || searchCredits.used < (searchCredits.limit as number);
+    if (!jobSpec.trim() || !hasCredits) return;
     
     setIsSearching(true);
     try {
@@ -78,8 +91,6 @@ export const RecruiterDashboard: React.FC = () => {
       const requirements = await extractJobRequirements(jobSpec, '');
       
       // 2. Fetch candidates from Supabase
-      // In a real app, we'd use pgvector or a more complex query. 
-      // For this demo, we'll fetch candidates and let AI rank them.
       const { data: candidates } = await supabase
         .from('candidate_profiles')
         .select('*')
@@ -100,7 +111,7 @@ export const RecruiterDashboard: React.FC = () => {
 
       setResults(sortedResults);
       
-      // 4. Save search and decrement credits
+      // 4. Save search and update credits
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('recruiter_searches').insert({
@@ -109,7 +120,16 @@ export const RecruiterDashboard: React.FC = () => {
           query_params: requirements,
           results_count: sortedResults.length
         });
-        setCredits(prev => prev - 1);
+        
+        // Refresh credits
+        fetchProfileAndCredits();
+        fetchRecentSearches();
+
+        // Track Search in Meta Pixel & DB
+        analytics.trackEvent('recruiter_search', {
+            query: jobSpec.substring(0, 100),
+            results_count: sortedResults.length
+        });
       }
     } catch (error) {
       console.error('Search error:', error);
@@ -133,16 +153,18 @@ export const RecruiterDashboard: React.FC = () => {
           <div className="flex items-center gap-4">
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3">
               <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-indigo-600" />
+                <Search className="w-5 h-5 text-indigo-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Available Credits</p>
-                <p className="text-xl font-bold text-gray-900">{credits}</p>
+                <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Search Credits</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {searchCredits.limit === 'Unlimited' 
+                    ? 'Unlimited' 
+                    : `${(searchCredits.limit as number) - searchCredits.used} / ${searchCredits.limit}`}
+                </p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Resets on the 1st of each month</p>
               </div>
             </div>
-            <button className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
-              Buy Credits
-            </button>
           </div>
         </div>
 
@@ -166,7 +188,7 @@ export const RecruiterDashboard: React.FC = () => {
                 </div>
                 <button
                   onClick={handleSearch}
-                  disabled={isSearching || !jobSpec.trim() || credits <= 0}
+                  disabled={isSearching || !jobSpec.trim() || (searchCredits.limit !== 'Unlimited' && searchCredits.used >= (searchCredits.limit as number))}
                   className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-100"
                 >
                   {isSearching ? (
@@ -179,8 +201,8 @@ export const RecruiterDashboard: React.FC = () => {
                     </>
                   )}
                 </button>
-                {credits <= 0 && (
-                  <p className="text-xs text-red-500 text-center">You've run out of search credits. Please upgrade your plan.</p>
+                {searchCredits.limit !== 'Unlimited' && searchCredits.used >= (searchCredits.limit as number) && (
+                  <p className="text-xs text-red-500 text-center">You've reached your monthly search limit. Upgrade for more.</p>
                 )}
               </div>
             </div>

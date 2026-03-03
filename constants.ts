@@ -182,3 +182,10 @@ Your goal is to answer user questions about the website, pricing, and features.
 - If you don't know an answer, suggest emailing customerservice@goapply.co.za.
 - Do not make up features not listed here.
 `;
+
+export const RECRUITER_PLANS = [
+  { id: 'free', name: 'Free', price: 'R0', searches: 1, candidates: 2, description: 'Demo only' },
+  { id: 'starter', name: 'Starter', price: 'R2,500', searches: 10, candidates: 10, description: '100 total candidates' },
+  { id: 'growth', name: 'Growth', price: 'R7,500', searches: 30, candidates: 25, description: '750 total candidates' },
+  { id: 'pro', name: 'Pro', price: 'R25,000', searches: 'Unlimited', candidates: 'Full Access', description: 'Unlimited searches' },
+];
