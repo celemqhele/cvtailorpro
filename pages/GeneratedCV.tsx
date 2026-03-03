@@ -237,13 +237,6 @@ export const GeneratedCV: React.FC = () => {
       setActiveMenu(null); // Close menu immediately
 
       try {
-          // Track download event
-          analytics.trackEvent('cv_downloaded', { 
-            docType, 
-            format, 
-            job_title: application.job_title,
-            company_name: application.company_name
-          });
           const baseName = `${cvData.name} - ${application.job_title}`;
           const suffix = docType === 'cv' ? 'CV' : 'Cover Letter';
           const fileName = `${baseName} - ${suffix}.${format}`;
@@ -299,14 +292,12 @@ export const GeneratedCV: React.FC = () => {
       }
   };
 
-  const handleLeadSubmit = async (email: string, jobType: string, seniority: string) => {
+  const handleLeadSubmit = async (email: string) => {
       try {
           await supabase.from('leads').insert({
               email,
               user_id: user?.id || null,
               source: 'cv_download',
-              job_type: jobType,
-              seniority: seniority,
               metadata: {
                   job_title: application?.job_title,
                   company_name: application?.company_name,
@@ -314,7 +305,6 @@ export const GeneratedCV: React.FC = () => {
               }
           });
           
-          analytics.trackEvent('lead_captured', { email, jobType, seniority });
           localStorage.setItem(`lead_captured_${analytics.getToken()}`, 'true');
           
           if (pendingDownload) {
@@ -438,7 +428,6 @@ export const GeneratedCV: React.FC = () => {
                             href={application.original_link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={() => analytics.trackEvent('continue_to_app_clicked', { job_title: application.job_title })}
                             className="hidden md:flex px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg shadow-sm items-center gap-2 transition-all"
                         >
                             Continue to Application
@@ -450,7 +439,7 @@ export const GeneratedCV: React.FC = () => {
                    <div className="relative">
                        <button 
                          onClick={() => setActiveMenu(activeMenu === 'cv' ? null : 'cv')}
-                         className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg shadow-sm flex items-center gap-2 transition-all group"
+                         className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg shadow-sm flex items-center gap-2 transition-all"
                          disabled={!!processingType}
                        >
                             {processingType?.startsWith('cv') ? (
@@ -458,7 +447,7 @@ export const GeneratedCV: React.FC = () => {
                             ) : (
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                             )}
-                            Download Free CV
+                            Download CV
                             <svg className={`w-3 h-3 transition-transform ${activeMenu === 'cv' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                        </button>
 
@@ -625,58 +614,22 @@ export const GeneratedCV: React.FC = () => {
                 </div>
            </div>
 
-            {/* RIGHT: Smart Editor Sidebar */}
-            <div className="order-1 lg:order-2 sidebar-container lg:h-full no-print space-y-6">
-                <SmartEditor 
-                  cvData={cvData}
-                  clContent={application.cl_content}
-                  viewMode={viewMode}
-                  onSmartEdit={handleSmartEdit}
-                  onManualUpdate={handleManualUpdate}
-                  onManualUpdateCL={handleManualUpdateCL}
-                  isLocked={!isPaidUser}
-                  onUnlock={() => setShowLockedModal(true)}
-                  isProcessing={isSmartEditing}
-                  userPlanId={user?.plan_id}
-                  showToast={showToast}
-                />
-
-                {/* Recruiter Headhunter Opt-in */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-slate-900">Headhunter Opt-in</h3>
-                            <p className="text-xs text-slate-500">Get discovered by top recruiters</p>
-                        </div>
-                    </div>
-                    <p className="text-sm text-slate-600 mb-6 leading-relaxed">
-                        Allow recruiters to find your profile and contact you directly for relevant job opportunities.
-                    </p>
-                    <button 
-                        onClick={async () => {
-                            try {
-                                const { data: { user } } = await supabase.auth.getUser();
-                                if (!user) {
-                                    triggerAuth();
-                                    return;
-                                }
-                                await supabase.from('profiles').update({ opt_in_headhunter: true }).eq('id', user.id);
-                                analytics.trackEvent('headhunter_opt_in', { user_id: user.id });
-                                showToast("You've successfully opted in! Recruiters can now find you.", 'success');
-                            } catch (err) {
-                                console.error('Opt-in failed:', err);
-                                showToast("Failed to opt in. Please try again.", 'error');
-                            }
-                        }}
-                        className="w-full py-3 bg-slate-900 hover:bg-black text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2"
-                    >
-                        Opt-in to Headhunter
-                    </button>
-                </div>
-            </div>
+           {/* RIGHT: Smart Editor Sidebar */}
+           <div className="order-1 lg:order-2 sidebar-container lg:h-full no-print">
+               <SmartEditor 
+                 cvData={cvData}
+                 clContent={application.cl_content}
+                 viewMode={viewMode}
+                 onSmartEdit={handleSmartEdit}
+                 onManualUpdate={handleManualUpdate}
+                 onManualUpdateCL={handleManualUpdateCL}
+                 isLocked={!isPaidUser}
+                 onUnlock={() => setShowLockedModal(true)}
+                 isProcessing={isSmartEditing}
+                 userPlanId={user?.plan_id}
+                 showToast={showToast}
+               />
+           </div>
        </div>
 
        {/* Locked Modal */}

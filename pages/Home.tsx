@@ -5,15 +5,13 @@ import { Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { AdBanner } from '../components/AdBanner';
 import { PlansSection } from '../components/PlansSection';
-import { RecruiterPlansSection } from '../components/RecruiterPlansSection';
 import { Testimonials } from '../components/Testimonials';
 import { motion, AnimatePresence } from 'motion/react';
-import { Cookie, ShieldCheck, X, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Cookie, ShieldCheck, X } from 'lucide-react';
 
 export const Home: React.FC = () => {
   const { user, triggerAuth, isPaidUser, triggerPayment } = useOutletContext<any>();
   const [showConsent, setShowConsent] = useState(false);
-  const [activePricingTab, setActivePricingTab] = useState<'applicant' | 'recruiter'>('applicant');
 
   useEffect(() => {
     const consent = localStorage.getItem('cv_tailor_cookie_consent');
@@ -82,30 +80,6 @@ export const Home: React.FC = () => {
       <div className="relative overflow-hidden bg-white pb-16 pt-16 md:pt-24 lg:pb-32 lg:pt-32">
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
-                {/* Mode Switcher */}
-                <div className="inline-flex p-1 bg-slate-100 rounded-2xl border border-slate-200 mb-8">
-                  <Link 
-                    to="/" 
-                    className="px-6 py-2 rounded-xl text-sm font-bold bg-white text-indigo-600 shadow-sm"
-                  >
-                    For Applicants
-                  </Link>
-                  <Link 
-                    to="/recruiter" 
-                    className="px-6 py-2 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-700"
-                  >
-                    For Recruiters
-                  </Link>
-                </div>
-
-                {/* Trust Banner */}
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-full mb-6 animate-bounce-subtle">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
-                    ✅ 100% Free • No Login • No Credit Card • 30s Download
-                  </span>
-                </div>
-
                 <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-6xl">
                     Tailor Your CV for <br/>
                     <span className="text-indigo-600">Every Job Application</span>
@@ -113,32 +87,21 @@ export const Home: React.FC = () => {
                 <p className="mt-6 text-lg leading-8 text-slate-600">
                     Stop getting rejected by ATS robots. Our AI analyzes the job description and rewrites your CV to match the keywords perfectly—without inventing facts.
                 </p>
-                <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+                <div className="mt-10 flex items-center justify-center gap-x-6">
                     {/* Primary CTA changes based on auth state */}
                     <Link 
                         to={user ? "/dashboard" : "/guestuserdashboard"} 
-                        className="w-full sm:w-auto rounded-full bg-indigo-600 px-8 py-4 text-base font-bold text-white shadow-lg hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all hover:-translate-y-1 flex items-center justify-center gap-2 group"
+                        className="rounded-full bg-indigo-600 px-8 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-transform hover:-translate-y-1"
                     >
-                        {user ? "Go to Dashboard" : "Get My Free CV (No Login Required)"}
-                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        {user ? "Go to Dashboard" : "Get Free CV"}
                     </Link>
                     
-                    <Link 
-                        to="/recruiter" 
-                        className="w-full sm:w-auto rounded-full bg-white border border-slate-200 px-8 py-4 text-base font-bold text-slate-900 shadow-sm hover:bg-slate-50 transition-all hover:-translate-y-1 flex items-center justify-center gap-2"
-                    >
-                        I'm a Recruiter
-                    </Link>
-                </div>
-
-                {/* Social Proof Counter */}
-                <div className="mt-8 flex items-center justify-center gap-2 text-slate-500 text-sm font-medium">
-                  <div className="flex -space-x-2">
-                    {[1,2,3,4].map(i => (
-                      <img key={i} src={`https://i.pravatar.cc/100?img=${i+10}`} className="w-6 h-6 rounded-full border-2 border-white" alt="User" />
-                    ))}
-                  </div>
-                  <span>2,847 free CVs generated this week — No logins, no payments</span>
+                    {/* Sign In only appears if NOT logged in */}
+                    {!user && (
+                        <button onClick={triggerAuth} className="text-sm font-semibold leading-6 text-slate-900 hover:text-indigo-600">
+                            Sign In <span aria-hidden="true">→</span>
+                        </button>
+                    )}
                 </div>
             </div>
             
@@ -181,82 +144,6 @@ export const Home: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </div>
-      </div>
-
-      {/* Anti-Scam / Comparison Section */}
-      <div className="bg-white py-24 border-y border-slate-100">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-bold mb-4">
-                <X className="w-3 h-3" />
-                Tired of Resume.io's $25/month trap?
-              </div>
-              <h2 className="text-3xl font-bold text-slate-900 mb-6">We built GoApply because CV sites are scams.</h2>
-              <p className="text-lg text-slate-600 mb-8 leading-relaxed">
-                Most "free" CV builders lure you in, make you spend 20 minutes editing, and then hit you with a paywall. 
-                <span className="block mt-4 font-bold text-slate-900">We don't do that. No trials. No subscriptions. No login required.</span>
-                Just upload your CV and download your tailored version in 30 seconds. That's it.
-              </p>
-              
-              <div className="space-y-4">
-                {[
-                  "No Credit Card Required",
-                  "No Hidden Subscriptions",
-                  "No Login or Account Needed",
-                  "Actually Free Downloads"
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 text-slate-700 font-medium">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-slate-50 rounded-3xl p-8 border border-slate-200 shadow-xl">
-              <h3 className="text-xl font-bold text-slate-900 mb-6 text-center">How we compare</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200">
-                      <th className="text-left py-4 font-semibold text-slate-500">Feature</th>
-                      <th className="text-center py-4 font-semibold text-slate-900">Resume.io</th>
-                      <th className="text-center py-4 font-bold text-indigo-600 bg-indigo-50/50 rounded-t-xl">GoApply</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    <tr>
-                      <td className="py-4 text-slate-600">Free CV</td>
-                      <td className="text-center py-4 text-red-500 font-medium">Trial Only</td>
-                      <td className="text-center py-4 text-emerald-600 font-bold bg-indigo-50/50">Yes, Always</td>
-                    </tr>
-                    <tr>
-                      <td className="py-4 text-slate-600">Login Required</td>
-                      <td className="text-center py-4 text-slate-900">Yes</td>
-                      <td className="text-center py-4 text-emerald-600 font-bold bg-indigo-50/50">No</td>
-                    </tr>
-                    <tr>
-                      <td className="py-4 text-slate-600">Download Without Payment</td>
-                      <td className="text-center py-4 text-red-500">No</td>
-                      <td className="text-center py-4 text-emerald-600 font-bold bg-indigo-50/50">Yes</td>
-                    </tr>
-                    <tr>
-                      <td className="py-4 text-slate-600">Generation Time</td>
-                      <td className="text-center py-4 text-slate-900">2-3 mins</td>
-                      <td className="text-center py-4 text-emerald-600 font-bold bg-indigo-50/50">30 seconds</td>
-                    </tr>
-                    <tr className="border-b-0">
-                      <td className="py-4 text-slate-600">Auto-Renew Subscription</td>
-                      <td className="text-center py-4 text-red-500">$24.95/mo</td>
-                      <td className="text-center py-4 text-emerald-600 font-bold bg-indigo-50/50 rounded-b-xl">Never</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -438,47 +325,10 @@ export const Home: React.FC = () => {
       <Testimonials />
       
       {/* Plans Section */}
-      <div className="bg-white py-16">
-          <div className="max-w-7xl mx-auto px-6 text-center mb-12">
-              <h2 className="text-3xl font-bold text-slate-900 mb-4">Simple, Transparent Pricing</h2>
-              <p className="text-slate-500 max-w-2xl mx-auto">Choose the perfect plan to accelerate your {activePricingTab === 'applicant' ? 'job search' : 'hiring process'}.</p>
-              
-              <div className="mt-8 inline-flex p-1 bg-slate-100 rounded-2xl border border-slate-200">
-                <button
-                  onClick={() => setActivePricingTab('applicant')}
-                  className={`px-8 py-3 rounded-xl text-sm font-bold transition-all ${
-                    activePricingTab === 'applicant' 
-                    ? 'bg-white text-indigo-600 shadow-sm' 
-                    : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  For Applicants
-                </button>
-                <button
-                  onClick={() => setActivePricingTab('recruiter')}
-                  className={`px-8 py-3 rounded-xl text-sm font-bold transition-all ${
-                    activePricingTab === 'recruiter' 
-                    ? 'bg-white text-blue-600 shadow-sm' 
-                    : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  For Recruiters
-                </button>
-              </div>
-          </div>
-
-          {activePricingTab === 'applicant' ? (
-            <PlansSection 
-              onSelectPlan={(planId) => triggerPayment(planId)}
-              userPlanId={user?.plan_id || 'free'}
-            />
-          ) : (
-            <RecruiterPlansSection 
-              onSelectPlan={(planId) => triggerPayment(planId)}
-              userPlanId={user?.plan_id || 'free'}
-            />
-          )}
-      </div>
+      <PlansSection 
+        onSelectPlan={(planId) => triggerPayment(planId)}
+        userPlanId={user?.plan_id || 'free'}
+      />
 
       {/* Bottom CTA */}
       <div className="bg-slate-50 border-t border-slate-200">

@@ -16,8 +16,6 @@ import { FindJobs } from './pages/FindJobs';
 import { JobDetails } from './pages/JobDetails';
 import { AdminJobs } from './pages/AdminJobs';
 import { GeneratedCV } from './pages/GeneratedCV';
-import { RecruiterHome } from './pages/RecruiterHome';
-import { RecruiterDashboard } from './pages/RecruiterDashboard';
 import { WhyUs } from './pages/WhyUs';
 import { ThankYou } from './pages/ThankYou';
 import { AdminDashboard } from './pages/AdminDashboard';
@@ -32,7 +30,6 @@ export const App: React.FC = () => {
       <Route element={<Layout />}>
         {/* Public Pages */}
         <Route path="/" element={<Home />} />
-        <Route path="/recruiter" element={<RecruiterHome />} />
         <Route path="/why-us" element={<WhyUs />} />
         
         {/* Content Routes */}
@@ -59,7 +56,6 @@ export const App: React.FC = () => {
         {/* Dashboard Routes */}
         <Route path="/dashboard" element={<Dashboard mode="user" />} />
         <Route path="/guestuserdashboard" element={<Dashboard mode="guest" />} />
-        <Route path="/recruiter-dashboard" element={<RecruiterDashboard />} />
         
         {/* Generated CV View (Protected by RLS mainly, but route is open) */}
         <Route path="/cv-generated/:id" element={<GeneratedCV />} />

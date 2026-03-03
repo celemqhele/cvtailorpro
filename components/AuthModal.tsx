@@ -11,7 +11,6 @@ interface AuthModalProps {
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
-  const [role, setRole] = useState<'candidate' | 'recruiter'>('candidate');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,7 +37,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
     try {
       if (mode === 'signup') {
-        await authService.signUp(email, password, fullName, role);
+        await authService.signUp(email, password, fullName);
         setShowVerification(true);
       } else if (mode === 'signin') {
         await authService.signIn(email, password, keepLoggedIn);
@@ -128,35 +127,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === 'signup' && (
-            <>
-              <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200 mb-4">
-                <button 
-                  type="button"
-                  onClick={() => setRole('candidate')}
-                  className={`flex-1 text-center py-2 rounded-lg text-xs font-bold transition-all ${role === 'candidate' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
-                >
-                  I'm a Candidate
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setRole('recruiter')}
-                  className={`flex-1 text-center py-2 rounded-lg text-xs font-bold transition-all ${role === 'recruiter' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}
-                >
-                  I'm a Recruiter
-                </button>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Full Name</label>
-                <input 
-                  type="text" 
-                  required
-                  className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  value={fullName}
-                  onChange={e => setFullName(e.target.value)}
-                  placeholder="John Doe"
-                />
-              </div>
-            </>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Full Name</label>
+              <input 
+                type="text" 
+                required
+                className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                placeholder="John Doe"
+              />
+            </div>
           )}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Email Address</label>

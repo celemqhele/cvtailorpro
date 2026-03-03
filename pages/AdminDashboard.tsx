@@ -13,7 +13,6 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { isPreviewOrAdmin } from '../utils/envHelper';
 import { adminLogService } from '../services/adminLogService';
-import { analytics } from '../services/analyticsService';
 import { GoogleGenAI } from '@google/genai';
 
 interface VisitorSession {
@@ -59,24 +58,11 @@ export const AdminDashboard: React.FC = () => {
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
   const [adminLogs, setAdminLogs] = useState<AdminLog[]>([]);
   const [totalGenerations, setTotalGenerations] = useState(0);
-  const [recentGenerations, setRecentGenerations] = useState<any[]>([]);
-  const [cvStats, setCvStats] = useState({ last30m: 0, last1h: 0, last24h: 0 });
   const [totalRevenue, setTotalRevenue] = useState(0);
-  const [totalTraffic, setTotalTraffic] = useState(0);
-  const [unsolvedErrorsCount, setUnsolvedErrorsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedError, setSelectedError] = useState<ErrorLog | null>(null);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [isExplaining, setIsExplaining] = useState(false);
-  const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
-  const [detailedData, setDetailedData] = useState<any[]>([]);
-  const [detailedEvents, setDetailedEvents] = useState<any[]>([]);
-  const [timeRange, setTimeRange] = useState<string>('24h');
-  const [isDetailLoading, setIsDetailLoading] = useState(false);
-  const [selectedSessionToken, setSelectedSessionToken] = useState<string | null>(null);
-  const [userJourney, setUserJourney] = useState<any[]>([]);
-  const [liveSessions, setLiveSessions] = useState<any[]>([]);
-  const [showLiveDetails, setShowLiveDetails] = useState(false);
 
   // Robust Admin Check on Mount
   useEffect(() => {
@@ -115,7 +101,7 @@ export const AdminDashboard: React.FC = () => {
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'visitor_sessions' }, () => fetchData())
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'page_views' }, () => fetchData())
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cv_applications' }, () => fetchData())
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, () => fetchData())
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'payments' }, () => fetchData())
           .subscribe();
 
         return () => {
@@ -124,101 +110,26 @@ export const AdminDashboard: React.FC = () => {
     }
   }, [isChecking]);
 
-  const fetchDetailedMetric = async (metric: string, range: string) => {
-    setIsDetailLoading(true);
-    try {
-      const { data, error } = await supabase.rpc('get_detailed_analytics', {
-        metric_name: metric,
-        time_range: range
-      });
-      if (error) throw error;
-      setDetailedData(data || []);
-
-      if (metric === 'cv_generated') {
-          const { data: events } = await supabase
-            .from('user_events')
-            .select('*')
-            .eq('event_name', 'cv_generated')
-            .order('created_at', { ascending: false })
-            .limit(50);
-          setDetailedEvents(events || []);
-      }
-    } catch (err) {
-      console.error('Error fetching detailed metric:', err);
-    } finally {
-      setIsDetailLoading(false);
-    }
-  };
-
-  const fetchLiveSessions = async () => {
-    try {
-      const { data, error } = await supabase.rpc('get_live_sessions_details');
-      if (error) throw error;
-      setLiveSessions(data || []);
-    } catch (err) {
-      console.error('Error fetching live sessions:', err);
-    }
-  };
-
-  const fetchUserJourney = async (token: string) => {
-    try {
-      const { data, error } = await supabase.rpc('get_user_journey', {
-        target_session_token: token
-      });
-      if (error) throw error;
-      setUserJourney(data || []);
-    } catch (err) {
-      console.error('Error fetching user journey:', err);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedMetric) {
-      fetchDetailedMetric(selectedMetric, timeRange);
-    }
-  }, [selectedMetric, timeRange]);
-
-  useEffect(() => {
-    if (selectedSessionToken) {
-      fetchUserJourney(selectedSessionToken);
-    }
-  }, [selectedSessionToken]);
-
   const fetchData = async () => {
     try {
-      const { data: summary, error: summaryError } = await supabase.rpc('get_admin_analytics_summary');
-      
-      if (summaryError) throw summaryError;
-
-      if (summary) {
-        setTotalGenerations(summary.cv_generated);
-        setTotalRevenue(summary.revenue_total);
-        setTotalTraffic(summary.traffic_total);
-        setUnsolvedErrorsCount(summary.errors_unsolved);
-      }
-
-      const [sessionsRes, viewsRes, adminLogsRes] = await Promise.all([
+      const [sessionsRes, viewsRes, errorsRes, gensRes, paymentsRes, adminLogsRes] = await Promise.all([
         supabase.from('visitor_sessions').select('*').order('last_active_at', { ascending: false }),
         supabase.from('page_views').select('*').order('created_at', { ascending: false }).limit(1000),
+        supabase.from('error_logs').select('*').eq('is_solved', false).order('created_at', { ascending: false }).limit(50),
+        supabase.from('cv_applications').select('id', { count: 'exact' }),
+        supabase.from('payments').select('amount'),
         adminLogService.getLogs(50)
       ]);
 
       if (sessionsRes.data) setSessions(sessionsRes.data);
       if (viewsRes.data) setPageViews(viewsRes.data);
+      if (errorsRes.data) setErrorLogs(errorsRes.data);
+      if (gensRes.count !== null) setTotalGenerations(gensRes.count);
+      if (paymentsRes.data) {
+        const revenue = paymentsRes.data.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+        setTotalRevenue(revenue);
+      }
       if (adminLogsRes) setAdminLogs(adminLogsRes);
-
-      // Fetch CV Generation Stats
-      const [cvStatsRes, recentGensRes] = await Promise.all([
-          analytics.getCVGenerationStats(),
-          analytics.getRecentCVGenerations(10)
-      ]);
-      setCvStats(cvStatsRes);
-      setRecentGenerations(recentGensRes);
-      
-      // Error logs are now in summary, but we might want the full list for the sidebar
-      const { data: errorsRes } = await supabase.from('error_logs').select('*').eq('is_solved', false).order('created_at', { ascending: false }).limit(50);
-      if (errorsRes) setErrorLogs(errorsRes);
-
     } catch (err) {
       console.error('Error fetching admin data:', err);
     } finally {
@@ -330,13 +241,12 @@ Path: ${log.path}
         </header>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <StatCard 
             title="Total Revenue" 
-            value={`R${totalRevenue.toFixed(2)}`} 
+            value={`$${totalRevenue.toFixed(2)}`} 
             icon={<DollarSign className="text-emerald-500" />} 
             trend="Live" 
-            onClick={() => setSelectedMetric('revenue')}
           />
           <div onClick={() => navigate('/admin-leads')} className="cursor-pointer">
             <StatCard 
@@ -347,35 +257,22 @@ Path: ${log.path}
             />
           </div>
           <StatCard 
-            title="CVs Generated" 
-            value={totalGenerations.toLocaleString()} 
-            icon={<FileText className="text-orange-500" />} 
-            trend={`+${cvStats.last24h}`} 
-            onClick={() => setSelectedMetric('cv_generated')}
-          />
-          <StatCard 
-            title="Daily Traffic" 
-            value={totalTraffic.toLocaleString()} 
-            icon={<TrendingUp className="text-indigo-500" />} 
-            trend="Total" 
-            onClick={() => setSelectedMetric('traffic')}
+            title="New Users" 
+            value={newUsers.toString()} 
+            icon={<Zap className="text-amber-500" />} 
+            trend={`${((newUsers / (sessions.length || 1)) * 100).toFixed(0)}%`} 
           />
           <StatCard 
             title="Live Sessions" 
             value={liveUsers.toString()} 
             icon={<Activity className="text-purple-500" />} 
             trend="Active" 
-            onClick={() => {
-                fetchLiveSessions();
-                setShowLiveDetails(true);
-            }}
           />
           <StatCard 
             title="Recent Errors" 
-            value={unsolvedErrorsCount.toString()} 
+            value={errorLogs.length.toString()} 
             icon={<AlertCircle className="text-red-500" />} 
-            trend={unsolvedErrorsCount > 10 ? "High" : "Normal"} 
-            onClick={() => setSelectedMetric('errors')}
+            trend={errorLogs.length > 10 ? "High" : "Normal"} 
           />
         </div>
 
@@ -432,35 +329,6 @@ Path: ${log.path}
                       </div>
                     </div>
                     <ChevronRight size={16} className="text-zinc-600" />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent CV Generations */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <FileText size={18} className="text-orange-500" />
-                  Recent CV Generations
-                </h3>
-                <div className="flex gap-4 text-xs font-bold">
-                    <span className="text-zinc-500">30m: <span className="text-orange-400">{cvStats.last30m}</span></span>
-                    <span className="text-zinc-500">1h: <span className="text-orange-400">{cvStats.last1h}</span></span>
-                    <span className="text-zinc-500">24h: <span className="text-orange-400">{cvStats.last24h}</span></span>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {recentGenerations.map((gen, idx) => (
-                  <div key={idx} className="p-4 bg-zinc-800/30 rounded-xl border border-zinc-800/50 flex flex-col gap-2">
-                    <div className="flex justify-between items-start">
-                        <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">{gen.metadata?.mode || 'Tailored'}</span>
-                        <span className="text-[10px] text-zinc-500">{new Date(gen.created_at).toLocaleString()}</span>
-                    </div>
-                    <div>
-                        <p className="text-sm font-bold text-zinc-200 truncate">{gen.metadata?.job_title || 'Job Application'}</p>
-                        <p className="text-xs text-zinc-500 truncate">{gen.metadata?.company || 'Company'}</p>
-                    </div>
                   </div>
                 ))}
               </div>
@@ -642,215 +510,14 @@ Path: ${log.path}
           </div>
         </div>
       </div>
-      {/* Detailed Metric Modal */}
-      {selectedMetric && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
-          >
-            <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold capitalize">{selectedMetric.replace('_', ' ')} Analytics</h2>
-                <p className="text-sm text-zinc-400">Detailed breakdown over time</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <select 
-                  value={timeRange}
-                  onChange={(e) => setTimeRange(e.target.value)}
-                  className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  <option value="24h">Last 24 Hours</option>
-                  <option value="7d">Last 7 Days</option>
-                  <option value="30d">Last 30 Days</option>
-                  <option value="all">All Time</option>
-                </select>
-                <button 
-                  onClick={() => setSelectedMetric(null)}
-                  className="p-2 hover:bg-zinc-800 rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 overflow-y-auto">
-              {isDetailLoading ? (
-                <div className="h-64 flex items-center justify-center">
-                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : (
-                <div className="space-y-8">
-                  <div className="h-80 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={detailedData}>
-                        <defs>
-                          <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                        <XAxis 
-                          dataKey="time_bucket" 
-                          stroke="#71717a" 
-                          fontSize={12}
-                          tickFormatter={(val) => {
-                            const date = new Date(val);
-                            return timeRange === '24h' 
-                              ? date.toLocaleTimeString([], { hour: '2-digit' })
-                              : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-                          }}
-                        />
-                        <YAxis stroke="#71717a" fontSize={12} />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px' }}
-                          labelFormatter={(val) => new Date(val).toLocaleString()}
-                        />
-                        <Area type="monotone" dataKey="metric_value" stroke="#10b981" fillOpacity={1} fill="url(#colorMetric)" strokeWidth={3} />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-zinc-800/50 p-4 rounded-xl border border-zinc-700">
-                      <span className="text-xs text-zinc-400 uppercase font-bold tracking-wider">Total in Range</span>
-                      <p className="text-2xl font-bold mt-1">
-                        {detailedData.reduce((acc, curr) => acc + curr.metric_value, 0).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="bg-zinc-800/50 p-4 rounded-xl border border-zinc-700">
-                      <span className="text-xs text-zinc-400 uppercase font-bold tracking-wider">Peak Value</span>
-                      <p className="text-2xl font-bold mt-1">
-                        {Math.max(...detailedData.map(d => d.metric_value), 0).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="bg-zinc-800/50 p-4 rounded-xl border border-zinc-700">
-                      <span className="text-xs text-zinc-400 uppercase font-bold tracking-wider">Average</span>
-                      <p className="text-2xl font-bold mt-1">
-                        {(detailedData.reduce((acc, curr) => acc + curr.metric_value, 0) / (detailedData.length || 1)).toFixed(1)}
-                      </p>
-                    </div>
-                  </div>
-
-                  {selectedMetric === 'cv_generated' && detailedEvents.length > 0 && (
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-bold flex items-center gap-2">
-                            <FileText size={18} className="text-orange-500" />
-                            Recent Generations
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {detailedEvents.map((gen, idx) => (
-                                <div key={idx} className="p-4 bg-zinc-800/50 rounded-xl border border-zinc-700 flex flex-col gap-2">
-                                    <div className="flex justify-between items-start">
-                                        <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">{gen.metadata?.mode || 'Tailored'}</span>
-                                        <span className="text-[10px] text-zinc-500">{new Date(gen.created_at).toLocaleString()}</span>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-zinc-200 truncate">{gen.metadata?.job_title || 'Job Application'}</p>
-                                        <p className="text-xs text-zinc-500 truncate">{gen.metadata?.company || 'Company'}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      {/* Live Sessions Modal */}
-      {showLiveDetails && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
-          >
-            <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold">Live Sessions Detail</h2>
-                <p className="text-sm text-zinc-400">Real-time user activity monitoring</p>
-              </div>
-              <button 
-                onClick={() => setShowLiveDetails(false)}
-                className="p-2 hover:bg-zinc-800 rounded-full transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Active Users</h3>
-                  <div className="space-y-2">
-                    {liveSessions.map((session) => (
-                      <div 
-                        key={session.session_token}
-                        onClick={() => setSelectedSessionToken(session.session_token)}
-                        className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                          selectedSessionToken === session.session_token 
-                            ? 'bg-emerald-500/10 border-emerald-500/50' 
-                            : 'bg-zinc-800/50 border-zinc-700 hover:border-zinc-600'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-xs font-mono text-zinc-400">{session.session_token.slice(0, 8)}...</span>
-                          <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-500 rounded-full font-bold">LIVE</span>
-                        </div>
-                        <div className="text-sm font-medium text-zinc-200 truncate">{session.current_page}</div>
-                        <div className="flex items-center gap-4 mt-2 text-[10px] text-zinc-500">
-                          <span>{session.view_count} pages viewed</span>
-                          <span>Active for {Math.floor(session.session_duration_seconds / 60)}m</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">User Journey</h3>
-                  {selectedSessionToken ? (
-                    <div className="bg-zinc-800/30 rounded-2xl p-6 border border-zinc-800">
-                      <div className="space-y-6 relative">
-                        <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-zinc-800" />
-                        {userJourney.map((step, idx) => (
-                          <div key={idx} className="relative pl-8">
-                            <div className="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-zinc-900 border-2 border-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-                            <div className="text-sm font-bold text-zinc-200">{step.path}</div>
-                            <div className="text-[10px] text-zinc-500 mt-1">
-                              {new Date(step.created_at).toLocaleTimeString()}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="h-64 flex flex-col items-center justify-center bg-zinc-800/20 rounded-2xl border border-dashed border-zinc-700 text-zinc-500">
-                      <Activity size={32} className="mb-2 opacity-20" />
-                      <p className="text-sm">Select a session to view journey</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 };
 
-const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode; trend: string; onClick?: () => void }> = ({ title, value, icon, trend, onClick }) => (
+const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode; trend: string }> = ({ title, value, icon, trend }) => (
   <motion.div 
     whileHover={{ y: -2 }}
-    onClick={onClick}
-    className={`bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl ${onClick ? 'cursor-pointer hover:border-zinc-700 hover:bg-zinc-800/50' : ''}`}
+    className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl"
   >
     <div className="flex items-center justify-between mb-4">
       <div className="p-2 bg-zinc-800 rounded-lg">{icon}</div>

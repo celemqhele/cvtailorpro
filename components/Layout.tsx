@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
-import { getUsageStats, syncIpUsageToUser, getRecruiterSearchStats } from '../services/usageService';
+import { getUsageStats, syncIpUsageToUser } from '../services/usageService';
 import { getPlanDetails, updateUserSubscription, verifyPayment } from '../services/subscriptionService';
-import { RECRUITER_PLANS } from '../constants';
 import { emailService } from '../services/emailService';
 import { supabase } from '../services/supabaseClient';
 import { UserProfile } from '../types';
@@ -14,7 +13,7 @@ import { isPreviewOrAdmin } from '../utils/envHelper';
 import { ChatWidget } from './ChatWidget';
 import { CreditCountdown } from './CreditCountdown';
 import { ToastNotification, ToastType } from './ToastNotification';
-import { analytics } from '../services/analyticsService';
+import { analyticsService } from '../services/analyticsService';
 import { errorService } from '../services/errorService';
 
 // Extend window for Google Analytics
@@ -33,8 +32,6 @@ export const Layout: React.FC = () => {
   const [dailyCvCount, setDailyCvCount] = useState<number>(0);
   const [secondsUntilReset, setSecondsUntilReset] = useState<number>(0);
   const [dailyLimit, setDailyLimit] = useState(1); // Default to free limit (1)
-  const [recruiterSearchCount, setRecruiterSearchCount] = useState<number>(0);
-  const [recruiterSearchLimit, setRecruiterSearchLimit] = useState<number | 'Unlimited'>(1);
   const [isPaidUser, setIsPaidUser] = useState(false);
   const [isMaxPlan, setIsMaxPlan] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false); // Mobile menu state
@@ -60,11 +57,6 @@ export const Layout: React.FC = () => {
       const stats = await getUsageStats(userId);
       setDailyCvCount(stats.count);
       setSecondsUntilReset(stats.secondsLeft);
-
-      if (userId) {
-          const searchCount = await getRecruiterSearchStats(userId);
-          setRecruiterSearchCount(searchCount);
-      }
   };
 
   const checkUserSession = async () => {
@@ -96,15 +88,6 @@ export const Layout: React.FC = () => {
         }
     }
     setDailyLimit(planLimit);
-    
-    // Recruiter Plan Logic
-    if (profile) {
-        const rPlan = RECRUITER_PLANS.find(p => p.id === (profile.plan_id || 'free')) || RECRUITER_PLANS[0];
-        setRecruiterSearchLimit(rPlan.searches as number | 'Unlimited');
-    } else {
-        setRecruiterSearchLimit(1);
-    }
-
     setIsPaidUser(isPaid);
     setIsMaxPlan(maxPlan);
     setIsAuthLoading(false);
@@ -207,14 +190,6 @@ export const Layout: React.FC = () => {
         const plan = getPlanDetails(planId);
         const amount = paymentDiscount ? Math.round(plan.price * 0.5) : plan.price;
         
-        // Track Purchase in Meta Pixel & DB
-        analytics.trackEvent('purchase_complete', {
-            plan_id: planId,
-            value: amount,
-            currency: 'ZAR',
-            reference
-        });
-
         emailService.sendReceipt(
             user.email,
             user.full_name || 'Valued User',
@@ -276,52 +251,38 @@ export const Layout: React.FC = () => {
   const isActive = (path: string) => location.pathname === path ? 'text-indigo-600 font-bold' : 'text-slate-600 hover:text-indigo-600';
   const isActiveParent = (path: string) => location.pathname.startsWith(path) ? 'text-indigo-600 font-bold' : 'text-slate-600 hover:text-indigo-600';
 
-  const isRecruiterMode = location.pathname.startsWith('/recruiter') || location.pathname.startsWith('/recruiter-dashboard');
-
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
        {/* Sophisticated Sticky Navigation */}
        <nav className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 transition-all duration-300">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
             {/* Logo Area */}
-            <div className="flex items-center gap-6">
-              <Link to={isRecruiterMode ? "/recruiter" : "/"} className="flex items-center gap-2 group">
-                  <div className="bg-white p-1 rounded-xl group-hover:scale-110 transition-transform duration-200 shadow-sm shadow-indigo-100 overflow-hidden border border-slate-100">
-                      <img 
-                        src="/apple-touch-icon.png" 
-                        alt="CV Tailor Pro" 
-                        className="w-8 h-8 object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                          e.currentTarget.parentElement?.querySelector('svg')?.classList.remove('hidden');
-                        }}
-                      />
-                      <svg className="w-8 h-8 text-indigo-600 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 011.414.586l4 4a1 1 0 01.586 1.414V19a2 2 0 01-2 2z" /></svg>
-                  </div>
-                  <div>
-                    <h1 className="font-bold text-xl tracking-tight text-slate-800 leading-none">CV Tailor <span className={isRecruiterMode ? "text-blue-600" : "text-indigo-600"}>Pro</span></h1>
-                    <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">{isRecruiterMode ? 'For Recruiters' : 'By GoApply'}</p>
-                  </div>
-              </Link>
-            </div>
+            <Link to="/" className="flex items-center gap-2 group">
+                <div className="bg-white p-1 rounded-xl group-hover:scale-110 transition-transform duration-200 shadow-sm shadow-indigo-100 overflow-hidden border border-slate-100">
+                    <img 
+                      src="/apple-touch-icon.png" 
+                      alt="CV Tailor Pro" 
+                      className="w-8 h-8 object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.parentElement?.querySelector('svg')?.classList.remove('hidden');
+                      }}
+                    />
+                    <svg className="w-8 h-8 text-indigo-600 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 011.414.586l4 4a1 1 0 01.586 1.414V19a2 2 0 01-2 2z" /></svg>
+                </div>
+                <div>
+                   <h1 className="font-bold text-xl tracking-tight text-slate-800 leading-none">CV Tailor <span className="text-indigo-600">Pro</span></h1>
+                   <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">By GoApply</p>
+                </div>
+            </Link>
 
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center gap-8">
-                 {!isRecruiterMode ? (
-                   <>
-                     <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/')}`}>Home</Link>
-                     <Link to="/why-us" className={`text-sm font-medium transition-colors ${isActive('/why-us')}`}>Why Us</Link>
-                     <Link to="/find-jobs" className={`text-sm font-medium transition-colors ${isActiveParent('/find-jobs')}`}>Find Jobs</Link>
-                     <Link to="/content" className={`text-sm font-medium transition-colors ${isActiveParent('/content')}`}>Content</Link>
-                     <Link to="/pricing" className={`text-sm font-medium transition-colors ${isActive('/pricing')}`}>Pricing</Link>
-                   </>
-                 ) : (
-                   <>
-                     <Link to="/recruiter" className={`text-sm font-medium transition-colors ${isActive('/recruiter')}`}>Home</Link>
-                     <Link to="/recruiter-dashboard" className={`text-sm font-medium transition-colors ${isActive('/recruiter-dashboard')}`}>Talent Search</Link>
-                     <Link to="/pricing?tab=recruiter" className={`text-sm font-medium transition-colors ${location.search.includes('tab=recruiter') ? 'text-blue-600 font-bold' : 'text-slate-600 hover:text-blue-600'}`}>Pricing</Link>
-                   </>
-                 )}
+                 <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/')}`}>Home</Link>
+                 <Link to="/why-us" className={`text-sm font-medium transition-colors ${isActive('/why-us')}`}>Why Us</Link>
+                 <Link to="/find-jobs" className={`text-sm font-medium transition-colors ${isActiveParent('/find-jobs')}`}>Find Jobs</Link>
+                 <Link to="/content" className={`text-sm font-medium transition-colors ${isActiveParent('/content')}`}>Content</Link>
+                 <Link to="/pricing" className={`text-sm font-medium transition-colors ${isActive('/pricing')}`}>Pricing</Link>
                  
                  {showAdmin && (
                    <div className="flex items-center gap-4">
@@ -333,18 +294,11 @@ export const Layout: React.FC = () => {
                  {/* Credits Counter - Visible to all */}
                  <div className="flex flex-col items-end">
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
-                        {isRecruiterMode ? (
-                            <span className={recruiterSearchLimit !== 'Unlimited' && recruiterSearchCount >= (recruiterSearchLimit as number) ? 'text-red-500' : 'text-blue-600'}>
-                                {recruiterSearchLimit === 'Unlimited' ? '∞' : Math.max(0, (recruiterSearchLimit as number) - recruiterSearchCount)} Search Credits
-                            </span>
-                        ) : (
-                            <span className={dailyCvCount >= dailyLimit && !isMaxPlan ? 'text-red-500' : 'text-indigo-600'}>
-                                {isMaxPlan ? '∞' : Math.max(0, dailyLimit - dailyCvCount)} Credits
-                            </span>
-                        )}
+                        <span className={dailyCvCount >= dailyLimit && !isMaxPlan ? 'text-red-500' : 'text-indigo-600'}>
+                            {isMaxPlan ? '∞' : Math.max(0, dailyLimit - dailyCvCount)} Credits
+                        </span>
                     </div>
-                    {!isRecruiterMode && !isMaxPlan && <CreditCountdown initialSecondsLeft={secondsUntilReset} onReset={handleDayReset} className="mt-1 mr-1" />}
-                    {isRecruiterMode && <span className="text-[9px] text-slate-400 mt-1 mr-1 uppercase font-bold tracking-tighter">Monthly Limit</span>}
+                    {!isMaxPlan && <CreditCountdown initialSecondsLeft={secondsUntilReset} onReset={handleDayReset} className="mt-1 mr-1" />}
                  </div>
 
                  {/* Auth Dependent Links */}
@@ -391,37 +345,20 @@ export const Layout: React.FC = () => {
          {/* Mobile Menu Dropdown */}
          {isMenuOpen && (
              <div className="md:hidden bg-white border-b border-slate-200 px-4 py-6 space-y-4 shadow-lg animate-fade-in">
-                 {!isRecruiterMode ? (
-                   <>
-                     <Link to="/" className="block text-base font-medium text-slate-600">Home</Link>
-                     <Link to="/why-us" className="block text-base font-medium text-slate-600">Why Us</Link>
-                     <Link to="/find-jobs" className="block text-base font-medium text-slate-600">Find Jobs</Link>
-                     <Link to="/content" className="block text-base font-medium text-slate-600">Content</Link>
-                     <Link to="/pricing" className="block text-base font-medium text-slate-600">Pricing</Link>
-                   </>
-                 ) : (
-                   <>
-                     <Link to="/recruiter" className="block text-base font-medium text-slate-600">Home</Link>
-                     <Link to="/recruiter-dashboard" className="block text-base font-medium text-slate-600">Talent Search</Link>
-                     <Link to="/pricing?tab=recruiter" className="block text-base font-medium text-slate-600">Pricing</Link>
-                   </>
-                 )}
-                 
+                 <Link to="/" className="block text-base font-medium text-slate-600">Home</Link>
+                 <Link to="/why-us" className="block text-base font-medium text-slate-600">Why Us</Link>
+                 <Link to="/find-jobs" className="block text-base font-medium text-slate-600">Find Jobs</Link>
+                 <Link to="/content" className="block text-base font-medium text-slate-600">Content</Link>
+                 <Link to="/pricing" className="block text-base font-medium text-slate-600">Pricing</Link>
                  {showAdmin && <Link to="/admin-jobs" className="block text-base font-bold text-red-500">Admin</Link>}
                  
                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                    <span className="text-sm font-medium text-slate-600">{isRecruiterMode ? 'Search Credits' : 'Daily Credits'}</span>
+                    <span className="text-sm font-medium text-slate-600">Daily Credits</span>
                     <div className="flex flex-col items-end">
-                        <span className={`text-sm font-bold ${isRecruiterMode 
-                            ? (recruiterSearchLimit !== 'Unlimited' && recruiterSearchCount >= (recruiterSearchLimit as number) ? 'text-red-500' : 'text-blue-600')
-                            : (dailyCvCount >= dailyLimit && !isMaxPlan ? 'text-red-500' : 'text-indigo-600')}`}>
-                            {isRecruiterMode 
-                                ? (recruiterSearchLimit === 'Unlimited' ? '∞' : Math.max(0, (recruiterSearchLimit as number) - recruiterSearchCount))
-                                : (isMaxPlan ? '∞' : Math.max(0, dailyLimit - dailyCvCount))
-                            } Left
+                        <span className={`text-sm font-bold ${dailyCvCount >= dailyLimit && !isMaxPlan ? 'text-red-500' : 'text-indigo-600'}`}>
+                            {isMaxPlan ? '∞' : Math.max(0, dailyLimit - dailyCvCount)} Left
                         </span>
-                        {!isRecruiterMode && !isMaxPlan && <CreditCountdown initialSecondsLeft={secondsUntilReset} onReset={handleDayReset} />}
-                        {isRecruiterMode && <span className="text-[10px] text-slate-400">Monthly</span>}
+                        {!isMaxPlan && <CreditCountdown initialSecondsLeft={secondsUntilReset} onReset={handleDayReset} />}
                     </div>
                  </div>
 
@@ -484,8 +421,8 @@ export const Layout: React.FC = () => {
                <div className="border-t border-slate-100 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-slate-400">
                    <p>© {new Date().getFullYear()} CV Tailor Pro by GoApply. All rights reserved.</p>
                    <div className="flex gap-4 mt-2 md:mt-0">
-                       <Link to="/privacy-policy" className="hover:text-indigo-600">Privacy</Link>
-                       <Link to="/terms-and-conditions" className="hover:text-indigo-600">Terms</Link>
+                      <Link to="/privacy-policy" className="hover:text-indigo-600">Privacy</Link>
+                      <Link to="/terms-and-conditions" className="hover:text-indigo-600">Terms</Link>
                    </div>
                </div>
            </div>

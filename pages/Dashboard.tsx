@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useOutletContext, useNavigate, useLocation, Link } from 'react-router-dom';
-import { ArrowRight, ShieldCheck, Clock, Zap } from 'lucide-react';
 
 import { Button } from '../components/Button';
 import { FileUpload } from '../components/FileUpload';
@@ -15,7 +14,6 @@ import { AdDecisionModal } from '../components/AdDecisionModal';
 import { FeatureLockedModal } from '../components/FeatureLockedModal';
 import { SkeletonPromoModal } from '../components/SkeletonPromoModal';
 
-import { analytics } from '../services/analyticsService';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile, generateSkeletonCV } from '../services/geminiService';
 import { authService } from '../services/authService';
 import { checkUsageLimit, incrementUsage } from '../services/usageService';
@@ -562,13 +560,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           
           const savedId = await saveCurrentResultToHistory(response);
           if (savedId) {
-              // Track Generation in Meta Pixel & DB
-              analytics.trackEvent('cv_generated', {
-                  job_title: response.meta?.jobTitle,
-                  company: response.meta?.company,
-                  mode: 'tailored'
-              });
-
               // Determine if we should show the subscription popup
               // Logic: Came from Find Jobs Funnel AND is Free Tier/Guest
               const isJobBoardFlow = !!location.state?.autofillJobDescription;
@@ -632,12 +623,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
               }
               const savedId = await saveCurrentResultToHistory(response);
               if (savedId) {
-                  // Track Generation in Meta Pixel & DB
-                  analytics.trackEvent('cv_generated', {
-                      job_title: response.meta?.jobTitle,
-                      company: response.meta?.company,
-                      mode: 'skeleton'
-                  });
                   navigate(`/cv-generated/${savedId}`);
               }
           } else {
@@ -673,26 +658,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                     <span className={`px-3 py-1 rounded-full text-xs font-bold bg-white shadow-sm ${textClass}`}>{analysis.decision}</span>
                  </div>
                  <p className="mt-3 text-slate-700 text-sm leading-relaxed">{analysis.reasoning}</p>
-                 
-                 {directApplyLink && (
-                    <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                        <button 
-                            onClick={() => handleGenerate(true)}
-                            className="flex-1 px-4 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-sm"
-                        >
-                            Yes, Tailor my CV anyway
-                        </button>
-                        <a 
-                            href={directApplyLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => analytics.trackEvent('use_own_cv_clicked', { job_title: analysis.jobTitle })}
-                            className="flex-1 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-50 transition-all text-center"
-                        >
-                            No, use my own CV
-                        </a>
-                    </div>
-                 )}
               </div>
            </div>
         </div>
@@ -949,53 +914,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
                     <div className="flex flex-col md:flex-row gap-4 pt-4 border-t border-slate-200">
                         {cvInputMode !== 'skeleton' && targetMode !== 'title' && (
-                            <div className="flex-1 flex flex-col gap-2">
-                                <Button 
-                                    variant="secondary" 
-                                    onClick={handleScanAndAnalyze} 
-                                    isLoading={status === Status.SCANNING || status === Status.ANALYZING} 
-                                    disabled={status === Status.GENERATING || !validateInputs()} 
-                                    className="w-full py-4 text-base font-bold shadow-sm flex items-center justify-center gap-2 group"
-                                >
-                                    Scan & Analyze Job (Free)
-                                    <Zap className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
-                                </Button>
-                                <p className="text-center text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1">
-                                    <Clock className="w-3 h-3" /> ~5 seconds • No credit card
-                                </p>
-                            </div>
+                            <Button variant="secondary" onClick={handleScanAndAnalyze} isLoading={status === Status.SCANNING || status === Status.ANALYZING} disabled={status === Status.GENERATING || !validateInputs()} className="flex-1">
+                                Step 1: Analyze Match
+                            </Button>
                         )}
                         
                         {cvInputMode === 'skeleton' ? (
-                            <div className="flex-1 flex flex-col gap-2">
-                                <Button 
-                                    onClick={() => handleGenerateSkeleton(false)} 
-                                    isLoading={status === Status.GENERATING} 
-                                    disabled={!validateInputs()} 
-                                    className="w-full py-4 text-base font-bold shadow-lg shadow-purple-200 bg-purple-600 hover:bg-purple-700 flex items-center justify-center gap-2 group"
-                                >
-                                    Generate Skeleton CV
-                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                                </Button>
-                                <p className="text-center text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1">
-                                    <Clock className="w-3 h-3" /> ~25 seconds • 100% Free
-                                </p>
-                            </div>
+                            <Button onClick={() => handleGenerateSkeleton(false)} isLoading={status === Status.GENERATING} disabled={!validateInputs()} className="flex-1 shadow-lg shadow-purple-200 bg-purple-600 hover:bg-purple-700">
+                                Generate Skeleton CV
+                            </Button>
                         ) : (
-                            <div className="flex-1 flex flex-col gap-2">
-                                <Button 
-                                    onClick={() => handleGenerate(false, targetMode === 'title')} 
-                                    isLoading={status === Status.GENERATING} 
-                                    disabled={!validateInputs()} 
-                                    className="w-full py-4 text-base font-bold shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 group"
-                                >
-                                    {targetMode === 'title' ? 'Generate Standard CV (Free)' : 'Generate Tailored CV (Free)'}
-                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                                </Button>
-                                <p className="text-center text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1">
-                                    <Clock className="w-3 h-3" /> ~25 seconds • 100% Free
-                                </p>
-                            </div>
+                            <Button onClick={() => handleGenerate(false, targetMode === 'title')} isLoading={status === Status.GENERATING} disabled={!validateInputs()} className="flex-1 shadow-lg shadow-indigo-200">
+                                {targetMode === 'title' ? 'Generate Standard CV' : 'Step 2: Generate Tailored CV'}
+                            </Button>
                         )}
                     </div>
 

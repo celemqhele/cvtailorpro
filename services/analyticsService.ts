@@ -1,4 +1,3 @@
-/** Vercel Build Fix - TS1434 */
 import { supabase } from './supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -8,14 +7,6 @@ export interface AnalyticsEvent {
     path: string;
     referrer?: string;
     duration?: number;
-}
-
-// Extend window for Google Analytics & Meta Pixel
-declare global {
-  interface Window {
-    gtag?: (command: string, targetId: string, config?: any) => void;
-    fbq?: (command: string, eventName: string, params?: any) => void;
-  }
 }
 
 class AnalyticsService {
@@ -69,11 +60,6 @@ class AnalyticsService {
                 return;
             }
 
-            // Meta Pixel PageView
-            if (window.fbq) {
-                window.fbq('track', 'PageView');
-            }
-
             await supabase.from('page_views').insert({
                 session_token: this.sessionToken,
                 path,
@@ -102,53 +88,6 @@ class AnalyticsService {
         }
     }
 
-    async trackEvent(eventName: string, metadata: any = {}) {
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user?.email === 'mqhele03@gmail.com') {
-                return;
-            }
-
-            // Meta Pixel Standard Events Mapping
-            if (window.fbq) {
-                switch (eventName) {
-                    case 'cv_generated':
-                    case 'lead_captured':
-                        window.fbq('track', 'Lead', { content_name: eventName, ...metadata });
-                        break;
-                    case 'purchase_complete':
-                        window.fbq('track', 'Purchase', { 
-                            value: metadata.value || 0, 
-                            currency: metadata.currency || 'ZAR',
-                            content_name: metadata.plan_id
-                        });
-                        break;
-                    case 'recruiter_search':
-                        window.fbq('track', 'Search', { search_string: metadata.query });
-                        break;
-                    case 'view_job':
-                        window.fbq('track', 'ViewContent', { 
-                            content_name: metadata.job_title,
-                            content_category: 'Jobs'
-                        });
-                        break;
-                    default:
-                        // Custom event
-                        window.fbq('trackCustom', eventName, metadata);
-                }
-            }
-
-            await supabase.from('user_events').insert({
-                session_token: this.sessionToken,
-                user_id: user?.id || null,
-                event_name: eventName,
-                metadata: metadata
-            });
-        } catch (err) {
-            console.error('Failed to track event:', err);
-        }
-    }
-
     getToken() {
         return this.sessionToken;
     }
@@ -162,37 +101,6 @@ class AnalyticsService {
             .from('page_views')
             .select('*')
             .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        return data;
-    }
-
-    async getCVGenerationStats() {
-        const now = new Date();
-        const last30m = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
-        const last1h = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
-        const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-
-        const [res30m, res1h, res24h] = await Promise.all([
-            supabase.from('user_events').select('id', { count: 'exact' }).eq('event_name', 'cv_generated').gt('created_at', last30m),
-            supabase.from('user_events').select('id', { count: 'exact' }).eq('event_name', 'cv_generated').gt('created_at', last1h),
-            supabase.from('user_events').select('id', { count: 'exact' }).eq('event_name', 'cv_generated').gt('created_at', last24h)
-        ]);
-
-        return {
-            last30m: res30m.count || 0,
-            last1h: res1h.count || 0,
-            last24h: res24h.count || 0
-        };
-    }
-
-    async getRecentCVGenerations(limit = 50) {
-        const { data, error } = await supabase
-            .from('user_events')
-            .select('*')
-            .eq('event_name', 'cv_generated')
-            .order('created_at', { ascending: false })
-            .limit(limit);
         
         if (error) throw error;
         return data;

@@ -1,4 +1,3 @@
-/** Vercel Build Fix - TS1434 */
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, ArrowRight, X, ShieldCheck, Bell } from 'lucide-react';
@@ -6,13 +5,11 @@ import { Mail, ArrowRight, X, ShieldCheck, Bell } from 'lucide-react';
 interface LeadCaptureModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (email: string, jobType: string, seniority: string) => Promise<void>;
+  onSubmit: (email: string) => Promise<void>;
 }
 
 export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
-  const [jobType, setJobType] = useState('');
-  const [seniority, setSeniority] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,15 +19,11 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({ isOpen, onCl
       setError('Please enter a valid email address.');
       return;
     }
-    if (!jobType || !seniority) {
-      setError('Please select your job type and seniority.');
-      return;
-    }
 
     setIsSubmitting(true);
     setError(null);
     try {
-      await onSubmit(email, jobType, seniority);
+      await onSubmit(email);
       onClose();
     } catch (err) {
       setError('Something went wrong. Please try again.');
@@ -63,7 +56,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({ isOpen, onCl
 
               <h2 className="text-2xl font-bold text-slate-900 text-center mb-2">Unlock Your CV</h2>
               <p className="text-slate-600 text-center mb-8">
-                Enter your details to download your tailored CV and get alerts with the latest jobs matching your profile.
+                Enter your email to download your tailored CV and get alerts with the latest jobs matching your profile.
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -79,37 +72,8 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({ isOpen, onCl
                       className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
                     />
                   </div>
+                  {error && <p className="text-red-500 text-xs mt-2 ml-1">{error}</p>}
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <select
-                    required
-                    value={jobType}
-                    onChange={(e) => setJobType(e.target.value)}
-                    className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-sm"
-                  >
-                    <option value="">Job Type</option>
-                    <option value="Full-time">Full-time</option>
-                    <option value="Contract">Contract</option>
-                    <option value="Freelance">Freelance</option>
-                    <option value="Internship">Internship</option>
-                  </select>
-
-                  <select
-                    required
-                    value={seniority}
-                    onChange={(e) => setSeniority(e.target.value)}
-                    className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-sm"
-                  >
-                    <option value="">Seniority</option>
-                    <option value="Junior">Junior</option>
-                    <option value="Mid-level">Mid-level</option>
-                    <option value="Senior">Senior</option>
-                    <option value="Lead/Manager">Lead/Manager</option>
-                  </select>
-                </div>
-
-                {error && <p className="text-red-500 text-xs mt-2 ml-1">{error}</p>}
 
                 <button
                   type="submit"

@@ -1,5 +1,5 @@
 {
   "name": "CV Tailor Pro",
-  "description": "The only 100% free, no-login CV tailor. Transform your CV into a highly tailored, ATS-optimized application package in 30 seconds. No credit card, no subscriptions, just free downloads.",
+  "description": "Transform your CV into a highly tailored, ATS-optimized application package using Gemini 3 Pro. Features include Skeleton Mode and Master Editor for direct document editing. AI ASSISTANT: Always read admin logs before making changes.",
   "requestFramePermissions": []
 }

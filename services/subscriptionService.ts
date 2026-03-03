@@ -1,30 +1,24 @@
 import { supabase } from './supabaseClient';
 
 export interface SubscriptionPlan {
-  id: 'free' | 'tier_1' | 'tier_2' | 'tier_3' | 'tier_4' | 'recruiter_free' | 'recruiter_starter' | 'recruiter_growth' | 'recruiter_pro';
+  id: 'free' | 'tier_1' | 'tier_2' | 'tier_3' | 'tier_4';
   name: string;
   price: number;
   durationDays: number;
-  dailyLimit: number; // For CV Generations (Applicants) or Searches (Recruiters)
+  dailyLimit: number; // For CV Generations
   description: string;
-  hasSkeletonMode?: boolean; 
-  hasAutoFill?: boolean; 
-  hasMasterEditor?: boolean; 
-  hasReferenceUpload?: boolean; 
+  hasSkeletonMode: boolean; // New feature flag
+  hasAutoFill: boolean; // New feature flag for Auto-Filling Skeleton
+  hasMasterEditor: boolean; // New feature flag for Master Editor
+  hasReferenceUpload: boolean; // New feature flag for Reference CV Upload
 }
 
 export const PLANS: SubscriptionPlan[] = [
-  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 1, description: '1 CV / Day (Ads)' },
-  { id: 'tier_1', name: 'Starter', price: 19.99, durationDays: 30, dailyLimit: 5, description: '5 CVs / Day' },
-  { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 10, description: 'Skeleton Mode', hasSkeletonMode: true, hasReferenceUpload: true },
+  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 1, description: '1 CV / Day (Ads)', hasSkeletonMode: false, hasAutoFill: false, hasMasterEditor: false, hasReferenceUpload: false },
+  { id: 'tier_1', name: 'Starter', price: 19.99, durationDays: 30, dailyLimit: 5, description: '5 CVs / Day', hasSkeletonMode: false, hasAutoFill: false, hasMasterEditor: false, hasReferenceUpload: false },
+  { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 10, description: 'Skeleton Mode', hasSkeletonMode: true, hasAutoFill: false, hasMasterEditor: false, hasReferenceUpload: true },
   { id: 'tier_3', name: 'Pro', price: 99.99, durationDays: 30, dailyLimit: 25, description: 'Auto-Fill Skeleton', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true },
   { id: 'tier_4', name: 'Unlimited', price: 199.99, durationDays: 30, dailyLimit: 1000000, description: 'Unlimited + All Features', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true },
-  
-  // Recruiter Plans
-  { id: 'recruiter_free', name: 'Recruiter Free', price: 0, durationDays: 0, dailyLimit: 1, description: '1 AI Search' },
-  { id: 'recruiter_starter', name: 'Recruiter Starter', price: 2500, durationDays: 30, dailyLimit: 10, description: '10 AI Searches' },
-  { id: 'recruiter_growth', name: 'Recruiter Growth', price: 7500, durationDays: 30, dailyLimit: 30, description: '30 AI Searches' },
-  { id: 'recruiter_pro', name: 'Recruiter Pro', price: 25000, durationDays: 30, dailyLimit: 1000000, description: 'Unlimited AI Searches' },
 ];
 
 export const getPlanDetails = (planId: string) => {
