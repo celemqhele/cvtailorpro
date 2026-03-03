@@ -152,8 +152,12 @@ export async function extractTextFromFile(file: FileData): Promise<string> {
  */
 async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string, task: string = 'cv_generation'): Promise<{text: string, provider?: string}> {
     const isJsonMode = systemInstruction.includes("JSON") || systemInstruction.includes("json");
+    const CLIENT_TIMEOUT_MS = 75000; // 75s client-side timeout (accounts for multiple 30s server fallbacks)
 
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CLIENT_TIMEOUT_MS);
+
         const response = await fetch("/api/ai-proxy", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -163,8 +167,11 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
                 temperature,
                 jsonMode: isJsonMode,
                 task
-            })
+            }),
+            signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             const err = await response.json();
@@ -175,7 +182,10 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
         return { text: data.text, provider: data.provider };
     } catch (e: any) {
         console.error("AI Proxy Call Failed:", e);
-        throw new Error("Service Unavailable: AI models failed to respond. Please try again later.");
+        if (e.name === 'AbortError') {
+            throw new Error("High traffic detected. Please try again in 1 minute.");
+        }
+        throw new Error(e.message || "Service Unavailable: AI models failed to respond. Please try again later.");
     }
 }
 
