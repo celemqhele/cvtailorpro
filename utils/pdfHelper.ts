@@ -1,13 +1,12 @@
 
 
-import { CLOUDCONVERT_KEY, CLOUDCONVERT_KEY_BACKUP } from "../constants";
-
+/** Vercel Build Fix - TS1434 */
 // Helper function to perform the actual API call via backend proxy
-const performCloudConvertRequest = async (htmlContent: string): Promise<Blob> => {
+const performCloudConvertRequest = async (html: string): Promise<Blob> => {
     const response = await fetch("/api/pdf-proxy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ htmlContent })
+        body: JSON.stringify({ html })
     });
 
     if (!response.ok) {

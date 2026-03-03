@@ -218,3 +218,29 @@ export const incrementQuickApply = async (): Promise<void> => {
         console.error("Failed to increment Quick Apply:", e);
     }
 };
+
+/**
+ * Gets the recruiter search count for the current month.
+ */
+export const getRecruiterSearchStats = async (userId: string): Promise<number> => {
+    try {
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+
+        const { count, error } = await supabase
+            .from('recruiter_searches')
+            .select('*', { count: 'exact', head: true })
+            .eq('recruiter_id', userId)
+            .gte('created_at', startOfMonth.toISOString());
+
+        if (error) {
+            console.error('Error fetching recruiter search count:', error);
+            return 0;
+        }
+        return count || 0;
+    } catch (e) {
+        console.error('Failed to get recruiter search stats:', e);
+        return 0;
+    }
+};

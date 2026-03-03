@@ -2,9 +2,9 @@ import { supabase } from "./supabaseClient";
 
 export const metricsService = {
     async getCVGenerationStats() {
-        // We use the 'applications' table as a proxy for successful generations
+        // We use the 'cv_applications' table as a proxy for successful generations
         const { data, error } = await supabase
-            .from('applications')
+            .from('cv_applications')
             .select('created_at');
         
         if (error) throw error;

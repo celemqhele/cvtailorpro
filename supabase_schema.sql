@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS profiles (
   has_used_discount boolean DEFAULT false,
   last_cv_content text,
   last_cv_filename text,
+  role text DEFAULT 'candidate', -- 'candidate', 'recruiter', 'admin'
+  opt_in_headhunter boolean DEFAULT false,
+  credits int DEFAULT 0,
   created_at timestamptz DEFAULT now()
 );
 
@@ -422,6 +425,8 @@ CREATE TABLE IF NOT EXISTS leads (
   email text NOT NULL,
   user_id uuid REFERENCES auth.users ON DELETE SET NULL,
   source text DEFAULT 'cv_download',
+  job_type text,
+  seniority text,
   metadata jsonb,
   created_at timestamptz DEFAULT now()
 );
@@ -444,7 +449,7 @@ CREATE POLICY "Allow public insert leads" ON leads
 CREATE TABLE IF NOT EXISTS page_views (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid REFERENCES auth.users ON DELETE SET NULL,
-  session_id text,
+  session_token text,
   path text NOT NULL,
   referrer text,
   user_agent text,
@@ -460,4 +465,305 @@ CREATE POLICY "Admin only view page views" ON page_views
 DROP POLICY IF EXISTS "Allow public insert page views" ON page_views;
 CREATE POLICY "Allow public insert page views" ON page_views
   FOR INSERT WITH CHECK (true);
+
+-- Visitor Sessions (Live & Returning Tracking)
+CREATE TABLE IF NOT EXISTS visitor_sessions (
+  session_token text PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE SET NULL,
+  is_returning boolean DEFAULT false,
+  browser_info jsonb,
+  last_active_at timestamptz DEFAULT now(),
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE visitor_sessions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin only view visitor sessions" ON visitor_sessions;
+CREATE POLICY "Admin only view visitor sessions" ON visitor_sessions
+  FOR SELECT USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
+DROP POLICY IF EXISTS "Allow public upsert visitor sessions" ON visitor_sessions;
+CREATE POLICY "Allow public upsert visitor sessions" ON visitor_sessions
+  FOR ALL USING (true);
+
+-- User Events (CV Actions, etc.)
+CREATE TABLE IF NOT EXISTS user_events (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  session_token text,
+  user_id uuid REFERENCES auth.users ON DELETE SET NULL,
+  event_name text NOT NULL, -- 'cv_generated', 'use_own_cv', 'continue_to_app', 'headhunter_opt_in'
+  metadata jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Candidate Profiles (for Headhunter Search)
+CREATE TABLE IF NOT EXISTS candidate_profiles (
+  id uuid REFERENCES profiles(id) ON DELETE CASCADE PRIMARY KEY,
+  full_name text,
+  email text,
+  phone text,
+  location text,
+  summary text,
+  skills text[],
+  experience jsonb,
+  education jsonb,
+  seniority text,
+  job_type text,
+  cv_text text, -- For AI indexing/search
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE candidate_profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public read for recruiters" ON candidate_profiles;
+CREATE POLICY "Public read for recruiters" ON candidate_profiles
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE profiles.id = auth.uid() AND profiles.role = 'recruiter'
+    ) OR auth.uid() = id
+  );
+
+-- Recruiter Searches
+CREATE TABLE IF NOT EXISTS recruiter_searches (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  recruiter_id uuid REFERENCES auth.users NOT NULL,
+  query_text text,
+  query_params jsonb,
+  results_count int,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE recruiter_searches ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Recruiters view own searches" ON recruiter_searches;
+CREATE POLICY "Recruiters view own searches" ON recruiter_searches
+  FOR SELECT USING (auth.uid() = recruiter_id);
+
+ALTER TABLE user_events ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin only view user events" ON user_events;
+CREATE POLICY "Admin only view user events" ON user_events
+  FOR SELECT USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
+
+DROP POLICY IF EXISTS "Allow public insert user events" ON user_events;
+CREATE POLICY "Allow public insert user events" ON user_events
+  FOR INSERT WITH CHECK (true);
+
+-- SECURE ANALYTICS FUNCTIONS
+CREATE OR REPLACE FUNCTION get_admin_analytics_summary()
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  total_traffic int;
+  total_revenue numeric;
+  returning_users int;
+  new_users int;
+  live_sessions int;
+  cv_generated int;
+  own_cv_clicks int;
+  continue_clicks int;
+  recent_errors json;
+BEGIN
+  -- Check admin status
+  IF auth.jwt() ->> 'email' != 'mqhele03@gmail.com' THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  -- Traffic (Last 24h)
+  SELECT count(*) INTO total_traffic FROM page_views WHERE created_at > now() - interval '24 hours';
+  
+  -- Revenue (All time completed)
+  SELECT coalesce(sum(amount), 0) INTO total_revenue FROM orders WHERE status = 'completed';
+  
+  -- Returning vs New (Last 7 days)
+  SELECT count(*) INTO returning_users FROM visitor_sessions WHERE is_returning = true AND created_at > now() - interval '7 days';
+  SELECT count(*) INTO new_users FROM visitor_sessions WHERE is_returning = false AND created_at > now() - interval '7 days';
+  
+  -- Live Sessions (Active in last 5 mins)
+  SELECT count(*) INTO live_sessions FROM visitor_sessions WHERE last_active_at > now() - interval '5 minutes';
+  
+  -- CV Metrics
+  SELECT count(*) INTO cv_generated FROM user_events WHERE event_name = 'cv_generated';
+  SELECT count(*) INTO own_cv_clicks FROM user_events WHERE event_name = 'use_own_cv';
+  SELECT count(*) INTO continue_clicks FROM user_events WHERE event_name = 'continue_to_app';
+
+  -- Recent Errors
+  SELECT json_agg(t) INTO recent_errors FROM (
+    SELECT message, created_at FROM error_logs ORDER BY created_at DESC LIMIT 5
+  ) t;
+
+  RETURN json_build_object(
+    'traffic_24h', total_traffic,
+    'revenue_total', total_revenue,
+    'returning_7d', returning_users,
+    'new_7d', new_users,
+    'live_sessions', live_sessions,
+    'cv_generated', cv_generated,
+    'own_cv_clicks', own_cv_clicks,
+    'continue_clicks', continue_clicks,
+    'recent_errors', recent_errors
+  );
+END;
+$$;
+
+-- Detailed Analytics Function
+CREATE OR REPLACE FUNCTION get_detailed_analytics(metric_name text, time_range text DEFAULT '7d')
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  result json;
+  interval_val interval;
+  bucket_val text;
+BEGIN
+  IF auth.jwt() ->> 'email' != 'mqhele03@gmail.com' THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  interval_val := CASE 
+    WHEN time_range = '24h' THEN interval '24 hours'
+    WHEN time_range = '7d' THEN interval '7 days'
+    WHEN time_range = '30d' THEN interval '30 days'
+    ELSE interval '100 years' END;
+
+  bucket_val := CASE 
+    WHEN time_range = '24h' THEN 'hour'
+    ELSE 'day' END;
+
+  IF metric_name = 'traffic' THEN
+    SELECT json_agg(t) INTO result FROM (
+      SELECT date_trunc(bucket_val, created_at) as time_bucket, count(*) as value
+      FROM page_views
+      WHERE created_at > now() - interval_val
+      GROUP BY 1 ORDER BY 1 ASC
+    ) t;
+  ELSIF metric_name = 'revenue' THEN
+    SELECT json_agg(t) INTO result FROM (
+      SELECT date_trunc(bucket_val, created_at) as time_bucket, sum(amount) as value
+      FROM orders
+      WHERE status = 'completed' AND created_at > now() - interval_val
+      GROUP BY 1 ORDER BY 1 ASC
+    ) t;
+  ELSIF metric_name = 'returning_users' THEN
+    SELECT json_agg(t) INTO result FROM (
+      SELECT date_trunc(bucket_val, created_at) as time_bucket, count(*) as value
+      FROM visitor_sessions
+      WHERE is_returning = true AND created_at > now() - interval_val
+      GROUP BY 1 ORDER BY 1 ASC
+    ) t;
+  ELSIF metric_name = 'new_users' THEN
+    SELECT json_agg(t) INTO result FROM (
+      SELECT date_trunc(bucket_val, created_at) as time_bucket, count(*) as value
+      FROM visitor_sessions
+      WHERE is_returning = false AND created_at > now() - interval_val
+      GROUP BY 1 ORDER BY 1 ASC
+    ) t;
+  ELSIF metric_name = 'cv_generation' THEN
+    SELECT json_agg(t) INTO result FROM (
+      SELECT date_trunc(bucket_val, created_at) as time_bucket, count(*) as value
+      FROM user_events
+      WHERE event_name = 'cv_generated' AND created_at > now() - interval_val
+      GROUP BY 1 ORDER BY 1 ASC
+    ) t;
+  ELSIF metric_name = 'own_cv_clicks' THEN
+    SELECT json_agg(t) INTO result FROM (
+      SELECT date_trunc(bucket_val, created_at) as time_bucket, count(*) as value
+      FROM user_events
+      WHERE event_name = 'use_own_cv' AND created_at > now() - interval_val
+      GROUP BY 1 ORDER BY 1 ASC
+    ) t;
+  ELSIF metric_name = 'continue_clicks' THEN
+    SELECT json_agg(t) INTO result FROM (
+      SELECT date_trunc(bucket_val, created_at) as time_bucket, count(*) as value
+      FROM user_events
+      WHERE event_name = 'continue_to_app' AND created_at > now() - interval_val
+      GROUP BY 1 ORDER BY 1 ASC
+    ) t;
+  END IF;
+
+  RETURN result;
+END;
+$$;
+
+-- Live Sessions Details
+CREATE OR REPLACE FUNCTION get_live_sessions_details()
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  result json;
+BEGIN
+  IF auth.jwt() ->> 'email' != 'mqhele03@gmail.com' THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  SELECT json_agg(t) INTO result FROM (
+    SELECT 
+      vs.session_token,
+      vs.last_active_at,
+      vs.is_returning,
+      (SELECT path FROM page_views pv WHERE pv.session_token = vs.session_token ORDER BY created_at DESC LIMIT 1) as current_path,
+      (SELECT count(*) FROM page_views pv WHERE pv.session_token = vs.session_token) as page_count
+    FROM visitor_sessions vs
+    WHERE vs.last_active_at > now() - interval '5 minutes'
+    ORDER BY vs.last_active_at DESC
+  ) t;
+
+  RETURN result;
+END;
+$$;
+
+-- User Journey Details
+CREATE OR REPLACE FUNCTION get_user_journey(target_session_token text)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  result json;
+BEGIN
+  IF auth.jwt() ->> 'email' != 'mqhele03@gmail.com' THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  SELECT json_agg(t) INTO result FROM (
+    SELECT path, created_at
+    FROM page_views
+    WHERE session_token = target_session_token
+    ORDER BY created_at ASC
+  ) t;
+
+  RETURN result;
+END;
+$$;
+
+-- Recruiter Search Credits Logic
+CREATE OR REPLACE FUNCTION use_recruiter_credit()
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  current_credits int;
+BEGIN
+  SELECT credits INTO current_credits FROM profiles WHERE id = auth.uid();
+  
+  IF current_credits > 0 OR (SELECT plan_id FROM profiles WHERE id = auth.uid()) = 'pro' THEN
+    IF (SELECT plan_id FROM profiles WHERE id = auth.uid()) != 'pro' THEN
+      UPDATE profiles SET credits = credits - 1 WHERE id = auth.uid();
+    END IF;
+    RETURN true;
+  ELSE
+    RETURN false;
+  END IF;
+END;
+$$;
 

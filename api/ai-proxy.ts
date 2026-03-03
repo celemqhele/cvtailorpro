@@ -1,5 +1,23 @@
 
 import { GoogleGenAI } from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
+
+async function callClaude(systemPrompt: any, userPrompt: any, temperature: any, apiKey: any) {
+  const anthropic = new Anthropic({ apiKey });
+  const response = await anthropic.messages.create({
+    model: "claude-3-5-sonnet-20240620",
+    max_tokens: 4096,
+    temperature: temperature || 0.5,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
+  });
+  
+  const content = response.content[0];
+  if (content.type === 'text') {
+    return content.text;
+  }
+  return "";
+}
 
 async function callCerebras(modelName: any, systemPrompt: any, userPrompt: any, temperature: any, apiKey: any, jsonMode = false) {
   const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
@@ -48,39 +66,68 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { systemPrompt, userPrompt, temperature, jsonMode } = req.body;
+  const { systemPrompt, userPrompt, temperature, jsonMode, task } = req.body;
 
   if (!userPrompt) {
     return res.status(400).json({ error: 'Missing userPrompt' });
   }
 
-  // 1. Gemini Fallback Chain
   const geminiKeys = [process.env.GEMINI_KEY_1, process.env.GEMINI_KEY_2].filter(Boolean);
-  const geminiModels = ["gemini-3.1-pro-preview", "gemini-3-flash-preview"];
-
-  for (const gKey of geminiKeys) {
-    for (const gModel of geminiModels) {
-      try {
-        const text = await callGemini(gModel, systemPrompt, userPrompt, temperature || 0.5, gKey, jsonMode);
-        return res.status(200).json({ text });
-      } catch (e: any) {
-        console.warn(`Gemini ${gModel} failed in backend proxy:`, e.message);
-      }
-    }
-  }
-
-  // 2. Cerebras Fallback Chain
   const cerebrasKeys = [process.env.CEREBRAS_KEY, process.env.CEREBRAS_KEY_2].filter(Boolean);
-  const cerebrasModels = ["llama-3.3-70b", "llama-3.1-70b", "llama-3.1-8b"];
+  const claudeKey = process.env.CLAUDE_API_KEY;
 
-  for (const cKey of cerebrasKeys) {
-    for (const cModel of cerebrasModels) {
-      try {
-        const text = await callCerebras(cModel, systemPrompt, userPrompt, temperature || 0.5, cKey, jsonMode);
-        return res.status(200).json({ text });
-      } catch (e: any) {
-        console.warn(`Cerebras ${cModel} failed in backend proxy:`, e.message);
+  // Define Fallback Chains
+  const chains: Record<string, any[]> = {
+    cv_generation: [
+      { provider: 'claude', key: claudeKey },
+      { provider: 'gemini', model: 'gemini-3.1-pro-preview', keys: geminiKeys },
+      { provider: 'gemini', model: 'gemini-3-flash-preview', keys: geminiKeys },
+      { provider: 'cerebras', model: 'llama-3.3-70b', keys: cerebrasKeys }
+    ],
+    analyse_match: [
+      { provider: 'gemini', model: 'gemini-3-flash-preview', keys: geminiKeys },
+      { provider: 'cerebras', model: 'llama-3.3-70b', keys: cerebrasKeys }
+    ],
+    admin_job_creation: [
+      { provider: 'claude', key: claudeKey },
+      { provider: 'gemini', model: 'gemini-3.1-pro-preview', keys: geminiKeys },
+      { provider: 'gemini', model: 'gemini-3-flash-preview', keys: geminiKeys },
+      { provider: 'cerebras', model: 'llama-3.3-70b', keys: cerebrasKeys }
+    ],
+    recruiter_candidate_finder: [
+      { provider: 'claude', key: claudeKey },
+      { provider: 'gemini', model: 'gemini-3.1-pro-preview', keys: geminiKeys },
+      { provider: 'gemini', model: 'gemini-3-flash-preview', keys: geminiKeys },
+      { provider: 'cerebras', model: 'llama-3.3-70b', keys: cerebrasKeys }
+    ]
+  };
+
+  const activeChain = chains[task] || chains.cv_generation;
+
+  for (const step of activeChain) {
+    try {
+      if (step.provider === 'claude' && step.key) {
+        const text = await callClaude(systemPrompt, userPrompt, temperature, step.key);
+        return res.status(200).json({ text, provider: 'claude' });
       }
+      if (step.provider === 'gemini' && step.keys.length > 0) {
+        for (const key of step.keys) {
+          try {
+            const text = await callGemini(step.model, systemPrompt, userPrompt, temperature, key, jsonMode);
+            return res.status(200).json({ text, provider: `gemini:${step.model}` });
+          } catch (e) { continue; }
+        }
+      }
+      if (step.provider === 'cerebras' && step.keys.length > 0) {
+        for (const key of step.keys) {
+          try {
+            const text = await callCerebras(step.model, systemPrompt, userPrompt, temperature, key, jsonMode);
+            return res.status(200).json({ text, provider: `cerebras:${step.model}` });
+          } catch (e) { continue; }
+        }
+      }
+    } catch (e: any) {
+      console.warn(`Step ${step.provider} failed:`, e.message);
     }
   }
 
