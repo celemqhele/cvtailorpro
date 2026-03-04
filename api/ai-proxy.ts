@@ -105,7 +105,7 @@ export default async function handler(req: any, res: any) {
   // Define Fallback Chains based on Plan
   // Pro/Unlimited: Claude -> Gemini Pro -> Gemini Flash -> Cerebras
   // Growth: Gemini Flash -> Cerebras
-  // Free/Starter: Cerebras (70b -> 8b)
+  // Free/Starter: Cerebras (70b -> 8b) -> Gemini Flash Lite (Safety Fallback)
   
   let activeChain: any[] = [];
 
@@ -126,7 +126,8 @@ export default async function handler(req: any, res: any) {
     // Free or Starter
     activeChain = [
       { provider: 'cerebras', model: 'llama-3.3-70b', keys: cerebrasKeys, timeout: 30000 },
-      { provider: 'cerebras', model: 'llama3.1-8b', keys: cerebrasKeys, timeout: 20000 }
+      { provider: 'cerebras', model: 'llama3.1-8b', keys: cerebrasKeys, timeout: 20000 },
+      { provider: 'gemini', model: 'gemini-3.1-flash-lite-preview', keys: geminiKeys, timeout: 10000 } // Safety fallback
     ];
   }
 

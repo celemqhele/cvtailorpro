@@ -32,7 +32,10 @@ class AnalyticsService {
             localStorage.setItem(SESSION_KEY, this.sessionToken);
             this.isReturning = false;
         }
-        this.initSession();
+        // Initialize session and track initial page load immediately
+        this.initSession().then(() => {
+            this.trackPageView(window.location.pathname);
+        });
     }
 
     private async initSession() {

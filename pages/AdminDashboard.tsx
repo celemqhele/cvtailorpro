@@ -54,7 +54,7 @@ interface AdminLog {
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useOutletContext<any>();
+  const { user, showToast } = useOutletContext<any>();
   const [isChecking, setIsChecking] = useState(true);
   const [sessions, setSessions] = useState<VisitorSession[]>([]);
   const [pageViews, setPageViews] = useState<PageView[]>([]);
@@ -199,7 +199,13 @@ export const AdminDashboard: React.FC = () => {
     try {
       const { data: summary, error: summaryError } = await supabase.rpc('get_admin_analytics_summary');
       
-      if (summaryError) throw summaryError;
+      if (summaryError) {
+          console.error("Error fetching admin summary:", summaryError);
+          if (summaryError.code === '42703') {
+              showToast("Database schema mismatch (missing columns). Please run the fix_supabase_schema_v2.sql script in Supabase.", 'error');
+          }
+          throw summaryError;
+      }
 
       if (summary) {
         setTotalGenerations(summary.cv_generated);
@@ -493,7 +499,7 @@ Keep it professional, concise, and insightful.`,
                 <TrendingUp size={18} className="text-emerald-500" />
                 Traffic Overview (Last 24 Hours)
               </h3>
-              <div className="h-[300px] w-full">
+              <div className="h-[300px] min-h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
@@ -787,7 +793,7 @@ Keep it professional, concise, and insightful.`,
                 </div>
               ) : (
                 <div className="space-y-8">
-                  <div className="h-80 w-full">
+                  <div className="h-80 min-h-[320px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={detailedData}>
                         <defs>

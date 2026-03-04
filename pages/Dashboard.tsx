@@ -395,6 +395,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           return;
       }
 
+      // Check if user is free and needs to watch ad or is blocked BEFORE status change
+      if (!isPaidUser) {
+          const canProceed = await checkUsageLimit(user?.id, dailyLimit);
+          if (!canProceed) {
+              setShowLimitModal(true);
+              return;
+          }
+          // For scanning, we don't strictly REQUIRE an ad yet, but we could.
+          // The user specifically mentioned the generation progress bar.
+      }
+
       setStatus(Status.SCANNING);
       setErrorMsg(null);
       setAnalysis(null);
@@ -500,6 +511,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
   const handleGenerate = async (forceOverride: boolean = false, isDirectTitleMode: boolean = false, bypassAd: boolean = false) => {
     // 1. Check if user is free and needs to watch ad or is blocked
+    // IMPORTANT: Check this BEFORE setStatus(Status.GENERATING) to avoid interrupting progress bar
     if (!isPaidUser && !bypassAd) {
         // If they hit the limit, they are done. No more ads. Must upgrade.
         const canProceed = await checkUsageLimit(user?.id, dailyLimit);
