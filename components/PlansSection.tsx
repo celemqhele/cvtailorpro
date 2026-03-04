@@ -19,7 +19,7 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-           {PLANS.map((plan: any) => {
+           {PLANS.filter((p: any) => !p.id.startsWith('recruiter_')).map((plan: any) => {
              const isFree = plan.id === 'free';
              const isCurrent = userPlanId ? userPlanId === plan.id : isFree;
              const isPopular = plan.id === 'tier_2'; // Growth

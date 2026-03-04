@@ -163,7 +163,7 @@ export const GeneratedCV: React.FC = () => {
       try {
           if (viewMode === 'cv') {
              if (!cvData) return;
-             const updatedData = await smartEditCV(cvData, instruction, "");
+             const updatedData = await smartEditCV(cvData, instruction, "", user?.plan_id);
              setCvData(updatedData);
              const updatedCvContent = JSON.stringify(updatedData);
              setApplication(prev => prev ? ({ ...prev, cv_content: updatedCvContent }) : null);
@@ -171,7 +171,7 @@ export const GeneratedCV: React.FC = () => {
           } else {
              // Cover Letter Mode
              if (!application.cl_content) return;
-             const updatedCL = await smartEditCoverLetter(application.cl_content, instruction, "");
+             const updatedCL = await smartEditCoverLetter(application.cl_content, instruction, "", user?.plan_id);
              setApplication(prev => prev ? ({ ...prev, cl_content: updatedCL }) : null);
              await authService.updateApplication(application.id, application.cv_content, updatedCL);
           }

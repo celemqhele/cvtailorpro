@@ -88,7 +88,7 @@ export const RecruiterDashboard: React.FC = () => {
     setIsSearching(true);
     try {
       // 1. Extract requirements using AI
-      const requirements = await extractJobRequirements(jobSpec, '');
+      const requirements = await extractJobRequirements(jobSpec, '', profile?.plan_id);
       
       // 2. Fetch candidates from Supabase
       const { data: candidates } = await supabase
@@ -103,7 +103,7 @@ export const RecruiterDashboard: React.FC = () => {
 
       // 3. Rank candidates using AI
       const candidateData = candidates.map((c: CandidateProfile) => ({ id: c.id, summary: c.summary, skills: c.skills, seniority: c.seniority }));
-      const rankedIds = await rankCandidates(requirements, candidateData, '');
+      const rankedIds = await rankCandidates(requirements, candidateData, '', profile?.plan_id);
 
       const sortedResults = rankedIds
         .map((id: string) => candidates.find((c: CandidateProfile) => c.id === id))

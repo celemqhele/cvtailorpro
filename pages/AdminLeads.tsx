@@ -27,13 +27,31 @@ export const AdminLeads: React.FC = () => {
 
   useEffect(() => {
     const verifyAdmin = async () => {
-        if (isPreviewOrAdmin()) {
-            setIsChecking(false);
-            return;
-        }
-        if (user?.email === 'mqhele03@gmail.com') {
-            setIsChecking(false);
-        } else {
+        try {
+            if (isPreviewOrAdmin()) {
+                setIsChecking(false);
+                return;
+            }
+            
+            if (user) {
+                if (user.email === 'mqhele03@gmail.com') {
+                    setIsChecking(false);
+                } else {
+                    navigate('/');
+                }
+                return;
+            }
+
+            const { data: { session }, error } = await supabase.auth.getSession();
+            if (error) throw error;
+
+            if (session?.user?.email === 'mqhele03@gmail.com') {
+                setIsChecking(false);
+            } else {
+                navigate('/');
+            }
+        } catch (err) {
+            console.error("Admin verification failed:", err);
             navigate('/');
         }
     };

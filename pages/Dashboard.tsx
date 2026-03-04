@@ -14,7 +14,7 @@ import { ProPlusFeatureCard } from '../components/ProPlusFeatureCard';
 import { AdDecisionModal } from '../components/AdDecisionModal';
 import { FeatureLockedModal } from '../components/FeatureLockedModal';
 import { SkeletonPromoModal } from '../components/SkeletonPromoModal';
-import { GenerationProgressBar } from '../components/GenerationProgressBar';
+import { LoadingProgressBar } from '../components/LoadingProgressBar';
 
 import { analytics } from '../services/analyticsService';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile, generateSkeletonCV } from '../services/geminiService';
@@ -46,6 +46,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [pendingNavigation, setPendingNavigation] = useState<{ url: string, state?: any } | null>(null);
 
   // Redirect Logic - Only strict for logged-in user dashboard
   useEffect(() => {
@@ -432,7 +434,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
               cvInputMode === 'scratch' ? manualData : null,
               textToAnalyze, 
               "",
-              (useSavedCv && savedCvText) ? savedCvText : undefined
+              (useSavedCv && savedCvText) ? savedCvText : undefined,
+              user?.plan_id
           );
           setAnalysis(analysisResult);
           setStatus(Status.ANALYSIS_COMPLETE);
@@ -551,7 +554,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           force,
           linkedinUrl,
           (useSavedCv && savedCvText) ? savedCvText : undefined,
-          combinedAdditionalInfo // Pass combined info
+          combinedAdditionalInfo, // Pass combined info
+          user?.plan_id
       );
       if (response.outcome !== 'REJECT') {
           setResult(response);
@@ -575,7 +579,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
               const isJobBoardFlow = !!location.state?.autofillJobDescription;
               const showSubscribe = isJobBoardFlow && (!user || user.plan_id === 'free');
 
-              navigate(`/cv-generated/${savedId}`, { state: { showSubscribe } });
+              setPendingNavigation({ url: `/cv-generated/${savedId}`, state: { showSubscribe } });
           }
       } else {
           setResult(response);
@@ -623,7 +627,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       setGeneratedCvId(null);
 
       try {
-          const response = await generateSkeletonCV(textToAnalyze, "");
+          const response = await generateSkeletonCV(textToAnalyze, "", user?.plan_id);
           if (response.outcome !== 'REJECT') {
               setResult(response);
               setStatus(Status.SUCCESS);
@@ -639,7 +643,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                       company: response.meta?.company,
                       mode: 'skeleton'
                   });
-                  navigate(`/cv-generated/${savedId}`);
+                  setPendingNavigation({ url: `/cv-generated/${savedId}` });
               }
           } else {
               setResult(response);
@@ -747,15 +751,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                 <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6 text-sm flex items-start gap-3">
                     <svg className="w-5 h-5 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                     <div>{errorMsg}</div>
-                </div>
-            )}
-
-            {/* Generation Progress Bar */}
-            {(status === Status.GENERATING || status === Status.SCANNING || status === Status.ANALYZING) && (
-                <div className="mb-8">
-                    <GenerationProgressBar 
-                        isActive={status === Status.GENERATING || status === Status.SCANNING || status === Status.ANALYZING} 
-                    />
                 </div>
             )}
 
@@ -957,57 +952,68 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                         </div>
                     )}
 
-                    <div className="flex flex-col md:flex-row gap-4 pt-4 border-t border-slate-200">
-                        {cvInputMode !== 'skeleton' && targetMode !== 'title' && (
-                            <div className="flex-1 flex flex-col gap-2">
-                                <Button 
-                                    variant="secondary" 
-                                    onClick={handleScanAndAnalyze} 
-                                    isLoading={status === Status.SCANNING || status === Status.ANALYZING} 
-                                    disabled={status === Status.GENERATING || !validateInputs()} 
-                                    className="w-full py-4 text-base font-bold shadow-sm flex items-center justify-center gap-2 group"
-                                >
-                                    Scan & Analyze Job (Free)
-                                    <Zap className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
-                                </Button>
-                                <p className="text-center text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1">
-                                    <Clock className="w-3 h-3" /> ~5 seconds • No credit card
-                                </p>
-                            </div>
-                        )}
-                        
-                        {cvInputMode === 'skeleton' ? (
-                            <div className="flex-1 flex flex-col gap-2">
-                                <Button 
-                                    onClick={() => handleGenerateSkeleton(false)} 
-                                    isLoading={status === Status.GENERATING} 
-                                    disabled={!validateInputs()} 
-                                    className="w-full py-4 text-base font-bold shadow-lg shadow-purple-200 bg-purple-600 hover:bg-purple-700 flex items-center justify-center gap-2 group"
-                                >
-                                    Generate Skeleton CV
-                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                                </Button>
-                                <p className="text-center text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1">
-                                    <Clock className="w-3 h-3" /> ~25 seconds • 100% Free
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="flex-1 flex flex-col gap-2">
-                                <Button 
-                                    onClick={() => handleGenerate(false, targetMode === 'title')} 
-                                    isLoading={status === Status.GENERATING} 
-                                    disabled={!validateInputs()} 
-                                    className="w-full py-4 text-base font-bold shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 group"
-                                >
-                                    {targetMode === 'title' ? 'Generate Standard CV (Free)' : 'Generate Tailored CV (Free)'}
-                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                                </Button>
-                                <p className="text-center text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1">
-                                    <Clock className="w-3 h-3" /> ~25 seconds • 100% Free
-                                </p>
-                            </div>
-                        )}
-                    </div>
+                    {status === Status.GENERATING || pendingNavigation ? (
+                        <div className="pt-4 border-t border-slate-200">
+                            <LoadingProgressBar 
+                                isComplete={!!pendingNavigation} 
+                                onCompleteAnimationFinished={() => {
+                                    if (pendingNavigation) {
+                                        navigate(pendingNavigation.url, { state: pendingNavigation.state });
+                                    }
+                                }} 
+                            />
+                        </div>
+                    ) : (
+                        <div className="flex flex-col md:flex-row gap-4 pt-4 border-t border-slate-200">
+                            {cvInputMode !== 'skeleton' && targetMode !== 'title' && (
+                                <div className="flex-1 flex flex-col gap-2">
+                                    <Button 
+                                        variant="secondary" 
+                                        onClick={handleScanAndAnalyze} 
+                                        isLoading={status === Status.SCANNING || status === Status.ANALYZING} 
+                                        disabled={!validateInputs()} 
+                                        className="w-full py-4 text-base font-bold shadow-sm flex items-center justify-center gap-2 group"
+                                    >
+                                        Scan & Analyze Job (Free)
+                                        <Zap className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
+                                    </Button>
+                                    <p className="text-center text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1">
+                                        <Clock className="w-3 h-3" /> ~5 seconds • No credit card
+                                    </p>
+                                </div>
+                            )}
+                            
+                            {cvInputMode === 'skeleton' ? (
+                                <div className="flex-1 flex flex-col gap-2">
+                                    <Button 
+                                        onClick={() => handleGenerateSkeleton(false)} 
+                                        disabled={!validateInputs()} 
+                                        className="w-full py-4 text-base font-bold shadow-lg shadow-purple-200 bg-purple-600 hover:bg-purple-700 flex items-center justify-center gap-2 group"
+                                    >
+                                        Generate Skeleton CV
+                                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                    </Button>
+                                    <p className="text-center text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1">
+                                        <Clock className="w-3 h-3" /> ~25 seconds • 100% Free
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex flex-col gap-2">
+                                    <Button 
+                                        onClick={() => handleGenerate(false, targetMode === 'title')} 
+                                        disabled={!validateInputs()} 
+                                        className="w-full py-4 text-base font-bold shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 group"
+                                    >
+                                        {targetMode === 'title' ? 'Generate Standard CV (Free)' : 'Generate Tailored CV (Free)'}
+                                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                    </Button>
+                                    <p className="text-center text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1">
+                                        <Clock className="w-3 h-3" /> ~25 seconds • 100% Free
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {cvInputMode !== 'skeleton' && <AnalysisDashboard />}
                     

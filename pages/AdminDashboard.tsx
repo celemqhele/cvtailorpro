@@ -16,6 +16,8 @@ import { adminLogService } from '../services/adminLogService';
 import { analytics } from '../services/analyticsService';
 import { GoogleGenAI } from '@google/genai';
 
+import { AdminAIAssistant } from '../components/AdminAIAssistant';
+
 interface VisitorSession {
   session_token: string;
   user_id: string | null;
@@ -81,24 +83,31 @@ export const AdminDashboard: React.FC = () => {
   // Robust Admin Check on Mount
   useEffect(() => {
     const verifyAdmin = async () => {
-        if (isPreviewOrAdmin()) {
-            setIsChecking(false);
-            return;
-        }
+        try {
+            if (isPreviewOrAdmin()) {
+                setIsChecking(false);
+                return;
+            }
 
-        if (user) {
-            if (user.email === 'mqhele03@gmail.com') {
+            if (user) {
+                if (user.email === 'mqhele03@gmail.com') {
+                    setIsChecking(false);
+                } else {
+                    navigate('/');
+                }
+                return;
+            }
+
+            const { data: { session }, error } = await supabase.auth.getSession();
+            if (error) throw error;
+            
+            if (session?.user?.email === 'mqhele03@gmail.com') {
                 setIsChecking(false);
             } else {
                 navigate('/');
             }
-            return;
-        }
-
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user?.email === 'mqhele03@gmail.com') {
-            setIsChecking(false);
-        } else {
+        } catch (err) {
+            console.error("Admin verification failed:", err);
             navigate('/');
         }
     };
@@ -127,26 +136,12 @@ export const AdminDashboard: React.FC = () => {
   const fetchDetailedMetric = async (metric: string, range: string) => {
     setIsDetailLoading(true);
     try {
-      // Map UI metric names to SQL function metric names
-      const metricMap: Record<string, string> = {
-        'cv_generated': 'cv_generation',
-        'revenue': 'revenue',
-        'traffic': 'traffic',
-        'errors': 'errors',
-      };
-      const rpcMetricName = metricMap[metric] || metric;
-      
       const { data, error } = await supabase.rpc('get_detailed_analytics', {
-        metric_name: rpcMetricName,
+        metric_name: metric,
         time_range: range
       });
       if (error) throw error;
-      // Normalize: SQL returns {time_bucket, value} but UI expects {time_bucket, metric_value}
-      const normalizedData = (data || []).map((d: any) => ({
-        ...d,
-        metric_value: d.metric_value ?? d.value ?? 0
-      }));
-      setDetailedData(normalizedData);
+      setDetailedData(data || []);
 
       if (metric === 'cv_generated') {
           const { data: events } = await supabase
@@ -200,51 +195,38 @@ export const AdminDashboard: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      // Fetch summary - handle gracefully if RPC fails
-      let summary: any = null;
-      try {
-        const { data, error: summaryError } = await supabase.rpc('get_admin_analytics_summary');
-        if (!summaryError && data) summary = data;
-      } catch (e) {
-        console.warn('Summary RPC failed, continuing with partial data:', e);
-      }
+      const { data: summary, error: summaryError } = await supabase.rpc('get_admin_analytics_summary');
+      
+      if (summaryError) throw summaryError;
 
       if (summary) {
-        setTotalGenerations(summary.cv_generated || 0);
-        setTotalRevenue(summary.revenue_total || 0);
-        setTotalTraffic(summary.traffic_24h || summary.traffic_total || 0);
-        setUnsolvedErrorsCount(summary.errors_unsolved || 0);
+        setTotalGenerations(summary.cv_generated);
+        setTotalRevenue(summary.revenue_total);
+        setTotalTraffic(summary.traffic_total);
+        setUnsolvedErrorsCount(summary.errors_unsolved);
       }
 
       const [sessionsRes, viewsRes, adminLogsRes] = await Promise.all([
-        supabase.from('visitor_sessions').select('*').order('last_active_at', { ascending: false }).limit(500),
+        supabase.from('visitor_sessions').select('*').order('last_active_at', { ascending: false }),
         supabase.from('page_views').select('*').order('created_at', { ascending: false }).limit(1000),
-        adminLogService.getLogs(50).catch(() => [])
+        adminLogService.getLogs(50)
       ]);
 
       if (sessionsRes.data) setSessions(sessionsRes.data);
       if (viewsRes.data) setPageViews(viewsRes.data);
       if (adminLogsRes) setAdminLogs(adminLogsRes);
 
-      // Fetch CV Generation Stats - handle gracefully
-      try {
-        const [cvStatsRes, recentGensRes] = await Promise.all([
-            analytics.getCVGenerationStats(),
-            analytics.getRecentCVGenerations(10)
-        ]);
-        setCvStats(cvStatsRes);
-        setRecentGenerations(recentGensRes);
-      } catch (e) {
-        console.warn('CV stats fetch failed:', e);
-      }
+      // Fetch CV Generation Stats
+      const [cvStatsRes, recentGensRes] = await Promise.all([
+          analytics.getCVGenerationStats(),
+          analytics.getRecentCVGenerations(10)
+      ]);
+      setCvStats(cvStatsRes);
+      setRecentGenerations(recentGensRes);
       
-      // Error logs
-      try {
-        const { data: errorsRes } = await supabase.from('error_logs').select('*').eq('is_solved', false).order('created_at', { ascending: false }).limit(50);
-        if (errorsRes) setErrorLogs(errorsRes);
-      } catch (e) {
-        console.warn('Error logs fetch failed:', e);
-      }
+      // Error logs are now in summary, but we might want the full list for the sidebar
+      const { data: errorsRes } = await supabase.from('error_logs').select('*').eq('is_solved', false).order('created_at', { ascending: false }).limit(50);
+      if (errorsRes) setErrorLogs(errorsRes);
 
     } catch (err) {
       console.error('Error fetching admin data:', err);
@@ -869,6 +851,19 @@ Path: ${log.path}
           </motion.div>
         </div>
       )}
+
+      <AdminAIAssistant 
+        metricsData={{
+          totalGenerations,
+          totalRevenue,
+          totalTraffic,
+          unsolvedErrorsCount,
+          liveUsers,
+          cvStats,
+          recentGenerations: recentGenerations.slice(0, 5),
+          errorLogs: errorLogs.slice(0, 5)
+        }} 
+      />
     </div>
   );
 };

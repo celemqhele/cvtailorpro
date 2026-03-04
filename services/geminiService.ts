@@ -1,5 +1,6 @@
 
 
+/* global AbortController */
 import * as mammoth from "mammoth";
 import * as pdfjsLib from 'pdfjs-dist';
 import { TIER_1_PROMPT, TIER_2_PROMPT, TIER_3_PROMPT, ANALYSIS_PROMPT, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT, SKELETON_FILLER_PROMPT } from "../constants";
@@ -147,16 +148,17 @@ export async function extractTextFromFile(file: FileData): Promise<string> {
   }
 }
 
+import { GoogleGenAI } from "@google/genai";
+
 /**
- * Executes a call to AI Provider via backend proxy with fallback support.
+ * Executes a call to AI Provider directly from the frontend, with fallback to proxy.
  */
-async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string, task: string = 'cv_generation'): Promise<{text: string, provider?: string}> {
+async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string, task: string = 'cv_generation', planId?: string): Promise<{text: string, provider?: string}> {
     const isJsonMode = systemInstruction.includes("JSON") || systemInstruction.includes("json");
-    const CLIENT_TIMEOUT_MS = 75000; // 75s client-side timeout (accounts for multiple 30s server fallbacks)
 
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), CLIENT_TIMEOUT_MS);
+        const timeoutId = setTimeout(() => controller.abort(), 75000); // Overall timeout for the entire chain
 
         const response = await fetch("/api/ai-proxy", {
             method: "POST",
@@ -166,7 +168,8 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
                 userPrompt: userMessage,
                 temperature,
                 jsonMode: isJsonMode,
-                task
+                task,
+                planId
             }),
             signal: controller.signal
         });
@@ -182,11 +185,19 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
         return { text: data.text, provider: data.provider };
     } catch (e: any) {
         console.error("AI Proxy Call Failed:", e);
-        if (e.name === 'AbortError') {
-            throw new Error("High traffic detected. Please try again in 1 minute.");
-        }
-        throw new Error(e.message || "Service Unavailable: AI models failed to respond. Please try again later.");
+        throw new Error("High traffic, try again in 1 minute");
     }
+}
+
+// Helper to safely parse JSON from AI models that might wrap it in markdown code blocks
+function parseJsonResponse(content: string): any {
+    let cleanContent = content.trim();
+    if (cleanContent.startsWith('```json')) {
+        cleanContent = cleanContent.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    } else if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    }
+    return JSON.parse(cleanContent);
 }
 
 export const analyzeMatch = async (
@@ -194,7 +205,8 @@ export const analyzeMatch = async (
     manualData: ManualCVData | null,
     jobDescription: string,
     apiKey: string,
-    savedCvText?: string // New optional param
+    savedCvText?: string, // New optional param
+    planId?: string
 ): Promise<MatchAnalysis> => {
     
     // 1. Extract Text
@@ -219,8 +231,8 @@ export const analyzeMatch = async (
         ${candidateText.substring(0, 15000)}
         `;
         
-        const { text: responseText, provider } = await runAIChain(ANALYSIS_PROMPT, userMessage, 0.2, apiKey, 'analyse_match');
-        return JSON.parse(responseText) as MatchAnalysis;
+        const { text: responseText, provider } = await runAIChain(ANALYSIS_PROMPT, userMessage, 0.2, apiKey, 'analyse_match', planId);
+        return parseJsonResponse(responseText) as MatchAnalysis;
 
     } catch (clientError: any) {
          console.error("Analysis failed:", clientError);
@@ -237,7 +249,8 @@ export const generateTailoredApplication = async (
   force: boolean = false,
   linkedinUrl?: string,
   savedCvText?: string,
-  additionalInfo?: string
+  additionalInfo?: string,
+  planId?: string
 ): Promise<GeneratorResponse> => {
   
   // 1. Extract Text
@@ -363,13 +376,14 @@ export const generateTailoredApplication = async (
       
       Perform the generation and return the JSON object.`;
 
-  const { text: responseText, provider } = await runAIChain(systemContent, userMessage, 0.6, apiKey, 'cv_generation');
+  const { text: responseText, provider } = await runAIChain(systemContent, userMessage, 0.6, apiKey, 'cv_generation', planId);
   return parseAndProcessResponse(responseText, provider);
 };
 
 export const generateSkeletonCV = async (
     jobSpec: string,
-    apiKey: string
+    apiKey: string,
+    planId?: string
 ): Promise<GeneratorResponse> => {
     const SCHEMA_INSTRUCTION = `
     You are a Strategic Career Architect. Your task is to build a "Perfect Candidate Skeleton CV" based strictly on the provided Job Description.
@@ -430,14 +444,15 @@ export const generateSkeletonCV = async (
     Generate the Skeleton CV JSON now.
     `;
 
-    const { text: responseText, provider } = await runAIChain(SCHEMA_INSTRUCTION, userMessage, 0.7, apiKey, 'cv_generation');
+    const { text: responseText, provider } = await runAIChain(SCHEMA_INSTRUCTION, userMessage, 0.7, apiKey, 'cv_generation', planId);
     return parseAndProcessResponse(responseText, provider);
 };
 
 export const smartEditCV = async (
     currentData: CVData,
     instruction: string,
-    apiKey: string
+    apiKey: string,
+    planId?: string
 ): Promise<CVData> => {
     const userMessage = `
     CURRENT CV JSON:
@@ -449,10 +464,10 @@ export const smartEditCV = async (
     Please update the JSON accordingly.
     `;
 
-    const { text: responseText } = await runAIChain(SMART_EDIT_PROMPT, userMessage, 0.4, apiKey, 'cv_generation');
+    const { text: responseText } = await runAIChain(SMART_EDIT_PROMPT, userMessage, 0.4, apiKey, 'cv_generation', planId);
     
     try {
-        const result = JSON.parse(responseText);
+        const result = parseJsonResponse(responseText);
         return naturalizeObject(result);
     } catch (e) {
         console.error("Smart Edit Parse Error", e, responseText);
@@ -463,7 +478,8 @@ export const smartEditCV = async (
 export const fillSkeletonCV = async (
     skeletonData: CVData,
     userCvText: string,
-    apiKey: string
+    apiKey: string,
+    planId?: string
 ): Promise<CVData> => {
     const userMessage = `
     SKELETON CV DATA (The Target Structure):
@@ -475,10 +491,10 @@ export const fillSkeletonCV = async (
     Please merge the Real Candidate Facts into the Skeleton Structure, replacing [Placeholders].
     `;
 
-    const { text: responseText } = await runAIChain(SKELETON_FILLER_PROMPT, userMessage, 0.3, apiKey, 'cv_generation');
+    const { text: responseText } = await runAIChain(SKELETON_FILLER_PROMPT, userMessage, 0.3, apiKey, 'cv_generation', planId);
     
     try {
-        const result = JSON.parse(responseText);
+        const result = parseJsonResponse(responseText);
         return naturalizeObject(result);
     } catch (e) {
         console.error("Skeleton Fill Parse Error", e, responseText);
@@ -489,7 +505,8 @@ export const fillSkeletonCV = async (
 export const smartEditCoverLetter = async (
     currentContent: string,
     instruction: string,
-    apiKey: string
+    apiKey: string,
+    planId?: string
 ): Promise<string> => {
     const userMessage = `
     CURRENT COVER LETTER CONTENT:
@@ -502,7 +519,7 @@ export const smartEditCoverLetter = async (
     `;
 
     // Note: Use a higher temperature for creativity in CL
-    const { text: responseText } = await runAIChain(SMART_EDIT_CL_PROMPT, userMessage, 0.7, apiKey, 'cv_generation');
+    const { text: responseText } = await runAIChain(SMART_EDIT_CL_PROMPT, userMessage, 0.7, apiKey, 'cv_generation', planId);
     
     // Sanitize markdown code blocks
     let cleanText = responseText.replace(/```(markdown|text|json)?/g, '').trim();
@@ -510,7 +527,7 @@ export const smartEditCoverLetter = async (
     // Fallback: If the model returns JSON format (common with some smart models if they see structural clues), parse it.
     if (cleanText.trim().startsWith('{')) {
         try {
-            const parsed = JSON.parse(cleanText);
+            const parsed = parseJsonResponse(cleanText);
             cleanText = parsed.content || parsed.text || parsed.body || parsed.letter || cleanText;
         } catch (e) {
             // If parse fails, just return the text (it might just start with a bracket)
@@ -523,7 +540,7 @@ export const smartEditCoverLetter = async (
 function parseAndProcessResponse(content: string, provider?: string): GeneratorResponse {
     let parsedResponse: any;
     try {
-      parsedResponse = JSON.parse(content);
+      parsedResponse = parseJsonResponse(content);
     } catch (e) {
       console.error("JSON Parse Error:", e, "Content:", content);
       throw new Error("Failed to parse the AI response. Please try again.");
@@ -563,7 +580,8 @@ function parseAndProcessResponse(content: string, provider?: string): GeneratorR
 export const rewriteJobDescription = async (
   rawTitle: string,
   rawDescription: string,
-  apiKey: string
+  apiKey: string,
+  planId?: string
 ): Promise<{ title: string; description: string; summary: string }> => {
     
     const systemPrompt = `
@@ -598,15 +616,16 @@ export const rewriteJobDescription = async (
     Please rewrite this now.
     `;
     
-    const { text: responseText } = await runAIChain(systemPrompt, userMessage, 0.5, apiKey, 'admin_job_creation');
-    const result = JSON.parse(responseText);
+    const { text: responseText } = await runAIChain(systemPrompt, userMessage, 0.5, apiKey, 'admin_job_creation', planId);
+    const result = parseJsonResponse(responseText);
     return naturalizeObject(result);
 };
 
 export const generateFictionalCV = async (
     jobDescription: string,
     jobTitle: string,
-    apiKey: string
+    apiKey: string,
+    planId?: string
 ): Promise<string> => {
     const systemPrompt = `
     ROLE: You are an expert Resume Writer demonstrating a "Perfect Match" CV.
@@ -653,14 +672,14 @@ export const generateFictionalCV = async (
     ${jobDescription.substring(0, 10000)}
     `;
 
-    const { text: responseText } = await runAIChain(systemPrompt, userMessage, 0.7, apiKey, 'cv_generation');
+    const { text: responseText } = await runAIChain(systemPrompt, userMessage, 0.7, apiKey, 'cv_generation', planId);
     
     // Ensure it's just the JSON part if there's extra text
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
     
     // Validate it parses
-    JSON.parse(jsonStr); 
+    parseJsonResponse(jsonStr); 
     return naturalizeText(jsonStr);
 };
 
@@ -693,7 +712,7 @@ export const chatWithSupport = async (messageHistory: {role: 'user'|'assistant',
 /**
  * Generates an SEO-rich article based on a topic.
  */
-export const generateArticle = async (topic: string, apiKey: string): Promise<any> => {
+export const generateArticle = async (topic: string, apiKey: string, planId?: string): Promise<any> => {
     const systemPrompt = `
     You are a Senior SEO Content Specialist and Career Coach.
     Your goal is to write a highly engaging, SEO-optimized, long-form article based on a provided TOPIC.
@@ -717,8 +736,8 @@ export const generateArticle = async (topic: string, apiKey: string): Promise<an
 
     const userMessage = `TOPIC: ${topic}`;
 
-    const { text: responseText } = await runAIChain(systemPrompt, userMessage, 0.7, apiKey, 'admin_job_creation');
-    const result = JSON.parse(responseText);
+    const { text: responseText } = await runAIChain(systemPrompt, userMessage, 0.7, apiKey, 'admin_job_creation', planId);
+    const result = parseJsonResponse(responseText);
     return naturalizeObject(result);
 };
 
@@ -791,7 +810,7 @@ const checkBlocking = (content: string): boolean => {
     return markers.some(marker => content.includes(marker));
 };
 
-export const generateJobSpecFromCandidateProfile = async (candidateData: string, apiKey: string): Promise<string> => {
+export const generateJobSpecFromCandidateProfile = async (candidateData: string, apiKey: string, planId?: string): Promise<string> => {
     const systemPrompt = `
     You are an Expert Technical Recruiter and Job Architect.
     Your task is to analyze the provided Candidate Profile (extracted from LinkedIn) and generate a "Perfect Match" Job Specification.
@@ -818,19 +837,19 @@ export const generateJobSpecFromCandidateProfile = async (candidateData: string,
     Generate the Perfect Match Job Spec now.
     `;
 
-    const { text: responseText } = await runAIChain(systemPrompt, userMessage, 0.7, apiKey, 'admin_job_creation');
+    const { text: responseText } = await runAIChain(systemPrompt, userMessage, 0.7, apiKey, 'admin_job_creation', planId);
     return naturalizeText(responseText);
 };
 
-export const extractJobRequirements = async (jobSpec: string, apiKey: string): Promise<any> => {
+export const extractJobRequirements = async (jobSpec: string, apiKey: string, planId?: string): Promise<any> => {
     const systemPrompt = `Analyze this job specification and extract key skills, required seniority, and job type. Return as JSON: { "skills": string[], "seniority": string, "jobType": string }`;
-    const { text: responseText } = await runAIChain(systemPrompt, jobSpec, 0.3, apiKey, 'recruiter_candidate_finder');
-    return JSON.parse(responseText);
+    const { text: responseText } = await runAIChain(systemPrompt, jobSpec, 0.3, apiKey, 'recruiter_candidate_finder', planId);
+    return parseJsonResponse(responseText);
 };
 
-export const rankCandidates = async (requirements: any, candidates: any[], apiKey: string): Promise<string[]> => {
+export const rankCandidates = async (requirements: any, candidates: any[], apiKey: string, planId?: string): Promise<string[]> => {
     const systemPrompt = `Rank these candidates based on their suitability for the following job requirements. Return an array of candidate IDs in order of strongest to weakest match. Return ONLY the JSON array.`;
     const userMessage = `Requirements: ${JSON.stringify(requirements)}\nCandidates: ${JSON.stringify(candidates)}`;
-    const { text: responseText } = await runAIChain(systemPrompt, userMessage, 0.3, apiKey, 'recruiter_candidate_finder');
-    return JSON.parse(responseText);
+    const { text: responseText } = await runAIChain(systemPrompt, userMessage, 0.3, apiKey, 'recruiter_candidate_finder', planId);
+    return parseJsonResponse(responseText);
 };
