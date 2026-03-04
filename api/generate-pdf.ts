@@ -10,10 +10,10 @@ export default async function handler(request: any, response: any) {
       return response.status(400).json({ error: 'Missing HTML content' });
     }
 
-    const keys = [
+    const keys: string[] = [
       process.env.CLOUDCONVERT_KEY,
       process.env.CLOUDCONVERT_KEY_BACKUP
-    ].filter(Boolean);
+    ].filter((key): key is string => typeof key === 'string');
 
     if (keys.length === 0) {
       return response.status(500).json({ error: 'No CloudConvert API keys configured' });
@@ -28,11 +28,11 @@ export default async function handler(request: any, response: any) {
         return response.send(pdfBuffer);
       } catch (error: any) {
         console.warn(`CloudConvert key failed:`, error.message);
-        continue; // Try next key
+        continue;
       }
     }
 
-    // Final fallback: Puppeteer (native conversion)
+    // Final fallback: Puppeteer
     console.log('All CloudConvert keys exhausted, falling back to Puppeteer');
     const pdfBuffer = await generateWithPuppeteer(html);
     response.setHeader('Content-Type', 'application/pdf');
@@ -46,7 +46,6 @@ export default async function handler(request: any, response: any) {
 }
 
 async function generateWithCloudConvert(html: string, apiKey: string): Promise<Buffer> {
-  // Step 1: Create job
   const jobResponse = await fetch('https://api.cloudconvert.com/v2/jobs', {
     method: 'POST',
     headers: {
@@ -92,7 +91,6 @@ async function generateWithCloudConvert(html: string, apiKey: string): Promise<B
     throw new Error('Failed to get upload URL');
   }
 
-  // Step 2: Upload HTML
   const uploadFormData = new FormData();
   Object.entries(uploadTask.result.form.parameters).forEach(([key, value]) => {
     uploadFormData.append(key, value as string);
@@ -108,19 +106,26 @@ async function generateWithCloudConvert(html: string, apiKey: string): Promise<B
     throw new Error('Failed to upload HTML');
   }
 
-  // Step 3: Poll for completion
   let jobStatus = jobData.data;
   let attempts = 0;
   const maxAttempts = 30;
 
-  while (jobStatus.status !== 'finished' && jobStatus.status !== 'error' && attempts < maxAttempts) {
+  while (
+    jobStatus.status !== 'finished' &&
+    jobStatus.status !== 'error' &&
+    attempts < maxAttempts
+  ) {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const statusResponse = await fetch(`https://api.cloudconvert.com/v2/jobs/${jobStatus.id}`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-    });
+
+    const statusResponse = await fetch(
+      `https://api.cloudconvert.com/v2/jobs/${jobStatus.id}`,
+      {
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+      }
+    );
 
     if (!statusResponse.ok) throw new Error('Failed to check status');
+
     jobStatus = (await statusResponse.json()).data;
     attempts++;
   }
@@ -128,9 +133,10 @@ async function generateWithCloudConvert(html: string, apiKey: string): Promise<B
   if (jobStatus.status === 'error') throw new Error('Job failed');
   if (attempts >= maxAttempts) throw new Error('Job timed out');
 
-  // Step 4: Download PDF
   const exportTask = jobStatus.tasks.find((t: any) => t.name === 'export-pdf');
-  if (!exportTask?.result?.files?.[0]?.url) throw new Error('No download URL');
+  if (!exportTask?.result?.files?.[0]?.url) {
+    throw new Error('No download URL');
+  }
 
   const pdfResponse = await fetch(exportTask.result.files[0].url);
   if (!pdfResponse.ok) throw new Error('Failed to download PDF');
@@ -142,7 +148,9 @@ async function generateWithPuppeteer(html: string): Promise<Buffer> {
   const chromium = await import('@sparticuz/chromium');
   const puppeteer = await import('puppeteer-core');
 
-  await chromium.default.font('https://raw.githack.com/googlefonts/noto-emoji/main/fonts/NotoColorEmoji.ttf');
+  await chromium.default.font(
+    'https://raw.githack.com/googlefonts/noto-emoji/main/fonts/NotoColorEmoji.ttf'
+  );
 
   const browser = await puppeteer.default.launch({
     args: chromium.default.args,
@@ -154,7 +162,10 @@ async function generateWithPuppeteer(html: string): Promise<Buffer> {
 
   const page = await browser.newPage();
   await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
-  await page.setContent(html, { waitUntil: ['networkidle0', 'domcontentloaded'] });
+  await page.setContent(html, {
+    waitUntil: ['networkidle0', 'domcontentloaded'],
+  });
+
   await page.evaluateHandle('document.fonts.ready');
 
   const pdfBuffer = await page.pdf({
