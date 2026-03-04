@@ -10,6 +10,7 @@ const RECRUITER_PLANS = [
     price: 0, 
     searches: 1, 
     candidates: 2, 
+    quality: 'Standard AI Optimization',
     description: 'Perfect for trying out our AI matching technology.',
     features: ['1 AI Search', 'View 2 candidates per search', 'Basic matching', 'Email support']
   },
@@ -19,6 +20,7 @@ const RECRUITER_PLANS = [
     price: 2500, 
     searches: 10, 
     candidates: 10, 
+    quality: 'Standard AI Optimization',
     description: 'Ideal for small businesses with occasional hiring needs.',
     features: ['10 AI Searches', 'View 10 candidates per search', 'Priority matching', 'Export candidate summaries']
   },
@@ -28,6 +30,7 @@ const RECRUITER_PLANS = [
     price: 7500, 
     searches: 30, 
     candidates: 25, 
+    quality: 'Enhanced AI Precision & Speed',
     description: 'Best for growing teams with regular hiring requirements.',
     popular: true,
     features: ['30 AI Searches', 'View 25 candidates per search', 'Advanced AI ranking', 'Direct candidate contact', 'Priority support']
@@ -38,6 +41,7 @@ const RECRUITER_PLANS = [
     price: 25000, 
     searches: 'Unlimited', 
     candidates: 'Full Access', 
+    quality: 'Elite Deep-Reasoning AI (Maximum Quality)',
     description: 'For high-volume recruitment agencies and large enterprises.',
     features: ['Unlimited AI Searches', 'Full candidate access', 'Custom AI matching rules', 'Dedicated account manager', 'API Access']
   },
@@ -95,6 +99,10 @@ export const RecruiterPlansSection: React.FC<RecruiterPlansSectionProps> = ({ on
                   <p className="text-slate-500 text-sm mt-4 leading-relaxed">
                     {plan.description}
                   </p>
+                  <div className="mt-4 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                    <p className="text-[10px] text-blue-400 uppercase font-bold mb-1">AI Intelligence</p>
+                    <p className="text-xs font-bold text-blue-700">{plan.quality}</p>
+                  </div>
                 </div>
 
                 <ul className="space-y-4 mb-10 flex-1">

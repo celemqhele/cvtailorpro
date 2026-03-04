@@ -79,6 +79,8 @@ export const AdminDashboard: React.FC = () => {
   const [userJourney, setUserJourney] = useState<any[]>([]);
   const [liveSessions, setLiveSessions] = useState<any[]>([]);
   const [showLiveDetails, setShowLiveDetails] = useState(false);
+  const [aiDataInterpretation, setAiDataInterpretation] = useState<string | null>(null);
+  const [isInterpreting, setIsInterpreting] = useState(false);
 
   // Robust Admin Check on Mount
   useEffect(() => {
@@ -304,6 +306,47 @@ Path: ${log.path}
     }
   };
 
+  const handleInterpretData = async () => {
+    setIsInterpreting(true);
+    setAiDataInterpretation(null);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      
+      // Prepare data for AI
+      const dataSummary = {
+        totalRevenue,
+        totalGenerations,
+        totalTraffic,
+        unsolvedErrorsCount,
+        liveUsers,
+        returningUsers,
+        newUsers,
+        recentCVs: recentGenerations.map(g => ({ title: g.metadata?.job_title, company: g.metadata?.company })),
+        recentErrors: errorLogs.slice(0, 5).map(e => e.message)
+      };
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `You are an expert business and technical analyst. Interpret the following platform analytics data for the admin:
+${JSON.stringify(dataSummary, null, 2)}
+
+Provide:
+1. A high-level executive summary of platform performance.
+2. Identification of any worrying trends (e.g., high error rates, low conversion).
+3. 3 actionable recommendations to improve user growth or platform stability.
+4. A "Health Score" out of 100.
+
+Keep it professional, concise, and insightful.`,
+      });
+      setAiDataInterpretation(response.text || "Failed to generate interpretation.");
+    } catch (err) {
+      console.error('AI Data Interpretation failed:', err);
+      setAiDataInterpretation("Error communicating with AI service.");
+    } finally {
+      setIsInterpreting(false);
+    }
+  };
+
   if (isChecking || loading) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
@@ -331,12 +374,65 @@ Path: ${log.path}
             </div>
             <button 
               onClick={fetchData}
-              className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-colors text-sm font-medium"
             >
-              <Zap size={18} />
+              <Zap size={16} className="text-emerald-500" />
+              Refresh Data
             </button>
           </div>
         </header>
+
+        {/* AI Interpretation Section */}
+        <div className="mb-8">
+            <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                            <Brain className="text-emerald-500" size={20} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-lg">AI Business Intelligence</h3>
+                            <p className="text-xs text-zinc-500">Automated interpretation of platform metrics</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={handleInterpretData}
+                        disabled={isInterpreting}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2"
+                    >
+                        {isInterpreting ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Analyzing...
+                            </>
+                        ) : (
+                            <>
+                                <Zap size={16} />
+                                Interpret Data
+                            </>
+                        )}
+                    </button>
+                </div>
+
+                {aiDataInterpretation ? (
+                    <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-black/20 rounded-xl p-6 border border-emerald-500/10"
+                    >
+                        <div className="prose prose-invert prose-sm max-w-none">
+                            <div className="whitespace-pre-wrap text-zinc-300 leading-relaxed">
+                                {aiDataInterpretation}
+                            </div>
+                        </div>
+                    </motion.div>
+                ) : (
+                    <div className="text-center py-8 border-2 border-dashed border-zinc-800 rounded-xl">
+                        <p className="text-zinc-500 text-sm italic">Click "Interpret Data" to get an AI-powered analysis of your current platform performance.</p>
+                    </div>
+                )}
+            </div>
+        </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">

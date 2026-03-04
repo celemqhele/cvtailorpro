@@ -124,7 +124,7 @@ export const AdminLeads: React.FC = () => {
         <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
           <div>
             <button 
-              onClick={() => navigate('/admindashboard')}
+              onClick={() => navigate('/admin-dashboard')}
               className="flex items-center gap-2 text-zinc-400 hover:text-white mb-4 transition-colors"
             >
               <ChevronLeft size={16} />

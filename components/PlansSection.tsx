@@ -44,7 +44,12 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
                     <span className="text-slate-500 text-sm font-medium"> {isFree ? '' : 'once-off'}</span>
                   </div>
                   
-                  <p className="text-sm text-slate-600 mb-6 min-h-[40px]">{plan.description}</p>
+                  <p className="text-sm text-slate-600 mb-2 min-h-[40px]">{plan.description}</p>
+                  
+                  <div className="mb-6 p-2 bg-slate-100 rounded-lg border border-slate-200">
+                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">AI Intelligence</p>
+                    <p className="text-xs font-bold text-slate-700">{plan.quality}</p>
+                  </div>
                   
                   <ul className="space-y-3 mb-8 flex-1">
                     <li className="flex items-center gap-2 text-sm text-slate-700">
