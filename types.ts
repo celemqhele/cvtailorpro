@@ -61,6 +61,7 @@ export interface SavedApplication {
   created_at: string;
   expires_at?: string | null;
   original_link?: string | null; // Added field for tracking the job post
+  metadata?: any;
 }
 
 export interface TailoredDocument {
