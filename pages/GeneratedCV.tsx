@@ -60,25 +60,7 @@ export const GeneratedCV: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (!id) {
-        navigate('/dashboard');
-        return;
-    }
-    loadApplication(id);
-  }, [id, navigate]);
-
-  // Check for Subscription Trigger from Dashboard
-  useEffect(() => {
-      if (location.state?.showSubscribe) {
-          const timer = setTimeout(() => {
-              setShowSubscriptionModal(true);
-          }, 2500); // 2.5s delay
-          return () => clearTimeout(timer);
-      }
-  }, [location.state]);
-
-  const loadApplication = async (appId: string) => {
+  const loadApplication = React.useCallback(async (appId: string) => {
     // 1. Immediate Fallback: If we have data in state, use it to show content faster
     if (location.state?.cvData) {
         setCvData(location.state.cvData);
@@ -136,7 +118,25 @@ export const GeneratedCV: React.FC = () => {
     } finally {
         setIsLoading(false);
     }
-  };
+  }, [location.state, navigate]);
+
+  useEffect(() => {
+    if (!id) {
+        navigate('/dashboard');
+        return;
+    }
+    loadApplication(id);
+  }, [id, navigate, loadApplication]);
+
+  // Check for Subscription Trigger from Dashboard
+  useEffect(() => {
+      if (location.state?.showSubscribe) {
+          const timer = setTimeout(() => {
+              setShowSubscriptionModal(true);
+          }, 2500); // 2.5s delay
+          return () => clearTimeout(timer);
+      }
+  }, [location.state]);
 
   const handleClaim = async () => {
       if (!id || !user) return;
@@ -286,7 +286,9 @@ export const GeneratedCV: React.FC = () => {
               saveAs(blob, fileName);
           } else if (format === 'pdf') {
               // Only alert if PDF failed, since DOCX is handled by local library
-              showToast("PDF Generation service is currently unavailable. Please try again later.", 'error');
+              if (window.confirm("PDF Generation service is currently unavailable due to high demand. Would you like to use your browser's 'Print to PDF' feature instead?")) {
+                  window.print();
+              }
           } else {
               showToast("Failed to generate file.", 'error');
           }

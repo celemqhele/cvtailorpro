@@ -123,7 +123,8 @@ export const authService = {
     cvContent: string, 
     clContent: string, 
     matchScore: number,
-    originalLink?: string | null
+    originalLink?: string | null,
+    metadata?: any
   ): Promise<SavedApplication | null> {
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -140,7 +141,8 @@ export const authService = {
       cl_content: clContent,
       match_score: matchScore,
       expires_at: expiresAt,
-      original_link: originalLink
+      original_link: originalLink,
+      metadata: metadata || {}
     }).select().single();
 
     if (error) {

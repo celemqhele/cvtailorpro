@@ -73,6 +73,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   // Confirmation Modal State
   const [showRemoveCvModal, setShowRemoveCvModal] = useState(false);
   const [showSkeletonLockModal, setShowSkeletonLockModal] = useState(false);
+  const [isAnalysisVisible, setIsAnalysisVisible] = useState(true);
   
   // Input Modes
   const [cvInputMode, setCvInputMode] = useState<'upload' | 'scratch' | 'skeleton'>('upload');
@@ -407,6 +408,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       }
 
       setStatus(Status.SCANNING);
+      setIsAnalysisVisible(true);
       setErrorMsg(null);
       setAnalysis(null);
       setJobSpec('');
@@ -489,6 +491,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
             company = dataToSave.meta.company;
         }
         
+        // Calculate estimated page count
+        const cvData = dataToSave.cvData;
+        let estimatedPages = 1;
+        if (cvData) {
+            const expCount = cvData.experience?.length || 0;
+            const skillCount = cvData.skills?.length || 0;
+            const achievementCount = cvData.keyAchievements?.length || 0;
+            // Heuristic: More than 4 experiences or many skills usually push to 2 pages
+            if (expCount > 4 || (expCount > 2 && skillCount > 10) || achievementCount > 5) {
+                estimatedPages = 2;
+            }
+        }
+
         // Pass the directApplyLink to the save function
         const savedApp = await authService.saveApplication(
             role, 
@@ -496,7 +511,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
             JSON.stringify(dataToSave.cvData), 
             dataToSave.coverLetter?.content || '', 
             analysis?.matchScore || 0,
-            directApplyLink 
+            directApplyLink,
+            {
+                generated_at: new Date().toISOString(),
+                page_count: estimatedPages,
+                source: cvInputMode
+            }
         );
         
         if (savedApp) {
@@ -674,12 +694,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
   // Helper for rendering analysis box
   const AnalysisDashboard = () => {
-      if (!analysis) return null;
+      if (!analysis || !isAnalysisVisible) return null;
       const isPositive = analysis.decision === 'APPLY';
       const colorClass = isPositive ? 'border-green-200 bg-green-50' : analysis.decision === 'CAUTION' ? 'border-amber-200 bg-amber-50' : 'border-red-200 bg-red-50';
       const textClass = isPositive ? 'text-green-800' : analysis.decision === 'CAUTION' ? 'text-amber-800' : 'text-red-800';
       return (
-        <div className={`rounded-xl border p-6 mb-8 ${colorClass}`}>
+        <div className={`rounded-xl border p-6 mb-8 relative ${colorClass}`}>
+           <button 
+                onClick={() => setIsAnalysisVisible(false)}
+                className="absolute top-4 right-4 p-1 rounded-full hover:bg-black/5 transition-colors text-slate-400"
+                title="Close analysis"
+           >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+           </button>
            <div className="flex items-start gap-4">
               <div className={`p-3 rounded-full bg-white shadow-sm ${textClass}`}>
                  {isPositive ? <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> : <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>}

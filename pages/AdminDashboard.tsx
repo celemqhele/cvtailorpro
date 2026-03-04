@@ -15,6 +15,7 @@ import { isPreviewOrAdmin } from '../utils/envHelper';
 import { adminLogService } from '../services/adminLogService';
 import { analytics } from '../services/analyticsService';
 import { GoogleGenAI } from '@google/genai';
+import ReactMarkdown from 'react-markdown';
 
 import { AdminAIAssistant } from '../components/AdminAIAssistant';
 
@@ -336,13 +337,13 @@ Path: ${log.path}
         contents: `You are an expert business and technical analyst. Interpret the following platform analytics data for the admin:
 ${JSON.stringify(dataSummary, null, 2)}
 
-Provide:
-1. A high-level executive summary of platform performance.
-2. Identification of any worrying trends (e.g., high error rates, low conversion).
-3. 3 actionable recommendations to improve user growth or platform stability.
-4. A "Health Score" out of 100.
+Provide a detailed report using Markdown formatting:
+1. **Executive Summary**: A high-level overview of platform performance.
+2. **Trend Analysis**: Identification of any worrying trends (e.g., high error rates, low conversion) or positive growth.
+3. **Actionable Recommendations**: 3-5 specific, prioritized recommendations to improve user growth, revenue, or platform stability.
+4. **Platform Health Score**: A score out of 100 with a brief justification.
 
-Keep it professional, concise, and insightful.`,
+Use bold headings, bullet points, and clear structure. Keep it professional and insightful.`,
       });
       setAiDataInterpretation(response.text || "Failed to generate interpretation.");
     } catch (err) {
@@ -350,6 +351,23 @@ Keep it professional, concise, and insightful.`,
       setAiDataInterpretation("Error communicating with AI service.");
     } finally {
       setIsInterpreting(false);
+    }
+  };
+
+  const handleClearLogs = async () => {
+    if (!window.confirm("Are you sure you want to clear all error logs? This action cannot be undone.")) return;
+    
+    try {
+      const { error } = await supabase.rpc('clear_error_logs');
+      if (error) throw error;
+      
+      setErrorLogs([]);
+      setUnsolvedErrorsCount(0);
+      showToast("All error logs have been cleared.", 'success');
+      adminLogService.logAction('CLEAR_ERROR_LOGS', 'all', { timestamp: new Date().toISOString() });
+    } catch (err) {
+      console.error('Error clearing logs:', err);
+      showToast("Failed to clear logs.", 'error');
     }
   };
 
@@ -427,8 +445,8 @@ Keep it professional, concise, and insightful.`,
                         className="bg-black/20 rounded-xl p-6 border border-emerald-500/10"
                     >
                         <div className="prose prose-invert prose-sm max-w-none">
-                            <div className="whitespace-pre-wrap text-zinc-300 leading-relaxed">
-                                {aiDataInterpretation}
+                            <div className="text-zinc-300 leading-relaxed markdown-body">
+                                <ReactMarkdown>{aiDataInterpretation}</ReactMarkdown>
                             </div>
                         </div>
                     </motion.div>
@@ -582,10 +600,18 @@ Keep it professional, concise, and insightful.`,
           <div className="space-y-8">
             {/* Error Logs */}
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                <AlertCircle size={18} className="text-red-500" />
-                Recent Error Logs
-              </h3>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <AlertCircle size={18} className="text-red-500" />
+                  Recent Error Logs
+                </h3>
+                <button 
+                    onClick={handleClearLogs}
+                    className="text-[10px] font-bold text-zinc-500 hover:text-red-400 transition-colors uppercase tracking-wider"
+                >
+                    Clear All
+                </button>
+              </div>
               <div className="space-y-4">
                 {errorLogs.length === 0 ? (
                   <p className="text-sm text-zinc-500 italic">No errors reported recently.</p>
