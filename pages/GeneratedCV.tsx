@@ -402,7 +402,7 @@ export const GeneratedCV: React.FC = () => {
         </style>
 
        
-      {/* Print Fallback Modal */}
+            {/* Print Fallback Modal */}
       {showPrintModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
@@ -412,24 +412,14 @@ export const GeneratedCV: React.FC = () => {
                     </div>
                     <h3 className="text-xl font-bold text-slate-900 mb-2">Service Unavailable</h3>
                     <p className="text-slate-600 mb-4">
-                        Our PDF generation service is experiencing high demand right now. 
-                        You can still save your CV by using your browser's built-in "Print to PDF" feature.
+                        PDF generation is temporarily unavailable due to high demand. Please download as DOCX for now.
                     </p>
                     <div className="flex gap-3 mt-6">
                         <button 
                             onClick={() => setShowPrintModal(false)}
-                            className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-50 transition-colors"
+                            className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors"
                         >
-                            Cancel
-                        </button>
-                        <button 
-                            onClick={() => {
-                                setShowPrintModal(false);
-                                setTimeout(() => window.print(), 100);
-                            }}
-                            className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors"
-                        >
-                            Print to PDF
+                            Okay
                         </button>
                     </div>
                 </div>
@@ -437,7 +427,7 @@ export const GeneratedCV: React.FC = () => {
         </div>
       )}
 
-       {/* Guest Expiration Banner */}
+      {/* Guest Expiration Banner */}
        {isGuestApplication && (
            <div className="bg-amber-100 border-b border-amber-200 text-amber-800 px-4 py-3 text-center text-sm font-medium no-print">
                 <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-2">
