@@ -1,5 +1,3 @@
-export const maxDuration = 60; // Allow function to run up to 60 seconds on Vercel
-
 export default async function handler(request: any, response: any) {
   if (request.method !== 'POST') {
     return response.status(405).json({ error: 'Method not allowed' });
@@ -21,6 +19,7 @@ export default async function handler(request: any, response: any) {
       return response.status(500).json({ error: 'No CloudConvert API keys configured' });
     }
 
+    // Try CloudConvert keys in order
     for (const apiKey of keys) {
       try {
         const pdfBuffer = await generateWithCloudConvert(html, apiKey);
@@ -33,6 +32,7 @@ export default async function handler(request: any, response: any) {
       }
     }
 
+    // Final fallback: Puppeteer
     console.log('All CloudConvert keys exhausted, falling back to Puppeteer');
     const pdfBuffer = await generateWithPuppeteer(html);
     response.setHeader('Content-Type', 'application/pdf');

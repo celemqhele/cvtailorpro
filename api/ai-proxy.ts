@@ -1,4 +1,3 @@
-export const maxDuration = 60; // Allow function to run up to 60 seconds on Vercel
 
 /* global AbortController */
 import { GoogleGenAI } from "@google/genai";
@@ -63,6 +62,10 @@ async function callGemini(modelName: any, systemPrompt: any, userPrompt: any, te
 
   try {
     const ai = new GoogleGenAI({ apiKey });
+    // Note: @google/genai doesn't natively support AbortSignal in all methods easily, 
+    // but we can wrap the call in a promise race or just use the timeout config if available.
+    // However, the SDK we use might not have it. Let's use a Promise wrapper for strict timeout.
+    
     const apiCall = ai.models.generateContent({
       model: modelName,
       contents: userPrompt,
@@ -99,6 +102,11 @@ export default async function handler(req: any, res: any) {
   const cerebrasKeys = [process.env.CEREBRAS_KEY_2].filter(Boolean);
   const claudeKey = process.env.CLAUDE_API_KEY;
 
+  // Define Fallback Chains based on Plan
+  // Pro/Unlimited: Claude -> Gemini Pro -> Gemini Flash -> Cerebras
+  // Growth: Gemini Flash -> Cerebras
+  // Free/Starter: Cerebras (70b -> 8b) -> Gemini Flash Lite (Safety Fallback)
+  
   let activeChain: any[] = [];
 
   if (planId === 'tier_3' || planId === 'tier_4' || planId?.startsWith('recruiter_')) {
@@ -115,16 +123,18 @@ export default async function handler(req: any, res: any) {
       { provider: 'cerebras', model: 'llama3.1-8b', keys: cerebrasKeys, timeout: 20000 }
     ];
   } else {
+    // Free or Starter
     activeChain = [
       { provider: 'cerebras', model: 'llama-3.3-70b', keys: cerebrasKeys, timeout: 30000 },
       { provider: 'cerebras', model: 'llama3.1-8b', keys: cerebrasKeys, timeout: 20000 },
-      { provider: 'gemini', model: 'gemini-3.1-flash-lite-preview', keys: geminiKeys, timeout: 10000 }
+      { provider: 'gemini', model: 'gemini-3.1-flash-lite-preview', keys: geminiKeys, timeout: 10000 } // Safety fallback
     ];
   }
 
   for (const step of activeChain) {
     try {
       if (step.provider === 'claude' && step.key) {
+        // Wrap Claude in timeout too
         const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => reject(new Error("Claude Timeout")), step.timeout || 30000);
         });
