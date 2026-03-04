@@ -45,6 +45,7 @@ export const GeneratedCV: React.FC = () => {
   // Subscription Popup State
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showLeadModal, setShowLeadModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [pendingDownload, setPendingDownload] = useState<{ docType: 'cv' | 'cl', format: 'pdf' | 'docx' } | null>(null);
   
   // Click outside to close menus
@@ -286,9 +287,7 @@ export const GeneratedCV: React.FC = () => {
               saveAs(blob, fileName);
           } else if (format === 'pdf') {
               // Only alert if PDF failed, since DOCX is handled by local library
-              if (window.confirm("PDF Generation service is currently unavailable due to high demand. Would you like to use your browser's 'Print to PDF' feature instead?")) {
-                  window.print();
-              }
+              setShowPrintModal(true);
           } else {
               showToast("Failed to generate file.", 'error');
           }
@@ -318,6 +317,18 @@ export const GeneratedCV: React.FC = () => {
           
           analytics.trackEvent('lead_captured', { email, jobType, seniority });
           localStorage.setItem(`lead_captured_${analytics.getToken()}`, 'true');
+
+          // Push to HubSpot
+          try {
+              await fetch('/api/hubspot-lead', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email, jobType, seniority, metadata: { job_title: application?.job_title, company_name: application?.company_name } })
+              });
+          } catch (e) {
+              console.error("Failed to push lead to HubSpot:", e);
+          }
+
           
           if (pendingDownload) {
               handleDownload(pendingDownload.docType, pendingDownload.format);
@@ -357,6 +368,7 @@ export const GeneratedCV: React.FC = () => {
                 body > *:not(#root) { display: none !important; }
                 /* Hide everything in root except the generated CV page content */
                 #root > div > *:not(.print-container) { display: none !important; }
+                @page { margin: 0; } /* Removes headers and footers from print */
                 
                 /* Target the main container in GeneratedCV */
                 .print-container { 
@@ -388,6 +400,42 @@ export const GeneratedCV: React.FC = () => {
             }
             `}
         </style>
+
+       
+      {/* Print Fallback Modal */}
+      {showPrintModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+                <div className="p-6">
+                    <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-4 text-amber-600">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">Service Unavailable</h3>
+                    <p className="text-slate-600 mb-4">
+                        Our PDF generation service is experiencing high demand right now. 
+                        You can still save your CV by using your browser's built-in "Print to PDF" feature.
+                    </p>
+                    <div className="flex gap-3 mt-6">
+                        <button 
+                            onClick={() => setShowPrintModal(false)}
+                            className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-50 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={() => {
+                                setShowPrintModal(false);
+                                setTimeout(() => window.print(), 100);
+                            }}
+                            className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors"
+                        >
+                            Print to PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
 
        {/* Guest Expiration Banner */}
        {isGuestApplication && (
