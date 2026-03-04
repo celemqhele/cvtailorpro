@@ -105,13 +105,13 @@ export const AdminJobs: React.FC = () => {
     setIsLoading(true);
     try {
       // 1. Rewrite Description
-      const aiResult = await rewriteJobDescription(jobTitle, jobRawDesc, "");
+      const aiResult = await rewriteJobDescription(jobTitle, jobRawDesc, "", user?.plan_id);
       
       // 2. Generate Example CV JSON (New)
       console.log("Generating fictional CV with Cerebras...");
       let exampleCvJson = null;
       try {
-          exampleCvJson = await generateFictionalCV(aiResult.description, aiResult.title, "");
+          exampleCvJson = await generateFictionalCV(aiResult.description, aiResult.title, "", user?.plan_id);
       } catch (genErr) {
           console.warn("Failed to generate example CV, continuing without it.", genErr);
       }
@@ -152,7 +152,7 @@ export const AdminJobs: React.FC = () => {
       setIsLoading(true);
       setGeneratedArticle(null);
       try {
-          const result = await generateArticle(topic, "");
+          const result = await generateArticle(topic, "", user?.plan_id);
           setGeneratedArticle(result);
       } catch (e: any) {
           showToast(`Generation failed: ${e.message}`, 'error');
@@ -205,7 +205,7 @@ export const AdminJobs: React.FC = () => {
           const profileData = await extractLinkedInDataWithJina(adminLinkedinUrl);
           
           // 2. Generate Job Spec via AI
-          const spec = await generateJobSpecFromCandidateProfile(profileData, "");
+          const spec = await generateJobSpecFromCandidateProfile(profileData, "", user?.plan_id);
           
           await adminLogService.logAction('GENERATE_JOB_SPEC', adminLinkedinUrl, {
               profile_name: (profileData as any).name || 'Unknown'

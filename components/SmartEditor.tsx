@@ -205,7 +205,7 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
 
       setIsFillingSkeleton(true);
       try {
-          const filledData = await fillSkeletonCV(cvData, autoFillText, "");
+          const filledData = await fillSkeletonCV(cvData, autoFillText, "", userPlanId);
           onManualUpdate(filledData); // Uses same update path as manual
           setShowAutoFillSuccess(true);
       } catch (e: any) {

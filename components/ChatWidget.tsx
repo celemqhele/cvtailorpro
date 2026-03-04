@@ -7,7 +7,11 @@ interface Message {
   content: string;
 }
 
-export const ChatWidget: React.FC = () => {
+interface ChatWidgetProps {
+  userPlanId?: string;
+}
+
+export const ChatWidget: React.FC<ChatWidgetProps> = ({ userPlanId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: 'Hi! I\'m the CV Tailor AI Support Agent. How can I help you today?' }
@@ -39,7 +43,7 @@ export const ChatWidget: React.FC = () => {
     const apiHistory = messages.map(m => ({ role: m.role, content: m.content }));
 
     try {
-      const responseText = await chatWithSupport(apiHistory, userMsg.content);
+      const responseText = await chatWithSupport(apiHistory, userMsg.content, userPlanId);
       setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
     } catch (error) {
       setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I'm having trouble connecting right now." }]);

@@ -515,7 +515,7 @@ export const Layout: React.FC = () => {
        <CookieConsent />
        
        {/* AI Support Chat */}
-       <ChatWidget />
+       <ChatWidget userPlanId={user?.plan_id} />
     </div>
   );
 };

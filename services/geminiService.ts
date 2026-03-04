@@ -683,7 +683,7 @@ export const generateFictionalCV = async (
     return naturalizeText(jsonStr);
 };
 
-export const chatWithSupport = async (messageHistory: {role: 'user'|'assistant', content: string}[], userMessage: string): Promise<string> => {
+export const chatWithSupport = async (messageHistory: {role: 'user'|'assistant', content: string}[], userMessage: string, planId?: string): Promise<string> => {
     try {
         const response = await fetch("/api/ai-proxy", {
             method: "POST",
@@ -692,7 +692,8 @@ export const chatWithSupport = async (messageHistory: {role: 'user'|'assistant',
                 systemPrompt: CHAT_SYSTEM_PROMPT,
                 userPrompt: `Conversation History:\n${JSON.stringify(messageHistory)}\n\nUser Message: ${userMessage}`,
                 temperature: 0.7,
-                jsonMode: false
+                jsonMode: false,
+                planId
             })
         });
 
