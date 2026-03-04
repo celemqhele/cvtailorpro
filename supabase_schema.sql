@@ -318,146 +318,6 @@ CREATE TRIGGER on_auth_user_created
 -- 8. MIGRATIONS (Run these if column missing)
 -- ==========================================
 
--- Fix: cv_applications table (the actual table used by the codebase)
--- If cv_applications exists but is missing expires_at column, add it:
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'cv_applications') THEN
-    IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'cv_applications' AND column_name = 'expires_at') THEN
-      ALTER TABLE cv_applications ADD COLUMN expires_at timestamptz DEFAULT NULL;
-    END IF;
-  ELSE
-    -- Create cv_applications if it doesn't exist
-    CREATE TABLE cv_applications (
-      id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-      user_id uuid REFERENCES auth.users ON DELETE SET NULL,
-      job_title text,
-      company_name text,
-      cv_content text,
-      cl_content text,
-      match_score int,
-      original_link text,
-      expires_at timestamptz,
-      created_at timestamptz DEFAULT now()
-    );
-
-    ALTER TABLE cv_applications ENABLE ROW LEVEL SECURITY;
-
-    CREATE POLICY "Users view own cv_applications" ON cv_applications
-      FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
-
-    CREATE POLICY "Allow insert for cv_applications" ON cv_applications
-      FOR INSERT WITH CHECK (
-        (auth.uid() = user_id) OR 
-        (auth.uid() IS NULL AND user_id IS NULL)
-      );
-
-    CREATE POLICY "Allow update cv_applications" ON cv_applications
-      FOR UPDATE USING (auth.uid() = user_id OR user_id IS NULL);
-
-    CREATE POLICY "Users delete own cv_applications" ON cv_applications
-      FOR DELETE USING (auth.uid() = user_id);
-  END IF;
-END $$;
-
--- Revenue tracking (plan_purchases)
-CREATE TABLE IF NOT EXISTS plan_purchases (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id),
-  plan_type TEXT NOT NULL,
-  amount_paid DECIMAL(10,2) NOT NULL,
-  credits_applied DECIMAL(10,2) DEFAULT 0,
-  net_revenue DECIMAL(10,2) GENERATED ALWAYS AS (amount_paid - credits_applied) STORED,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE plan_purchases ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Admin only view plan_purchases" ON plan_purchases;
-CREATE POLICY "Admin only view plan_purchases" ON plan_purchases
-  FOR SELECT USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
-DROP POLICY IF EXISTS "Allow insert plan_purchases" ON plan_purchases;
-CREATE POLICY "Allow insert plan_purchases" ON plan_purchases
-  FOR INSERT WITH CHECK (true);
-
--- Lead captures (email submissions) - separate from leads for clearer tracking  
-CREATE TABLE IF NOT EXISTS email_captures (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT NOT NULL,
-  cv_id UUID,
-  source TEXT, -- 'facebook', 'linkedin', 'organic'
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE email_captures ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Admin only view email_captures" ON email_captures;
-CREATE POLICY "Admin only view email_captures" ON email_captures
-  FOR SELECT USING (auth.jwt() ->> 'email' = 'mqhele03@gmail.com');
-DROP POLICY IF EXISTS "Allow public insert email_captures" ON email_captures;
-CREATE POLICY "Allow public insert email_captures" ON email_captures
-  FOR INSERT WITH CHECK (true);
-
--- Performance indexes
-CREATE INDEX IF NOT EXISTS idx_page_views_timestamp ON page_views(created_at);
-CREATE INDEX IF NOT EXISTS idx_email_captures_timestamp ON email_captures(created_at);
-CREATE INDEX IF NOT EXISTS idx_error_logs_timestamp ON error_logs(created_at);
-CREATE INDEX IF NOT EXISTS idx_cv_applications_user_id ON cv_applications(user_id);
-CREATE INDEX IF NOT EXISTS idx_cv_applications_created_at ON cv_applications(created_at);
-
--- Updated analytics summary function with errors_unsolved and traffic_total
-CREATE OR REPLACE FUNCTION get_admin_analytics_summary()
-RETURNS json
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  total_traffic int;
-  traffic_all int;
-  total_revenue numeric;
-  returning_users int;
-  new_users int;
-  live_sessions int;
-  cv_generated int;
-  own_cv_clicks int;
-  continue_clicks int;
-  unsolved_errors int;
-  recent_errors json;
-BEGIN
-  IF auth.jwt() ->> 'email' != 'mqhele03@gmail.com' THEN
-    RAISE EXCEPTION 'Unauthorized';
-  END IF;
-
-  SELECT count(*) INTO total_traffic FROM page_views WHERE created_at > now() - interval '24 hours';
-  SELECT count(*) INTO traffic_all FROM page_views;
-  SELECT coalesce(sum(amount), 0) INTO total_revenue FROM orders WHERE status = 'completed';
-  SELECT count(*) INTO returning_users FROM visitor_sessions WHERE is_returning = true AND created_at > now() - interval '7 days';
-  SELECT count(*) INTO new_users FROM visitor_sessions WHERE is_returning = false AND created_at > now() - interval '7 days';
-  SELECT count(*) INTO live_sessions FROM visitor_sessions WHERE last_active_at > now() - interval '5 minutes';
-  SELECT count(*) INTO cv_generated FROM user_events WHERE event_name = 'cv_generated';
-  SELECT count(*) INTO own_cv_clicks FROM user_events WHERE event_name = 'use_own_cv';
-  SELECT count(*) INTO continue_clicks FROM user_events WHERE event_name = 'continue_to_app';
-  SELECT count(*) INTO unsolved_errors FROM error_logs WHERE is_solved = false;
-
-  SELECT json_agg(t) INTO recent_errors FROM (
-    SELECT message, created_at FROM error_logs ORDER BY created_at DESC LIMIT 5
-  ) t;
-
-  RETURN json_build_object(
-    'traffic_24h', total_traffic,
-    'traffic_total', traffic_all,
-    'revenue_total', total_revenue,
-    'returning_7d', returning_users,
-    'new_7d', new_users,
-    'live_sessions', live_sessions,
-    'cv_generated', cv_generated,
-    'own_cv_clicks', own_cv_clicks,
-    'continue_clicks', continue_clicks,
-    'errors_unsolved', unsolved_errors,
-    'recent_errors', recent_errors
-  );
-END;
-$$;
-
 -- ==========================================
 -- 9. QUICK APPLY USAGE (Strict IP Limit)
 -- ==========================================
@@ -748,9 +608,8 @@ BEGIN
 END;
 $$;
 
-  -- Detailed Analytics Function
-DROP FUNCTION IF EXISTS get_detailed_analytics(text, text);
-CREATE OR REPLACE FUNCTION get_detailed_analytics(metric_name text, time_range text)
+-- Detailed Analytics Function
+CREATE OR REPLACE FUNCTION get_detailed_analytics(metric_name text, time_range text DEFAULT '7d')
 RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -803,7 +662,7 @@ BEGIN
       WHERE is_returning = false AND created_at > now() - interval_val
       GROUP BY 1 ORDER BY 1 ASC
     ) t;
-  ELSIF metric_name = 'cv_generation' OR metric_name = 'cv_generated' THEN
+  ELSIF metric_name = 'cv_generation' THEN
     SELECT json_agg(t) INTO result FROM (
       SELECT date_trunc(bucket_val, created_at) as time_bucket, count(*) as value
       FROM user_events
@@ -822,13 +681,6 @@ BEGIN
       SELECT date_trunc(bucket_val, created_at) as time_bucket, count(*) as value
       FROM user_events
       WHERE event_name = 'continue_to_app' AND created_at > now() - interval_val
-      GROUP BY 1 ORDER BY 1 ASC
-    ) t;
-  ELSIF metric_name = 'errors' THEN
-    SELECT json_agg(t) INTO result FROM (
-      SELECT date_trunc(bucket_val, created_at) as time_bucket, count(*) as value
-      FROM error_logs
-      WHERE created_at > now() - interval_val
       GROUP BY 1 ORDER BY 1 ASC
     ) t;
   END IF;
