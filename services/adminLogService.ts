@@ -1,4 +1,3 @@
-
 import { supabase } from './supabaseClient';
 
 /**
@@ -15,7 +14,7 @@ export const adminLogService = {
       // Only log if the user is the verified admin
       if (!user || user.email !== 'mqhele03@gmail.com') return;
 
-      const { error } = await supabase.from('admin_logs').insert({
+      const { error } = await supabase.from('admin_activity_logs').insert({
         admin_email: user.email,
         action,
         target_id: targetId,
@@ -35,7 +34,7 @@ export const adminLogService = {
    */
   async getLogs(limit = 100) {
     const { data, error } = await supabase
-      .from('admin_logs')
+      .from('admin_activity_logs')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -44,6 +43,7 @@ export const adminLogService = {
       console.error('Failed to fetch admin logs:', error);
       return [];
     }
+
     return data;
   }
 };

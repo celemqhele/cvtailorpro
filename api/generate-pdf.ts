@@ -56,6 +56,7 @@ async function generateWithCloudConvert(html: string, apiKey: string): Promise<B
       tasks: {
         'import-html': {
           operation: 'import/raw',
+          filename: 'input.html',
         },
         'convert-to-pdf': {
           operation: 'convert',
@@ -92,9 +93,13 @@ async function generateWithCloudConvert(html: string, apiKey: string): Promise<B
   }
 
   const uploadFormData = new FormData();
+  
+  // CloudConvert expects the file to be the last field in the form data.
+  // First append all parameters, then append the file.
   Object.entries(uploadTask.result.form.parameters).forEach(([key, value]) => {
     uploadFormData.append(key, value as string);
   });
+  
   uploadFormData.append('file', new Blob([html], { type: 'text/html' }), 'input.html');
 
   const uploadResponse = await fetch(uploadTask.result.form.url, {

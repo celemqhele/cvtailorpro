@@ -207,6 +207,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
         </h1>
         <div 
           style={styles.title} 
+          className="header-title"
           contentEditable={isEditable} 
           suppressContentEditableWarning 
           onBlur={(e) => handleBlur('title', e.currentTarget.innerText)}
@@ -259,7 +260,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>PROFESSIONAL EXPERIENCE</h2>
           {data.experience.map((job, index) => (
-            <div key={index} style={styles.experienceItem} className="no-break">
+            <div key={index} style={styles.experienceItem} className="no-break experience-item">
               <table style={styles.jobHeader}>
                 <tbody>
                   <tr>

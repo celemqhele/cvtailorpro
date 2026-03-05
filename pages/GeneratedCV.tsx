@@ -285,9 +285,14 @@ export const GeneratedCV: React.FC = () => {
           if (blob) {
               saveAs(blob, fileName);
           } else if (format === 'pdf') {
-              // Only alert if PDF failed, since DOCX is handled by local library
-              if (window.confirm("PDF Generation service is currently unavailable due to high demand. Would you like to use your browser's 'Print to PDF' feature instead?")) {
-                  window.print();
+              // PDF failed, prompt for DOCX and provide link
+              const copyLink = window.location.href;
+              const message = `PDF Generation service is currently unavailable. 
+Would you like to download the DOCX version instead? 
+You can also copy this link to come back later: ${copyLink}`;
+              
+              if (window.confirm(message)) {
+                  handleDownload(docType, 'docx');
               }
           } else {
               showToast("Failed to generate file.", 'error');
@@ -303,6 +308,7 @@ export const GeneratedCV: React.FC = () => {
 
   const handleLeadSubmit = async (email: string, jobType: string, seniority: string) => {
       try {
+          // 1. Save to Supabase
           await supabase.from('leads').insert({
               email,
               user_id: user?.id || null,
@@ -315,6 +321,13 @@ export const GeneratedCV: React.FC = () => {
                   session_token: analytics.getToken()
               }
           });
+          
+          // 2. Add to HubSpot
+          await fetch('/api/hubspot-proxy', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, jobType, seniority })
+          }).catch(err => console.error('HubSpot sync failed:', err));
           
           analytics.trackEvent('lead_captured', { email, jobType, seniority });
           localStorage.setItem(`lead_captured_${analytics.getToken()}`, 'true');

@@ -20,6 +20,14 @@ export const createHtmlToDocxBlob = async (htmlContent: string): Promise<Blob | 
                     h1, h2, h3 { color: #2c3e50; }
                     table { width: 100%; border-collapse: collapse; }
                     td { vertical-align: top; }
+                    /* Fix centering */
+                    header { text-align: center !important; }
+                    h1 { text-align: center !important; }
+                    .header-title { text-align: center !important; }
+                    /* Fix spacing */
+                    ul { margin-top: 0 !important; margin-bottom: 0 !important; }
+                    li { margin-bottom: 2px !important; }
+                    .experience-item { margin-bottom: 10px !important; }
                 </style>
             </head>
             <body>
