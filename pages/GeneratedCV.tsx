@@ -737,4 +737,3 @@ You can also copy this link to come back later: ${copyLink}`;
     </div>
   );
 };
-
