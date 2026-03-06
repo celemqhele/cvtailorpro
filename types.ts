@@ -1,4 +1,5 @@
 
+/** Updated: 2026-03-06 */
 export enum Status {
   IDLE = 'IDLE',
   SCANNING = 'SCANNING',

@@ -1,4 +1,5 @@
 /** Vercel Build Fix - TS1434 */
+/** Updated: 2026-03-06 */
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";

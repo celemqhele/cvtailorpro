@@ -1,5 +1,6 @@
 
 
+/** Updated: 2026-03-06 */
 export const APP_NAME = "CV Tailor Pro";
 
 // API Keys are now handled securely on the backend via /api proxy routes.
