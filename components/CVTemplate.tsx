@@ -16,7 +16,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
       width: '794px', // A4 Width at 96 DPI
       minHeight: '1123px', // A4 Height at 96 DPI
       margin: '0 auto',
-      padding: '60px', // Approx 20mm margin (Standard A4 margin)
+      padding: '40px', // Reduced from 60px to bring content closer to edges
       fontFamily: 'Arial, Helvetica, sans-serif', 
       fontSize: '11px',
       lineHeight: '1.4', // Unitless for better inheritance
@@ -56,6 +56,10 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
       marginTop: '8px',
       textAlign: 'center' as const,
       outline: 'none',
+      display: 'flex',
+      justifyContent: 'center',
+      gap: '8px',
+      flexWrap: 'wrap' as const,
     },
     separator: {
       margin: '0 8px',
@@ -190,8 +194,9 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
     onUpdate(newData);
   };
 
-  // Check valid LinkedIn
+  // Check valid LinkedIn and format it
   const hasLinkedIn = data.linkedin && data.linkedin !== 'null' && data.linkedin !== 'N/A' && data.linkedin.trim() !== '';
+  const formattedLinkedIn = hasLinkedIn ? data.linkedin?.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, 'in/').replace(/\/$/, '') : null;
 
   return (
     <div className={`cv-absolute-container cv-preview-background ${isEditable ? 'master-edit-active' : ''}`} style={styles.container}>
@@ -215,7 +220,17 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
           {data.title}
         </div>
         <div style={styles.contact}>
-           {data.location} | {data.phone} | {data.email} {hasLinkedIn && `| ${data.linkedin}`}
+           <span>{data.location}</span>
+           <span style={styles.separator}>|</span>
+           <span>{data.phone}</span>
+           <span style={styles.separator}>|</span>
+           <span>{data.email}</span>
+           {formattedLinkedIn && (
+             <>
+               <span style={styles.separator}>|</span>
+               <span>{formattedLinkedIn}</span>
+             </>
+           )}
         </div>
       </header>
 
@@ -234,10 +249,10 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
         </section>
       )}
 
-      {/* Core Competencies */}
+      {/* Skills */}
       {data.skills && data.skills.length > 0 && (
         <section style={styles.section} className="section-container">
-          <h2 style={styles.sectionTitle}>CORE COMPETENCIES</h2>
+          <h2 style={styles.sectionTitle}>SKILLS</h2>
           <div style={styles.skillsGrid}>
             {data.skills.map((skill, index) => (
               <div key={index} style={styles.skillItem} className="no-break">

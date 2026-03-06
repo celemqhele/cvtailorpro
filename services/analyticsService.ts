@@ -47,19 +47,33 @@ class AnalyticsService {
                 return;
             }
 
-            // Upsert session
-            await supabase.from('visitor_sessions').upsert({
-                session_token: this.sessionToken,
-                user_id: user?.id || null,
-                is_returning: this.isReturning,
-                browser_info: {
-                    userAgent: navigator.userAgent,
-                    language: navigator.language,
-                    platform: navigator.platform,
-                    screen: `${window.screen.width}x${window.screen.height}`
-                },
-                last_active_at: new Date().toISOString()
-            }, { onConflict: 'session_token' });
+            // Check if session already exists
+            const { data: existingSession } = await supabase
+                .from('visitor_sessions')
+                .select('session_token')
+                .eq('session_token', this.sessionToken)
+                .single();
+
+            if (!existingSession) {
+                // Insert new session
+                await supabase.from('visitor_sessions').insert({
+                    session_token: this.sessionToken,
+                    user_id: user?.id || null,
+                    is_returning: this.isReturning,
+                    browser_info: {
+                        userAgent: navigator.userAgent,
+                        language: navigator.language,
+                        platform: navigator.platform,
+                        screen: `${window.screen.width}x${window.screen.height}`
+                    },
+                    last_active_at: new Date().toISOString()
+                });
+            } else {
+                // Update last active
+                await supabase.from('visitor_sessions')
+                    .update({ last_active_at: new Date().toISOString() })
+                    .eq('session_token', this.sessionToken);
+            }
         } catch (err) {
             console.error('Failed to init analytics session:', err);
         }

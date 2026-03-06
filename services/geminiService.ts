@@ -362,10 +362,12 @@ export const generateTailoredApplication = async (
 
   const userMessage = `
       STEP 1: Analyze the Candidate CV and Additional Information (if any). Identify all METRICS, NUMBERS, and SPECIFIC ACHIEVEMENTS.
-      STEP 2: Analyze the Target Job. Identify TOP 5 KEYWORDS. Extract Job Title and Company Name for the 'meta' field. GENERATE a professional filename in the 'meta.suggestedFilename' field (e.g. "John_Smith_Senior_Accountant_CV").
+      STEP 2: Analyze the Target Target Job. Identify TOP 5 KEYWORDS. Extract Job Title and Company Name for the 'meta' field. GENERATE a professional filename in the 'meta.suggestedFilename' field (e.g. "John_Smith_Senior_Accountant_CV").
       STEP 3: Rewrite the CV Data into the JSON structure. Integrate any relevant details from the "Additional Information" section into the summary, skills, or experience as appropriate. 
       NOTE: If References are present in the CV, extract them into the 'references' array. If none are present, leave it empty.
       STEP 4: Write the Cover Letter content following the TRADITIONAL BUSINESS LETTER rules.
+      
+      CRITICAL: DO NOT use the phrase "Core Competencies" anywhere in the CV. Use "Skills" or "SKILLS" instead.
       
       ${linkedinInstruction}
       ${coverLetterInstruction}
@@ -389,6 +391,8 @@ export const generateSkeletonCV = async (
     You are a Strategic Career Architect. Your task is to build a "Perfect Candidate Skeleton CV" based strictly on the provided Job Description.
     
     GOAL: Create a CV structure that perfectly matches the job requirements, but leave placeholders for the user's specific metrics, dates, and companies.
+    
+    CRITICAL: DO NOT use the phrase "Core Competencies" anywhere in the CV. Use "Skills" or "SKILLS" instead.
     
     RULES:
     1. **PLACEHOLDERS:** Use strictly bracketed placeholders like \`[Insert Company Name]\`, \`[Date]\`, \`[Insert Metric %]\`, \`[Team Size]\`.
@@ -636,6 +640,8 @@ export const generateFictionalCV = async (
     2. Write a summary that perfectly hits the keywords in the JD.
     3. Fabricate 2-3 past roles that directly demonstrate the required experience. Use strong action verbs and metrics (e.g. "Increased revenue by 20%").
     4. List skills that match the JD requirements.
+    
+    CRITICAL: DO NOT use the phrase "Core Competencies" anywhere in the CV. Use "Skills" or "SKILLS" instead.
     
     OUTPUT FORMAT:
     Return ONLY valid JSON matching this schema:

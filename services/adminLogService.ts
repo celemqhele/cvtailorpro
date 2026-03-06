@@ -45,5 +45,17 @@ export const adminLogService = {
     }
 
     return data;
+  },
+
+  /**
+   * Clears all admin activity logs.
+   */
+  async clearLogs() {
+    const { error } = await supabase.from('admin_activity_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) {
+      console.error('Failed to clear admin logs:', error);
+      throw error;
+    }
+    return true;
   }
 };

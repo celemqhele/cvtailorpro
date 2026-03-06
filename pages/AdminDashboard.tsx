@@ -359,7 +359,11 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
     
     try {
       const { error } = await supabase.rpc('clear_error_logs');
-      if (error) throw error;
+      if (error) {
+        // Fallback to direct delete if RPC fails
+        const { error: deleteError } = await supabase.from('error_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (deleteError) throw deleteError;
+      }
       
       setErrorLogs([]);
       setUnsolvedErrorsCount(0);
@@ -368,6 +372,43 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
     } catch (err) {
       console.error('Error clearing logs:', err);
       showToast("Failed to clear logs.", 'error');
+    }
+  };
+
+  const handleClearAllAnalytics = async () => {
+    if (!window.confirm("Are you sure you want to clear ALL platform analytics (traffic, sessions, events)? This action cannot be undone.")) return;
+    
+    try {
+      const { error } = await supabase.rpc('clear_all_analytics');
+      if (error) {
+        // Fallback to individual deletes if RPC fails
+        await Promise.all([
+          supabase.from('page_views').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('visitor_sessions').delete().neq('session_token', 'temp'),
+          supabase.from('user_events').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('error_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+        ]);
+      }
+      
+      fetchData();
+      showToast("All platform analytics have been cleared.", 'success');
+      adminLogService.logAction('CLEAR_ALL_ANALYTICS', 'global', { timestamp: new Date().toISOString() });
+    } catch (err) {
+      console.error('Error clearing all analytics:', err);
+      showToast("Failed to clear analytics.", 'error');
+    }
+  };
+
+  const handleClearAdminLogs = async () => {
+    if (!window.confirm("Are you sure you want to clear all admin activity logs?")) return;
+    
+    try {
+      await adminLogService.clearLogs();
+      setAdminLogs([]);
+      showToast("Admin activity logs cleared.", 'success');
+    } catch (err) {
+      console.error('Error clearing admin logs:', err);
+      showToast("Failed to clear admin logs.", 'error');
     }
   };
 
@@ -392,16 +433,31 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
             <p className="text-zinc-400 mt-1">Real-time platform intelligence & analytics</p>
           </div>
           <div className="flex items-center gap-3">
+            <button 
+              onClick={handleClearAllAnalytics}
+              className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-colors text-red-500 text-sm font-medium"
+            >
+              Clear All Analytics
+            </button>
             <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-2">
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
               <span className="text-emerald-500 text-sm font-medium">{liveUsers} Live Now</span>
             </div>
             <button 
-              onClick={fetchData}
-              className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-colors text-sm font-medium"
+              onClick={async () => {
+                setLoading(true);
+                await fetchData();
+                setLoading(false);
+              }}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-colors text-sm font-medium disabled:opacity-50"
             >
-              <Zap size={16} className="text-emerald-500" />
-              Refresh Data
+              {loading ? (
+                <div className="w-4 h-4 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+              ) : (
+                <Zap size={16} className="text-emerald-500" />
+              )}
+              {loading ? 'Refreshing...' : 'Refresh Data'}
             </button>
           </div>
         </header>
@@ -605,12 +661,30 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
                   <AlertCircle size={18} className="text-red-500" />
                   Recent Error Logs
                 </h3>
-                <button 
-                    onClick={handleClearLogs}
-                    className="text-[10px] font-bold text-zinc-500 hover:text-red-400 transition-colors uppercase tracking-wider"
-                >
-                    Clear All
-                </button>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={handleClearLogs}
+                        className="text-[10px] font-bold text-zinc-500 hover:text-red-400 transition-colors uppercase tracking-wider"
+                    >
+                        Clear All
+                    </button>
+                    <button 
+                        onClick={async () => {
+                            try {
+                                const { error } = await supabase.from('error_logs').delete().lt('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+                                if (error) throw error;
+                                fetchData();
+                                showToast("Recent errors cleared.", 'success');
+                            } catch (err) {
+                                console.error('Error clearing recent logs:', err);
+                                showToast("Failed to clear recent logs.", 'error');
+                            }
+                        }}
+                        className="text-[10px] font-bold text-zinc-500 hover:text-orange-400 transition-colors uppercase tracking-wider"
+                    >
+                        Clear Recent
+                    </button>
+                </div>
               </div>
               <div className="space-y-4">
                 {errorLogs.length === 0 ? (
@@ -751,10 +825,18 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
 
             {/* Admin Activity Logs */}
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                <Shield size={18} className="text-emerald-500" />
-                Admin Activity Logs
-              </h3>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Shield size={18} className="text-emerald-500" />
+                  Admin Activity Logs
+                </h3>
+                <button 
+                  onClick={handleClearAdminLogs}
+                  className="text-[10px] font-bold text-zinc-500 hover:text-red-400 transition-colors uppercase tracking-wider"
+                >
+                  Clear Logs
+                </button>
+              </div>
               <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {adminLogs.length === 0 ? (
                   <p className="text-sm text-zinc-500 italic">No admin activity recorded.</p>

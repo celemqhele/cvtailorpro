@@ -16,7 +16,7 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
       width: '794px', // A4 width at 96 DPI
       minHeight: '1123px', // A4 height at 96 DPI
       margin: '0 auto',
-      padding: '60px', // Approx 20mm margin
+      padding: '40px', // Reduced from 60px to bring content closer to edges
       fontFamily: '"Times New Roman", Times, serif',
       fontSize: '12pt',
       lineHeight: '1.5',

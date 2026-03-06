@@ -1,3 +1,5 @@
+import { Buffer } from 'buffer';
+
 export default async function handler(request: any, response: any) {
   if (request.method !== 'POST') {
     return response.status(405).json({ error: 'Method not allowed' });
@@ -19,7 +21,18 @@ export default async function handler(request: any, response: any) {
       return response.status(500).json({ error: 'No CloudConvert API keys configured' });
     }
 
-    // Try CloudConvert keys in order
+    // Try Puppeteer first
+    try {
+      console.log('Attempting PDF generation with Puppeteer...');
+      const pdfBuffer = await generateWithPuppeteer(html);
+      response.setHeader('Content-Type', 'application/pdf');
+      response.setHeader('Content-Disposition', 'attachment; filename=cv.pdf');
+      return response.send(pdfBuffer);
+    } catch (puppeteerError: any) {
+      console.warn('Puppeteer failed, falling back to CloudConvert:', puppeteerError.message);
+    }
+
+    // Fallback: CloudConvert
     for (const apiKey of keys) {
       try {
         const pdfBuffer = await generateWithCloudConvert(html, apiKey);
@@ -28,16 +41,10 @@ export default async function handler(request: any, response: any) {
         return response.send(pdfBuffer);
       } catch (error: any) {
         console.warn(`CloudConvert key failed:`, error.message);
+        // If it's a specific error we can't recover from with another key, we might want to log more
         continue;
       }
     }
-
-    // Final fallback: Puppeteer
-    console.log('All CloudConvert keys exhausted, falling back to Puppeteer');
-    const pdfBuffer = await generateWithPuppeteer(html);
-    response.setHeader('Content-Type', 'application/pdf');
-    response.setHeader('Content-Disposition', 'attachment; filename=cv.pdf');
-    return response.send(pdfBuffer);
 
   } catch (error: any) {
     console.error('PDF Generation Error:', error);
@@ -56,6 +63,7 @@ async function generateWithCloudConvert(html: string, apiKey: string): Promise<B
       tasks: {
         'import-html': {
           operation: 'import/raw',
+          file: html,
           filename: 'input.html',
         },
         'convert-to-pdf': {
@@ -71,6 +79,7 @@ async function generateWithCloudConvert(html: string, apiKey: string): Promise<B
           display_header_footer: false,
           page_width: 210,
           page_height: 297,
+          viewport_width: 794,
         },
         'export-pdf': {
           operation: 'export/url',
@@ -86,31 +95,6 @@ async function generateWithCloudConvert(html: string, apiKey: string): Promise<B
   }
 
   const jobData = await jobResponse.json();
-  const uploadTask = jobData.data.tasks.find((t: any) => t.name === 'import-html');
-
-  if (!uploadTask?.result?.form) {
-    throw new Error('Failed to get upload URL');
-  }
-
-  const uploadFormData = new FormData();
-  
-  // CloudConvert expects the file to be the last field in the form data.
-  // First append all parameters, then append the file.
-  Object.entries(uploadTask.result.form.parameters).forEach(([key, value]) => {
-    uploadFormData.append(key, value as string);
-  });
-  
-  uploadFormData.append('file', new Blob([html], { type: 'text/html' }), 'input.html');
-
-  const uploadResponse = await fetch(uploadTask.result.form.url, {
-    method: 'POST',
-    body: uploadFormData,
-  });
-
-  if (!uploadResponse.ok) {
-    throw new Error('Failed to upload HTML');
-  }
-
   let jobStatus = jobData.data;
   let attempts = 0;
   const maxAttempts = 30;
@@ -135,7 +119,10 @@ async function generateWithCloudConvert(html: string, apiKey: string): Promise<B
     attempts++;
   }
 
-  if (jobStatus.status === 'error') throw new Error('Job failed');
+  if (jobStatus.status === 'error') {
+    const errorTask = jobStatus.tasks.find((t: any) => t.status === 'error');
+    throw new Error(`Job failed: ${errorTask?.message || 'Unknown error'}`);
+  }
   if (attempts >= maxAttempts) throw new Error('Job timed out');
 
   const exportTask = jobStatus.tasks.find((t: any) => t.name === 'export-pdf');
@@ -158,10 +145,10 @@ async function generateWithPuppeteer(html: string): Promise<Buffer> {
   );
 
   const browser = await puppeteer.default.launch({
-    args: chromium.default.args,
+    args: [...chromium.default.args, '--no-sandbox', '--disable-setuid-sandbox'],
     defaultViewport: chromium.default.defaultViewport,
     executablePath: await chromium.default.executablePath(),
-    headless: chromium.default.headless,
+    headless: chromium.default.headless === 'new' ? 'new' : true,
     ignoreHTTPSErrors: true,
   });
 
@@ -174,10 +161,10 @@ async function generateWithPuppeteer(html: string): Promise<Buffer> {
   await page.evaluateHandle('document.fonts.ready');
 
   const pdfBuffer = await page.pdf({
+    format: 'A4',
     printBackground: true,
-    width: '794px',
-    height: '1123px',
     margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+    preferCSSPageSize: true,
   });
 
   await browser.close();
