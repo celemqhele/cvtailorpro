@@ -18,15 +18,17 @@ export const createHtmlToDocxBlob = async (htmlContent: string): Promise<Blob | 
                 <style>
                     body { font-family: 'Calibri', 'Arial', sans-serif; font-size: 11pt; line-height: 1.4; }
                     h1, h2, h3 { color: #2c3e50; }
-                    table { width: 100%; border-collapse: collapse; }
-                    td { vertical-align: top; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 0 !important; }
+                    td { vertical-align: top; padding: 0 !important; }
                     /* Fix centering */
                     header { text-align: center !important; }
                     h1 { text-align: center !important; }
                     .header-title { text-align: center !important; }
                     /* Fix spacing */
-                    ul { margin-top: 0 !important; margin-bottom: 0 !important; }
-                    li { margin-bottom: 2px !important; }
+                    h1, h2, h3, h4, p { margin-top: 0 !important; margin-bottom: 4px !important; }
+                    .experience-item table { margin-bottom: 0 !important; }
+                    ul { margin-top: 0 !important; margin-bottom: 0 !important; padding-left: 20px !important; }
+                    li { margin-bottom: 2px !important; margin-top: 0 !important; }
                     .experience-item { margin-bottom: 10px !important; }
                 </style>
             </head>
@@ -38,7 +40,7 @@ export const createHtmlToDocxBlob = async (htmlContent: string): Promise<Blob | 
 
         const blob = await asBlob(fullHtml, {
             orientation: 'portrait',
-            margins: { top: 720, right: 720, bottom: 720, left: 720 } // twips (1440 twips = 1 inch). 720 = 0.5 inch (approx)
+            margins: { top: 600, right: 600, bottom: 600, left: 600 } // 600 twips is approx 40px (40/96 * 1440)
         });
         
         return blob as Blob;

@@ -20,7 +20,8 @@ export const GeneratedCV: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, triggerAuth, triggerPayment, isPaidUser, showToast } = useOutletContext<any>();
+  const { user, triggerAuth, triggerPayment, isPaidUser, showToast, dailyCvCount, dailyLimit, isMaxPlan } = useOutletContext<any>();
+  const hasFreeCredits = isMaxPlan || dailyCvCount < dailyLimit;
   
   const currentPlan = user?.plan_id ? PLANS.find((p: any) => p.id === user.plan_id) : PLANS[0];
   const hasMasterEditorAccess = (currentPlan as any)?.hasMasterEditor;
@@ -523,7 +524,7 @@ You can also copy this link to come back later: ${copyLink}`;
                             ) : (
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                             )}
-                            <span className="hidden sm:inline">Download Free CV</span>
+                            <span className="hidden sm:inline">Download {hasFreeCredits ? 'Free' : ''} CV</span>
                             <span className="sm:hidden">CV</span>
                             <svg className={`w-3 h-3 transition-transform ${activeMenu === 'cv' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                        </button>

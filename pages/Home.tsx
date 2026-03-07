@@ -11,7 +11,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Cookie, ShieldCheck, X, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export const Home: React.FC = () => {
-  const { user, triggerAuth, isPaidUser, triggerPayment } = useOutletContext<any>();
+  const { user, triggerAuth, isPaidUser, triggerPayment, dailyCvCount, dailyLimit, isMaxPlan } = useOutletContext<any>();
+  const hasFreeCredits = isMaxPlan || dailyCvCount < dailyLimit;
   const [showConsent, setShowConsent] = useState(false);
   const [activePricingTab, setActivePricingTab] = useState<'applicant' | 'recruiter'>('applicant');
 
@@ -119,7 +120,7 @@ export const Home: React.FC = () => {
                         to={user ? "/dashboard" : "/guestuserdashboard"} 
                         className="w-full sm:w-auto rounded-full bg-indigo-600 px-8 py-4 text-base font-bold text-white shadow-lg hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all hover:-translate-y-1 flex items-center justify-center gap-2 group"
                     >
-                        {user ? "Go to Dashboard" : "Get My Free CV (No Login Required)"}
+                        {user ? "Go to Dashboard" : (hasFreeCredits ? "Get My Free CV (No Login Required)" : "Get Started (No Login Required)")}
                         <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </Link>
                     
@@ -488,7 +489,7 @@ export const Home: React.FC = () => {
                 <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Ready to boost your career?</h2>
                 <div className="mt-10 flex items-center justify-center gap-x-6">
                     <Link to={user ? "/dashboard" : "/guestuserdashboard"} className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
-                        {user ? "Go to Dashboard" : "Get Started for Free"}
+                        {user ? "Go to Dashboard" : (hasFreeCredits ? "Get Started for Free" : "Get Started Now")}
                     </Link>
                     <Link to="/content" className="text-sm font-semibold leading-6 text-slate-900">
                         Read Career Advice <span aria-hidden="true">→</span>

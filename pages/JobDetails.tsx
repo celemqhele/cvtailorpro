@@ -21,7 +21,8 @@ import { LoadingProgressBar } from '../components/LoadingProgressBar';
 export const JobDetails: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isPaidUser, user, setDailyCvCount, dailyLimit } = useOutletContext<any>();
+  const { isPaidUser, user, setDailyCvCount, dailyLimit, dailyCvCount, isMaxPlan } = useOutletContext<any>();
+  const hasFreeCredits = isMaxPlan || dailyCvCount < dailyLimit;
   const [job, setJob] = useState<JobListing | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showApplyModal, setShowApplyModal] = useState(false);
@@ -354,13 +355,13 @@ export const JobDetails: React.FC = () => {
                         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 md:mb-8">
                             <h3 className="font-bold text-indigo-900 mb-2 flex items-center gap-2 text-sm sm:text-base">
                                 <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                                Free Skeleton Mode
+                                {hasFreeCredits ? 'Free Skeleton Mode' : 'Skeleton Mode'}
                             </h3>
                             <p className="text-xs sm:text-sm text-indigo-700 mb-3 sm:mb-4">
                                 This is your free daily generation. Upload your current CV below to automatically fill in the placeholders with your actual data.
                             </p>
                             <div className="text-[10px] sm:text-xs text-indigo-600 font-medium bg-white/50 p-2 rounded border border-indigo-100 inline-block">
-                                Free Version: 1 per day for Find Jobs applications only.
+                                {hasFreeCredits ? 'Free Version: 1 per day for Find Jobs applications only.' : 'Daily limit reached. Upgrade for unlimited.'}
                             </div>
                         </div>
 
@@ -407,11 +408,11 @@ export const JobDetails: React.FC = () => {
                             <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                         </div>
 
-                        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 sm:mb-3">Tailor Your CV for Free?</h2>
+                        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 sm:mb-3">Tailor Your CV {hasFreeCredits ? 'for Free?' : ''}</h2>
                         <div className="space-y-3 sm:space-y-4 text-slate-600 mb-6 sm:mb-8 leading-relaxed text-sm sm:text-base">
                             <p>
                                 Get an ATS-optimized CV tailored specifically for this role in under 60 seconds. 
-                                <span className="font-bold text-indigo-600"> 100% Free. No hidden fees.</span>
+                                {hasFreeCredits && <span className="font-bold text-indigo-600"> 100% Free. No hidden fees.</span>}
                             </p>
                             
                             <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100 space-y-2 sm:space-y-3">
@@ -455,7 +456,7 @@ export const JobDetails: React.FC = () => {
                             >
                                 <span className="flex items-center gap-2 text-sm sm:text-base">
                                     <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 group-hover:scale-110 transition-transform" />
-                                    Tailor My CV Now (100% Free)
+                                    Tailor My CV Now {hasFreeCredits ? '(100% Free)' : ''}
                                 </span>
                                 <span className="text-[8px] sm:text-[10px] opacity-80 font-normal">Takes ~30 seconds • No credit card</span>
                             </button>

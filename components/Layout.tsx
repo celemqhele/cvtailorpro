@@ -278,6 +278,8 @@ export const Layout: React.FC = () => {
 
   const isRecruiterMode = location.pathname.startsWith('/recruiter') || location.pathname.startsWith('/recruiter-dashboard');
 
+  const hasFreeCredits = isMaxPlan || dailyCvCount < dailyLimit;
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
        {/* Sophisticated Sticky Navigation */}
@@ -370,7 +372,7 @@ export const Layout: React.FC = () => {
                              Log In
                          </button>
                          <Link to="/guestuserdashboard" className="px-5 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-full hover:bg-indigo-600 hover:shadow-lg transition-all transform hover:-translate-y-0.5">
-                             Get Free CV
+                             {hasFreeCredits ? 'Get Free CV' : 'CV Generator'}
                          </Link>
                      </div>
                  )}
@@ -434,7 +436,7 @@ export const Layout: React.FC = () => {
                  ) : (
                      <div className="pt-4 border-t border-slate-100 flex flex-col gap-3">
                          <button onClick={() => setShowAuthModal(true)} className="w-full py-3 border border-slate-300 rounded-xl font-bold text-slate-700">Log In</button>
-                         <Link to="/guestuserdashboard" className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-center">Get Free CV</Link>
+                         <Link to="/guestuserdashboard" className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-center">{hasFreeCredits ? 'Get Free CV' : 'CV Generator'}</Link>
                      </div>
                  )}
              </div>
@@ -460,7 +462,7 @@ export const Layout: React.FC = () => {
                        <ul className="space-y-2 text-sm text-slate-500">
                            <li><Link to="/pricing" className="hover:text-indigo-600">Pricing</Link></li>
                            <li><Link to="/find-jobs" className="hover:text-indigo-600">Find Jobs</Link></li>
-                           <li><Link to="/guestuserdashboard" className="hover:text-indigo-600">Free Generator</Link></li>
+                           <li><Link to="/guestuserdashboard" className="hover:text-indigo-600">{hasFreeCredits ? 'Free Generator' : 'CV Generator'}</Link></li>
                            <li><Link to="/dashboard" className="hover:text-indigo-600">Pro Dashboard</Link></li>
                        </ul>
                    </div>

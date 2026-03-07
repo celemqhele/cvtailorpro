@@ -106,7 +106,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
       display: 'block' as const,
     },
     jobHeader: {
-      marginBottom: '8px',
+      marginBottom: '4px',
       width: '100%',
       borderCollapse: 'collapse' as const,
     },
@@ -136,7 +136,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
       outline: 'none',
     },
     achievementsList: {
-      margin: '8px 0 0 20px',
+      margin: '0 0 0 20px',
       padding: '0',
       listStyleType: 'disc',
     },
@@ -301,8 +301,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
                     </td>
                   </tr>
                 </tbody>
-              </table>
-              <ul style={styles.achievementsList}>
+              </table><ul style={styles.achievementsList}>
                 {job.achievements.map((achievement, i) => (
                   <li 
                     key={i} 

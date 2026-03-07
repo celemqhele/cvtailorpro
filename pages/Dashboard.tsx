@@ -126,6 +126,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const userPlan = user?.plan_id ? getPlanDetails(user.plan_id) : getPlanDetails('free');
   const hasSkeletonAccess = userPlan.hasSkeletonMode;
   const hasReferenceAccess = userPlan.hasReferenceUpload;
+  const hasFreeCredits = isMaxPlan || dailyCvCount < dailyLimit;
 
   // Load Saved CV from User Profile
   useEffect(() => {
@@ -1013,11 +1014,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                         disabled={!validateInputs()} 
                                         className="w-full py-4 text-base font-bold shadow-sm flex items-center justify-center gap-2 group"
                                     >
-                                        Scan & Analyze Job (Free)
+                                        Scan & Analyze Job {hasFreeCredits ? '(Free)' : ''}
                                         <Zap className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
                                     </Button>
                                     <p className="text-center text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1">
-                                        <Clock className="w-3 h-3" /> ~5 seconds • No credit card
+                                        <Clock className="w-3 h-3" /> ~5 seconds • {hasFreeCredits ? 'No credit card' : 'Requires credit'}
                                     </p>
                                 </div>
                             )}
@@ -1033,7 +1034,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                         <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                                     </Button>
                                     <p className="text-center text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1">
-                                        <Clock className="w-3 h-3" /> ~25 seconds • 100% Free
+                                        <Clock className="w-3 h-3" /> ~25 seconds • {hasFreeCredits ? '100% Free' : 'Requires credit'}
                                     </p>
                                 </div>
                             ) : (
@@ -1043,11 +1044,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                         disabled={!validateInputs()} 
                                         className="w-full py-4 text-base font-bold shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 group"
                                     >
-                                        {targetMode === 'title' ? 'Generate Standard CV (Free)' : 'Generate Tailored CV (Free)'}
+                                        {targetMode === 'title' ? `Generate Standard CV ${hasFreeCredits ? '(Free)' : ''}` : `Generate Tailored CV ${hasFreeCredits ? '(Free)' : ''}`}
                                         <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                                     </Button>
                                     <p className="text-center text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1">
-                                        <Clock className="w-3 h-3" /> ~25 seconds • 100% Free
+                                        <Clock className="w-3 h-3" /> ~25 seconds • {hasFreeCredits ? '100% Free' : 'Requires credit'}
                                     </p>
                                 </div>
                             )}
