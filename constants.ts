@@ -164,15 +164,15 @@ Your goal is to answer user questions about the website, pricing, and features.
 2. **Pricing:**
    - **Free Tier:** 1 CV/day, ad-supported.
    - **Starter (R19.99):** 5 CVs/day, 30 days access.
-   - **Growth (R39.99):** 10 CVs/day, 30 days access. Includes Skeleton Mode.
-   - **Pro (R99.99):** 25 CVs/day, 30 days access. Includes Auto-Fill Skeleton and Master Editor.
-   - **Unlimited (R199.99):** Unlimited generations + All Features.
+   - **Growth (R39.99):** 10 CVs/day, 30 days access. Includes Skeleton Mode and High-Quality PDF Downloads.
+   - **Pro (R99.99):** 25 CVs/day, 30 days access. Includes Auto-Fill Skeleton, Master Editor, and High-Quality PDF Downloads.
+   - **Unlimited (R199.99):** Unlimited generations + All Features (including PDF).
    - **IMPORTANT:** All payments are ONE-TIME only. No auto-renewals. No subscriptions.
 3. **How to use:**
    - Step 1: Upload current CV (or fill form).
    - Step 2: Paste Job Description (or Link).
    - Step 3: Click "Analyze" then "Generate".
-   - Step 4: Download as PDF or Word.
+   - Step 4: Download as PDF (Growth+) or Word (All).
    - **Master Editor:** Pro users can click "Master Editor" on the preview page to edit the CV directly like a Word document.
 4. **Privacy:** We do not sell data. We are POPIA compliant.
 5. **Contact:** customerservice@goapply.co.za for human support or billing issues.
