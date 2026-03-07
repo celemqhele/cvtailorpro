@@ -12,12 +12,9 @@ import Anthropic from "@anthropic-ai/sdk";
 // ============================================================
 
 const CEREBRAS_MODELS = [
-  'llama-3.3-70b', 
   'llama3.3-70b', 
-  'llama-3.1-70b',
-  'llama-3.1-8b', 
-  'llama3.1-8b',
   'llama3.1-70b',
+  'llama3.1-8b',
   'GLM-4.7',
   'glm-4',
   'Cerebras-GPT-13B-Instruct', 
@@ -171,30 +168,28 @@ export default async function handler(req: any, res: any) {
       { provider: 'gemini',   model: 'gemini-3.1-pro-preview',   keys: geminiKeys,   timeout: 45000 },
       { provider: 'claude',   model: 'claude-sonnet-4-20250514', key: claudeKey,     timeout: 40000 },
       { provider: 'gemini',   model: 'gemini-3-flash-preview',   keys: geminiKeys,   timeout: 20000 },
-      { provider: 'cerebras', model: 'llama-3.3-70b',             keys: cerebrasKeys, timeout: 30000 },
+      { provider: 'cerebras', model: 'llama3.3-70b',             keys: cerebrasKeys, timeout: 30000 },
     ];
   } else if (planId === 'tier_2') {
     // Growth: Gemini 2.5 Flash (using 3-flash-preview as best match) -> Cerebras
     activeChain = [
       { provider: 'gemini',   model: 'gemini-3-flash-preview',      keys: geminiKeys,   timeout: 25000 },
       { provider: 'gemini',   model: 'gemini-3.1-flash-lite-preview', keys: geminiKeys,   timeout: 20000 },
-      { provider: 'cerebras', model: 'llama-3.3-70b',             keys: cerebrasKeys, timeout: 30000 },
+      { provider: 'cerebras', model: 'llama3.3-70b',             keys: cerebrasKeys, timeout: 30000 },
     ];
   } else if (planId === 'tier_1') {
-    // Starter: Gemini 2.0 Flash-Lite (using 3.1-flash-lite as best match) -> Cerebras
+    // Starter: Gemini 3.1 Flash-Lite -> Llama 8b -> Flash-8b
     activeChain = [
       { provider: 'gemini',   model: 'gemini-3.1-flash-lite-preview', keys: geminiKeys,   timeout: 30000 },
-      { provider: 'cerebras', model: 'llama-3.1-8b',                keys: cerebrasKeys, timeout: 25000 },
-      { provider: 'gemini',   model: 'gemini-3-flash-preview',      keys: geminiKeys,   timeout: 25000 },
+      { provider: 'cerebras', model: 'llama3.1-8b',                keys: cerebrasKeys, timeout: 25000 },
+      { provider: 'gemini',   model: 'gemini-1.5-flash-8b',          keys: geminiKeys,   timeout: 25000 },
     ];
   } else {
-    // Free: Gemini 3.1 Flash-Lite -> Gemini 1.5 Flash-8B -> Cerebras -> Gemini 3 Flash
+    // Free: Gemini 1.5 Flash -> Llama 8b (Optional Relief) -> Flash-8b
     activeChain = [
-      { provider: 'gemini',   model: 'gemini-3.1-flash-lite-preview', keys: geminiKeys,   timeout: 30000 },
+      { provider: 'gemini',   model: 'gemini-1.5-flash',             keys: geminiKeys,   timeout: 25000 },
+      { provider: 'cerebras', model: 'llama3.1-8b',                keys: cerebrasKeys, timeout: 25000 },
       { provider: 'gemini',   model: 'gemini-1.5-flash-8b',          keys: geminiKeys,   timeout: 25000 },
-      { provider: 'cerebras', model: 'llama-3.1-8b',                keys: cerebrasKeys, timeout: 25000 },
-      { provider: 'cerebras', model: 'Mistral-7B-Instruct-v0.2',     keys: cerebrasKeys, timeout: 25000 },
-      { provider: 'gemini',   model: 'gemini-3-flash-preview',      keys: geminiKeys,   timeout: 25000 },
     ];
   }
 
