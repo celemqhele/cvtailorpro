@@ -1,7 +1,5 @@
-
-
-/** Updated: 2026-03-06 */
-/** Vercel Build Fix - TS1434 */
+/** Updated: 2026-03-07 */
+/** Pagination fix - section breaks and top margin on continuation pages */
 // Helper function to perform the actual API call via backend proxy
 const performCloudConvertRequest = async (html: string): Promise<Blob> => {
     const response = await fetch("/api/pdf-proxy", {
@@ -9,12 +7,10 @@ const performCloudConvertRequest = async (html: string): Promise<Blob> => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ html })
     });
-
     if (!response.ok) {
         const err = await response.json();
         throw new Error(`PDF Proxy Error: ${err.error}`);
     }
-
     return await response.blob();
 };
 
@@ -25,7 +21,6 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
     const element = document.getElementById(elementId);
     if (!element) return null;
 
-    // Prepare HTML with embedded styles for CloudConvert
     const htmlContent = `
     <!DOCTYPE html>
     <html lang="en">
@@ -48,10 +43,8 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
              
              * { box-sizing: border-box; }
              
-             /* Remove background patterns for PDF */
              .cv-preview-background { background: none !important; }
              
-             /* PDF Specific Layout */
              .cv-absolute-container { 
                 transform: none !important; 
                 margin: 0 !important; 
@@ -61,12 +54,15 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
                 border: none !important;
              }
              
-             /* Ensure colors are preserved */
              * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
              
              @page {
-                 margin: 0;
                  size: A4;
+                 margin: 0;
+             }
+
+             @page :not(:first) {
+                 margin-top: 40px;
              }
              
              .pdf-page-wrapper {
@@ -75,25 +71,27 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
                 width: 210mm;
              }
 
-             /* Prevent awkward breaks */
+             /* Headings should not be left orphaned at bottom of a page */
              h1, h2, h3 { 
                 page-break-after: avoid; 
                 break-after: avoid; 
                 margin-top: 20px;
              }
              
+             /* Sections can break between items, but not inside an item */
              .section-container { 
-                page-break-inside: avoid; 
-                break-inside: avoid; 
+                page-break-inside: auto; 
+                break-inside: auto; 
                 margin-bottom: 24px; 
              }
 
-             /* Keep section title with at least some content */
+             /* Keep section heading glued to whatever follows it */
              h2 + div, h2 + p, h2 + ul, h2 + table {
                 break-before: avoid;
                 page-break-before: avoid;
              }
              
+             /* Individual experience blocks must never split */
              .experience-item {
                 page-break-inside: avoid;
                 break-inside: avoid;
@@ -106,19 +104,21 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
                 break-inside: avoid;
              }
 
-             p, li, div {
-                orphans: 3;
-                widows: 3;
-             }
-
-             /* Ensure lists don't split weirdly */
+             /* Allow lists to break between items, not inside them */
              ul {
-                page-break-inside: avoid;
-                break-inside: avoid;
+                page-break-inside: auto;
+                break-inside: auto;
              }
              
              li {
+                page-break-inside: avoid;
+                break-inside: avoid;
                 margin-bottom: 4px;
+             }
+
+             p, div {
+                orphans: 3;
+                widows: 3;
              }
         </style>
     </head>

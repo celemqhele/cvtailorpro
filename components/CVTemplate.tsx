@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { CVData } from '../types';
 
@@ -9,23 +8,21 @@ interface CVTemplateProps {
 }
 
 const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpdate }) => {
-  // Inline styles with absolute measurements based on MEASUREMENTS_SPEC.md
-  // 96 DPI Standard: 1px = 1/96 inch
   const styles = {
     container: {
-      width: '794px', // A4 Width at 96 DPI
-      minHeight: '1123px', // A4 Height at 96 DPI
+      width: '794px',
+      minHeight: '1123px',
       margin: '0 auto',
-      padding: '40px', // Reduced from 60px to bring content closer to edges
+      padding: '40px',
       fontFamily: 'Arial, Helvetica, sans-serif', 
       fontSize: '11px',
-      lineHeight: '1.4', // Unitless for better inheritance
+      lineHeight: '1.4',
       color: '#1a1a1a',
       backgroundColor: 'white',
       boxSizing: 'border-box' as const,
       wordWrap: 'break-word' as const, 
       overflowWrap: 'break-word' as const,
-      letterSpacing: '0.3px', // Adds slight spacing to prevent words merging in PDF
+      letterSpacing: '0.3px',
       outline: isEditable ? '2px dashed #10b981' : 'none',
     },
     header: {
@@ -83,7 +80,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
     },
     summaryText: {
       margin: '0',
-      textAlign: 'left' as const, // Changed from justify to left to fix PDF spacing artifacts
+      textAlign: 'left' as const,
       lineHeight: '1.5',
       outline: 'none',
     },
@@ -105,7 +102,8 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
     experienceItem: {
       marginBottom: '20px',
       breakInside: 'avoid' as const,
-      pageBreakInside: 'avoid' as const
+      pageBreakInside: 'avoid' as const,
+      display: 'block' as const,
     },
     jobHeader: {
       marginBottom: '8px',
@@ -147,6 +145,8 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
       lineHeight: '1.5',
       textAlign: 'left' as const,
       outline: 'none',
+      breakInside: 'avoid' as const,
+      pageBreakInside: 'avoid' as const,
     },
     educationItem: {
       marginBottom: '8px',
@@ -168,7 +168,6 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
     if (field === 'skill' && index !== undefined && newData.skills) {
         newData.skills[index].items = value;
     }
-    
     if (field === 'jobTitle' && index !== undefined && newData.experience) {
         newData.experience[index].title = value;
     }
@@ -181,26 +180,21 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
     if (field === 'jobAchievement' && index !== undefined && subIndex !== undefined && newData.experience) {
         newData.experience[index].achievements[subIndex] = value;
     }
-    
     if (field === 'keyAchievement' && index !== undefined && newData.keyAchievements) {
         newData.keyAchievements[index] = value;
     }
-    
     if (field === 'education' && index !== undefined && newData.education) {
-        // Simple heuristic for education string edit
         newData.education[index].degree = value;
     }
-
     onUpdate(newData);
   };
 
-  // Check valid LinkedIn and format it
   const hasLinkedIn = data.linkedin && data.linkedin !== 'null' && data.linkedin !== 'N/A' && data.linkedin.trim() !== '';
   const formattedLinkedIn = hasLinkedIn ? data.linkedin?.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, 'in/').replace(/\/$/, '') : null;
 
   return (
     <div className={`cv-absolute-container cv-preview-background ${isEditable ? 'master-edit-active' : ''}`} style={styles.container}>
-      {/* Header Section */}
+      {/* Header */}
       <header style={styles.header}>
         <h1 
           style={styles.name} 
