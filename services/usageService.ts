@@ -69,11 +69,31 @@ const getIdentifier = async (userId?: string): Promise<string> => {
 /**
  * Checks if the user has reached their daily limit for CV generation.
  */
-export const checkUsageLimit = async (userId: string | undefined, limit: number): Promise<boolean> => {
+export const checkUsageLimit = async (userId: string | undefined, limit: number, planId: string = 'free'): Promise<boolean> => {
     try {
         const identifier = await getIdentifier(userId);
         
-        // Secure RPC call
+        if (planId === 'free' || planId === 'recruiter_free') {
+            // Weekly check for free users
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            
+            const { data, error } = await supabase
+                .from('daily_usage')
+                .select('cv_count')
+                .eq('identifier', identifier)
+                .gte('date', sevenDaysAgo.toISOString().split('T')[0]);
+
+            if (error) {
+                console.warn("Weekly usage check error:", error);
+                return true;
+            }
+
+            const totalCount = data?.reduce((acc, curr) => acc + (curr.cv_count || 0), 0) || 0;
+            return totalCount < limit; // limit is 1 for free
+        }
+
+        // Secure RPC call for daily plans
         const { data, error } = await supabase
             .rpc('get_user_usage_stats', { user_identifier: identifier });
 
@@ -113,10 +133,39 @@ export const incrementUsage = async (userId: string | undefined): Promise<void> 
 /**
  * Gets the current CV count and Time to Refill
  */
-export const getUsageStats = async (userId?: string): Promise<{ count: number, secondsLeft: number }> => {
+export const getUsageStats = async (userId?: string, planId: string = 'free'): Promise<{ count: number, secondsLeft: number }> => {
      try {
         const identifier = await getIdentifier(userId);
         
+        if (planId === 'free' || planId === 'recruiter_free') {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            
+            const { data, error } = await supabase
+                .from('daily_usage')
+                .select('cv_count, date')
+                .eq('identifier', identifier)
+                .gte('date', sevenDaysAgo.toISOString().split('T')[0])
+                .order('date', { ascending: true });
+
+            if (error || !data) {
+                return { count: 0, secondsLeft: 0 };
+            }
+
+            const totalCount = data.reduce((acc, curr) => acc + (curr.cv_count || 0), 0) || 0;
+            
+            // If they've used their limit, we need to find when the oldest usage expires (7 days after it happened)
+            let secondsLeft = 0;
+            if (totalCount >= 1 && data.length > 0) {
+                const oldestUsageDate = new Date(data[0].date);
+                const expiryDate = new Date(oldestUsageDate);
+                expiryDate.setDate(expiryDate.getDate() + 8); // 7 days later + 1 to be safe for daily reset
+                secondsLeft = Math.max(0, Math.floor((expiryDate.getTime() - Date.now()) / 1000));
+            }
+
+            return { count: totalCount, secondsLeft };
+        }
+
         const { data, error } = await supabase
             .rpc('get_user_usage_stats', { user_identifier: identifier });
 
@@ -130,8 +179,8 @@ export const getUsageStats = async (userId?: string): Promise<{ count: number, s
     }
 };
 
-export const getUsageCount = async (userId?: string): Promise<number> => {
-    const stats = await getUsageStats(userId);
+export const getUsageCount = async (userId?: string, planId: string = 'free'): Promise<number> => {
+    const stats = await getUsageStats(userId, planId);
     return stats.count;
 };
 

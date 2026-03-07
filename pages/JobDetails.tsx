@@ -139,7 +139,7 @@ export const JobDetails: React.FC = () => {
     }
 
     // 2. Check Daily CV Credit Limit (e.g. 5 per day)
-    const allowedDaily = await usageService.checkUsageLimit(user?.id, dailyLimit);
+    const allowedDaily = await usageService.checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
     if (!allowedDaily) {
         setLimitType('daily');
         setShowApplyModal(false);

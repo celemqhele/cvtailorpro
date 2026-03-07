@@ -15,12 +15,13 @@ import { AdDecisionModal } from '../components/AdDecisionModal';
 import { FeatureLockedModal } from '../components/FeatureLockedModal';
 import { SkeletonPromoModal } from '../components/SkeletonPromoModal';
 import { LoadingProgressBar } from '../components/LoadingProgressBar';
+import { ModelSelectionModal } from '../components/ModelSelectionModal';
 
 import { analytics } from '../services/analyticsService';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile, generateSkeletonCV } from '../services/geminiService';
 import { authService } from '../services/authService';
 import { checkUsageLimit, incrementUsage } from '../services/usageService';
-import { getPlanDetails } from '../services/subscriptionService';
+import { getPlanDetails, PLANS } from '../services/subscriptionService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis, SavedApplication, ManualCVData, ManualExperienceItem, ManualEducationItem } from '../types';
 
 interface DashboardProps {
@@ -69,6 +70,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [showAdDecisionModal, setShowAdDecisionModal] = useState(false);
   const [showSkeletonPromo, setShowSkeletonPromo] = useState(false);
+  const [showModelModal, setShowModelModal] = useState(false);
   
   // Confirmation Modal State
   const [showRemoveCvModal, setShowRemoveCvModal] = useState(false);
@@ -127,6 +129,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const hasSkeletonAccess = userPlan.hasSkeletonMode;
   const hasReferenceAccess = userPlan.hasReferenceUpload;
   const hasFreeCredits = isMaxPlan || dailyCvCount < dailyLimit;
+
+  const currentModel = userPlan.quality;
 
   // Load Saved CV from User Profile
   useEffect(() => {
@@ -399,7 +403,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
       // Check if user is free and needs to watch ad or is blocked BEFORE status change
       if (!isPaidUser) {
-          const canProceed = await checkUsageLimit(user?.id, dailyLimit);
+          const canProceed = await checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
           if (!canProceed) {
               setShowLimitModal(true);
               return;
@@ -535,21 +539,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     // IMPORTANT: Check this BEFORE setStatus(Status.GENERATING) to avoid interrupting progress bar
     if (!isPaidUser && !bypassAd) {
         // If they hit the limit, they are done. No more ads. Must upgrade.
-        const canProceed = await checkUsageLimit(user?.id, dailyLimit);
+        const canProceed = await checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
         if (!canProceed) {
             setShowAdDecisionModal(false);
             setShowLimitModal(true); // Block them
             return;
         }
 
-        // If not at limit, ask them to decide (Ad vs Upgrade)
-        setPendingGenParams({ force: forceOverride, isTitle: isDirectTitleMode, isSkeleton: false });
-        setShowAdDecisionModal(true);
-        return;
+        // NO MORE AD FOR GENERATION - User wants it for download instead
+        // Just proceed to generation
     }
 
     // 2. Double check limit just in case (for paid users too)
-    const canProceed = bypassAd || await checkUsageLimit(user?.id, dailyLimit);
+    const canProceed = bypassAd || await checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
     const isAdmin = user?.email === 'mqhele03@gmail.com';
 
     if (!canProceed && !isAdmin) {
@@ -646,7 +648,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       // 2. Check Limit
       // We share the same daily limit pool for now (until complex DB migration)
       // but only Growth+ users can access this function anyway.
-      const canProceed = bypassAd || await checkUsageLimit(user?.id, dailyLimit);
+      const canProceed = bypassAd || await checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
       const isAdmin = user?.email === 'mqhele03@gmail.com';
 
       if (!canProceed && !isAdmin) {
@@ -774,7 +776,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
             <div className="flex justify-between items-center mb-6">
                  <div>
                     <h1 className="text-2xl font-bold text-slate-900">{mode === 'guest' ? 'Free CV Generator' : 'Professional Dashboard'}</h1>
-                    <p className="text-sm text-slate-500">{mode === 'guest' ? 'Create a tailored CV instantly. Login to save history.' : 'Manage your applications and history.'}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <p className="text-sm text-slate-500">{mode === 'guest' ? 'Create a tailored CV instantly. Login to save history.' : 'Manage your applications and history.'}</p>
+                        <div className="h-4 w-px bg-slate-200"></div>
+                        <button 
+                            onClick={() => setShowModelModal(true)}
+                            className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full hover:bg-indigo-100 transition-colors uppercase tracking-wider"
+                        >
+                            <Zap className="w-3 h-3" />
+                            {currentModel}
+                        </button>
+                    </div>
                  </div>
                  {user && mode === 'user' && (
                     <button onClick={() => setShowHistoryModal(true)} className="text-sm font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 flex items-center gap-2">
@@ -1098,6 +1110,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                 isOpen={showSkeletonPromo}
                 onClose={() => setShowSkeletonPromo(false)}
                 onTryIt={handleSkeletonPromoTry}
+            />
+
+            <ModelSelectionModal 
+                isOpen={showModelModal}
+                onClose={() => setShowModelModal(false)}
+                currentPlanId={user?.plan_id || 'free'}
+                onUpgrade={(planId) => {
+                    setShowModelModal(false);
+                    triggerPayment(planId);
+                }}
             />
 
             {showRemoveCvModal && (

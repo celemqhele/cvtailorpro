@@ -56,8 +56,8 @@ export const Layout: React.FC = () => {
   // Check env or specific admin user
   const showAdmin = isPreviewOrAdmin() || user?.email === 'mqhele03@gmail.com';
 
-  const fetchStats = async (userId?: string) => {
-      const stats = await getUsageStats(userId);
+  const fetchStats = async (userId?: string, planId: string = 'free') => {
+      const stats = await getUsageStats(userId, planId);
       setDailyCvCount(stats.count);
       setSecondsUntilReset(stats.secondsLeft);
 
@@ -77,8 +77,10 @@ export const Layout: React.FC = () => {
     let planLimit = freePlan.dailyLimit;
     let isPaid = false;
     let maxPlan = false;
+    let currentPlanId = 'free';
 
     if (profile) {
+        currentPlanId = profile.plan_id || 'free';
         if (profile.email === 'mqhele03@gmail.com') {
             planLimit = 1000000;
             isPaid = true;
@@ -108,6 +110,9 @@ export const Layout: React.FC = () => {
     setIsPaidUser(isPaid);
     setIsMaxPlan(maxPlan);
     setIsAuthLoading(false);
+    
+    // Fetch stats with the correct plan ID
+    fetchStats(profile?.id, currentPlanId);
   };
 
   useEffect(() => {
@@ -122,10 +127,8 @@ export const Layout: React.FC = () => {
 
           if (isNewAccount) {
               syncIpUsageToUser(session.user.id).then(() => {
-                  fetchStats(session.user.id);
+                  // checkUserSession will handle fetchStats
               });
-          } else {
-              fetchStats(session.user.id);
           }
       }
     });
@@ -147,12 +150,8 @@ export const Layout: React.FC = () => {
   }, [location, user?.id, user?.email]); // Re-run if location or user changes
 
   useEffect(() => {
-    if (!isAuthLoading) {
-        setTimeout(() => fetchStats(user?.id), 0);
-    }
-    
     const handleFocus = () => {
-        if (!isAuthLoading) fetchStats(user?.id);
+        if (!isAuthLoading) fetchStats(user?.id, user?.plan_id);
     };
     
     window.addEventListener('focus', handleFocus);

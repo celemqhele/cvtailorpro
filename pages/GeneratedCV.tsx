@@ -10,6 +10,7 @@ import { SmartEditor } from '../components/SmartEditor';
 import { FeatureLockedModal } from '../components/FeatureLockedModal';
 import { SubscriptionModal } from '../components/SubscriptionModal';
 import { LeadCaptureModal } from '../components/LeadCaptureModal';
+import { RewardedAdModal } from '../components/RewardedAdModal';
 import { createWordBlob } from '../utils/docHelper';
 import { generatePdfFromApi } from '../utils/pdfHelper';
 import { analytics } from '../services/analyticsService';
@@ -49,6 +50,7 @@ export const GeneratedCV: React.FC = () => {
   // Subscription Popup State
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showLeadModal, setShowLeadModal] = useState(false);
+  const [showRewardedAd, setShowRewardedAd] = useState(false);
   const [pendingDownload, setPendingDownload] = useState<{ docType: 'cv' | 'cl', format: 'pdf' | 'docx' } | null>(null);
   
   // Click outside to close menus
@@ -225,12 +227,19 @@ export const GeneratedCV: React.FC = () => {
       }
   };
 
-  const handleDownload = async (docType: 'cv' | 'cl', format: 'pdf' | 'docx') => {
+  const handleDownload = async (docType: 'cv' | 'cl', format: 'pdf' | 'docx', bypassAd: boolean = false) => {
       if (!application || !cvData) return;
       
-      // Check PDF Access
+      // Check PDF Access - Now free for all, but we keep the check for safety
       if (format === 'pdf' && !hasPdfAccess) {
           setShowPdfLockedModal(true);
+          return;
+      }
+
+      // Ad Reward for Free Users on Download
+      if (!isPaidUser && !bypassAd) {
+          setPendingDownload({ docType, format });
+          setShowRewardedAd(true);
           return;
       }
 
@@ -349,6 +358,14 @@ export const GeneratedCV: React.FC = () => {
       } catch (err) {
           console.error('Failed to save lead:', err);
           throw err;
+      }
+  };
+
+  const handleAdComplete = () => {
+      setShowRewardedAd(false);
+      if (pendingDownload) {
+          handleDownload(pendingDownload.docType, pendingDownload.format, true);
+          setPendingDownload(null);
       }
   };
 
@@ -730,6 +747,12 @@ export const GeneratedCV: React.FC = () => {
           isOpen={showLeadModal}
           onClose={() => setShowLeadModal(false)}
           onSubmit={handleLeadSubmit}
+       />
+
+       <RewardedAdModal 
+           isOpen={showRewardedAd}
+           onClose={() => setShowRewardedAd(false)}
+           onComplete={handleAdComplete}
        />
 
        {/* Rate Us Floating Button */}
