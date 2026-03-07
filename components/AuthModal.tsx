@@ -42,8 +42,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         setShowVerification(true);
       } else if (mode === 'signin') {
         await authService.signIn(email, password, keepLoggedIn);
-        onSuccess();
-        onClose();
+        // Small delay to ensure DB trigger has finished creating the profile row
+        setTimeout(() => {
+          onSuccess();
+          onClose();
+        }, 800);
       } else if (mode === 'forgot') {
         await authService.resetPasswordForEmail(email);
         setSuccessMsg("Check your email for the password reset link.");

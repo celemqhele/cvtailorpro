@@ -46,17 +46,49 @@ export const authService = {
   },
 
   async getCurrentProfile(): Promise<UserProfile | null> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.log("No authenticated user found in Supabase Auth.");
+        return null;
+      }
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+      // Retry logic for profile fetching (handles trigger delay)
+      let profileData = null;
+      let lastError = null;
+      const maxRetries = 3;
+      
+      for (let i = 0; i < maxRetries; i++) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
 
-    if (error) return null;
-    return data as UserProfile;
+        if (!error && data) {
+          profileData = data;
+          break;
+        }
+        
+        lastError = error;
+        console.warn(`Profile fetch attempt ${i + 1} failed:`, error?.message || "Row not found");
+        
+        // Wait 500ms before next attempt
+        if (i < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      if (!profileData) {
+        console.error("Failed to fetch profile after retries. This usually means the profile row was never created or RLS is blocking access.", lastError);
+        return null;
+      }
+
+      return profileData as UserProfile;
+    } catch (e) {
+      console.error("Unexpected error in getCurrentProfile:", e);
+      return null;
+    }
   },
 
   async updateProfileName(fullName: string) {

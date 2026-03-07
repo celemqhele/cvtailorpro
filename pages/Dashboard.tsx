@@ -103,7 +103,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   });
 
   // Job Target Modes
-  const [targetMode, setTargetMode] = useState<'url' | 'text' | 'title'>('text');
+  const [targetMode, setTargetMode] = useState<'url' | 'text' | 'title'>(mode === 'guest' ? 'title' : 'text');
   const [jobLink, setJobLink] = useState('');
   const [manualJobText, setManualJobText] = useState('');
   const [jobTitle, setJobTitle] = useState('');
@@ -320,7 +320,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       
       if (targetMode === 'url' && !jobLink) return false;
       if (targetMode === 'text' && !manualJobText.trim()) return false;
-      if (targetMode === 'title' && !jobTitle.trim()) return false;
+      // For 'title' mode (Optimize), we allow empty title for guests
+      if (targetMode === 'title' && mode !== 'guest' && !jobTitle.trim()) return false;
       return true;
   };
 
@@ -580,6 +581,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           setSavedCvFilename(file.name);
           setUseSavedCv(true);
           setFile(null);
+      }
+
+      // If title mode and empty title, use default optimization
+      let currentJobSpec = jobSpec;
+      if (targetMode === 'title' && !jobTitle.trim()) {
+          currentJobSpec = "General Professional Optimization and Industry Standard Formatting";
       }
 
       const response = await generateTailoredApplication(
@@ -935,7 +942,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                  <div className="flex bg-slate-100 p-1 rounded-lg">
                                      <button onClick={() => setTargetMode('url')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'url' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Link</button>
                                      <button onClick={() => setTargetMode('text')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'text' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Text</button>
-                                     <button onClick={() => setTargetMode('title')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'title' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Title</button>
+                                     <button onClick={() => setTargetMode('title')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'title' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>{mode === 'guest' ? 'Optimize' : 'Title'}</button>
                                  </div>
                              </div>
 
@@ -951,8 +958,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                  )}
                                  {targetMode === 'title' && (
                                      <div className="space-y-2">
-                                         <p className="text-sm text-slate-600">Enter a Job Title. We'll optimize for industry standards.</p>
-                                         <input type="text" placeholder="e.g. Senior Project Manager" className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none" value={jobTitle} onChange={e => setJobTitle(e.target.value)} />
+                                         <p className="text-sm text-slate-600">
+                                             {mode === 'guest' 
+                                                ? "We'll optimize your CV for general industry standards and best practices." 
+                                                : "Enter a Job Title. We'll optimize for industry standards."}
+                                         </p>
+                                         <input 
+                                            type="text" 
+                                            placeholder={mode === 'guest' ? "Job Title (Optional)" : "e.g. Senior Project Manager"} 
+                                            className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none" 
+                                            value={jobTitle} 
+                                            onChange={e => setJobTitle(e.target.value)} 
+                                         />
                                      </div>
                                  )}
                              </div>
@@ -1077,7 +1094,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                         disabled={!validateInputs()} 
                                         className="w-full py-4 text-base font-bold shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 group"
                                     >
-                                        {targetMode === 'title' ? `Generate Standard CV ${hasFreeCredits ? '(Free)' : ''}` : `Generate Tailored CV ${hasFreeCredits ? '(Free)' : ''}`}
+                                        {targetMode === 'title' 
+                                            ? (mode === 'guest' ? `Generate Optimized CV ${hasFreeCredits ? '(Free)' : ''}` : `Generate Standard CV ${hasFreeCredits ? '(Free)' : ''}`) 
+                                            : `Generate Tailored CV ${hasFreeCredits ? '(Free)' : ''}`}
                                         <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                                     </Button>
                                     <p className="text-center text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1">

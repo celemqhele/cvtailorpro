@@ -433,13 +433,27 @@ export const generateTailoredApplication = async (
 
   let systemContent = SCHEMA_INSTRUCTION;
 
+  if (isGeneralOptimization) {
+    systemContent += `\n\nSPECIAL MODE: GENERAL OPTIMIZATION. Ignore instructions about "matching a job description" or "ATS match percentage against a job". Instead, focus on maximizing the candidate's professional appeal, clarity, and impact across all industries.`;
+  }
+
   if (force || targetType === 'title') {
     systemContent += `\nIMPORTANT OVERRIDE: Set "outcome" to "PROCEED". Do not reject. ${targetType === 'title' ? 'Optimize for the INDUSTRY STANDARD of the provided Job Title.' : 'Force generation despite low match.'}`;
   }
 
+  const isGeneralOptimization = targetType === 'title' && (jobSpec.includes("General Professional Optimization") || jobSpec.trim() === "");
+
   const jobContext = targetType === 'specific' 
     ? `TARGET JOB DESCRIPTION (KEYWORDS TO INJECT):\n${jobSpec}`
-    : `TARGET JOB TITLE (General Optimization): ${jobSpec}\n\nCRITICAL INSTRUCTION: You are optimizing the candidate's EXISTING CV for this job title. DO NOT create a skeleton. DO NOT use placeholders like [Company Name], [Date], or [Metric %]. You MUST use the candidate's ACTUAL experience, companies, dates, and metrics from the provided Candidate CV Data. If a detail is missing from the candidate's CV, omit it or use what is available. DO NOT invent facts or add placeholders for the user to fill in later. The output must be a ready-to-use CV based on the candidate's real history.`;
+    : isGeneralOptimization
+      ? `MODE: GENERAL PROFESSIONAL OPTIMIZATION\n\nCRITICAL INSTRUCTION: There is no specific target job. Your task is to perform a high-level professional modernization of the candidate's EXISTING CV. 
+         1. Improve the "Summary" to be punchy, modern, and value-driven.
+         2. Rewrite experience bullets using strong action verbs and the CAR (Challenge/Action/Result) framework.
+         3. Ensure the layout and language meet the highest industry standards for professional CVs.
+         4. DO NOT use placeholders. Use the candidate's ACTUAL data.
+         5. Focus on clarity, impact, and professional branding.
+         6. META FIELDS: For "jobTitle", use the candidate's current or most relevant title. For "company", use "General Optimization".`
+      : `TARGET JOB TITLE (Industry Standard Optimization): ${jobSpec}\n\nCRITICAL INSTRUCTION: You are optimizing the candidate's EXISTING CV for this specific job title. DO NOT create a skeleton. DO NOT use placeholders like [Company Name], [Date], or [Metric %]. You MUST use the candidate's ACTUAL experience, companies, dates, and metrics from the provided Candidate CV Data. If a detail is missing from the candidate's CV, omit it or use what is available. DO NOT invent facts or add placeholders for the user to fill in later. The output must be a ready-to-use CV based on the candidate's real history.`;
 
   const linkedinInstruction = linkedinUrl && linkedinUrl.trim() !== ''
     ? `MANDATORY LINKEDIN INSTRUCTION: The user provided this LinkedIn URL: ${linkedinUrl}. Insert this into the "linkedin" field in the JSON.`
@@ -458,7 +472,11 @@ export const generateTailoredApplication = async (
         [Company Address/City]
         
         Dear [Recipient Name],
-    5.  Write 3-4 paragraphs: Hook, Value Proposition (using metrics from CV), Company Alignment, Call to Action.
+    5.  Write 3-4 paragraphs: 
+        ${isGeneralOptimization 
+          ? "This is a SPECULATIVE cover letter. Paragraph 1: Express interest in potential opportunities. Paragraph 2: Highlight core value and top achievements. Paragraph 3: Explain why you are a great cultural fit for modern companies. Paragraph 4: Call to action for a meeting."
+          : "Hook, Value Proposition (using metrics from CV), Company Alignment, Call to Action."
+        }
     6.  End with:
         Sincerely,
         [Candidate Name]
