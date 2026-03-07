@@ -155,57 +155,72 @@ import { GoogleGenAI } from "@google/genai";
  */
 async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string, task: string = 'cv_generation', planId?: string, adminOverrideModel?: string): Promise<{text: string, provider?: string}> {
     const isJsonMode = systemInstruction.includes("JSON") || systemInstruction.includes("json");
+    let attempts = 0;
+    const maxAttempts = 2;
 
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000); // Overall timeout for the entire chain
+    while (attempts < maxAttempts) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000); // Overall timeout for the entire chain
 
-        const response = await fetch("/api/ai-proxy", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                systemPrompt: systemInstruction,
-                userPrompt: userMessage,
-                temperature,
-                jsonMode: isJsonMode,
-                task,
-                planId,
-                adminOverrideModel
-            }),
-            signal: controller.signal
-        });
+            const response = await fetch("/api/ai-proxy", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    systemPrompt: systemInstruction,
+                    userPrompt: userMessage,
+                    temperature,
+                    jsonMode: isJsonMode,
+                    task,
+                    planId,
+                    adminOverrideModel
+                }),
+                signal: controller.signal
+            });
 
-        clearTimeout(timeoutId);
+            clearTimeout(timeoutId);
 
-        if (!response.ok) {
-            const contentType = response.headers.get("content-type");
-            let errMessage = `AI Proxy failed with status ${response.status}`;
+            if (!response.ok) {
+                const contentType = response.headers.get("content-type");
+                let errMessage = `AI Proxy failed with status ${response.status}`;
+                
+                if (contentType && contentType.includes("application/json")) {
+                    const err = await response.json();
+                    errMessage = err.error || errMessage;
+                } else {
+                    const text = await response.text();
+                    errMessage = text.slice(0, 100);
+                }
+
+                if (response.status === 503 || errMessage.includes("High traffic")) {
+                    attempts++;
+                    if (attempts < maxAttempts) {
+                        console.warn(`High traffic detected, retrying (attempt ${attempts + 1})...`);
+                        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+                        continue;
+                    }
+                    throw new Error(errMessage || "High traffic, try again in 1 minute");
+                }
+                throw new Error(errMessage);
+            }
+
+            const data = await response.json();
+            return { text: data.text, provider: data.provider };
+        } catch (e: any) {
+            if (e.name === 'AbortError') throw new Error("Request timed out. Please try again.");
             
-            if (contentType && contentType.includes("application/json")) {
-                const err = await response.json();
-                errMessage = err.error || errMessage;
-            } else {
-                const text = await response.text();
-                errMessage = text.slice(0, 100);
+            if (e.message.includes("High traffic") && attempts < maxAttempts) {
+                attempts++;
+                console.warn(`High traffic detected in catch, retrying (attempt ${attempts + 1})...`);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                continue;
             }
-
-            if (response.status === 503) {
-                throw new Error(errMessage || "High traffic, try again in 1 minute");
-            }
-            throw new Error(errMessage);
+            
+            console.error("AI Proxy Call Failed:", e);
+            throw new Error(e.message || "High traffic, try again in 1 minute");
         }
-
-        const data = await response.json();
-        return { text: data.text, provider: data.provider };
-    } catch (e: any) {
-        console.error("AI Proxy Call Failed:", e);
-        // If it's already a high traffic error, just rethrow it
-        if (e.message.includes("High traffic")) {
-            throw e;
-        }
-        // Otherwise wrap it but keep some context
-        throw new Error(e.message || "High traffic, try again in 1 minute");
     }
+    throw new Error("High traffic, try again in 1 minute");
 }
 
 // Helper to safely parse JSON from AI models that might wrap it in markdown code blocks

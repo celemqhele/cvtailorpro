@@ -139,8 +139,8 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: 'Missing userPrompt' });
   }
 
-  const geminiKeys = [process.env.GEMINI_KEY_2, process.env.GEMINI_API_KEY].filter(Boolean);
-  const cerebrasKeys = [process.env.CEREBRAS_KEY_2, process.env.CEREBRAS_API_KEY].filter(Boolean);
+  const geminiKeys = [process.env.GEMINI_KEY_1, process.env.GEMINI_KEY_2, process.env.GEMINI_API_KEY].filter(Boolean);
+  const cerebrasKeys = [process.env.CEREBRAS_KEY, process.env.CEREBRAS_KEY_2, process.env.CEREBRAS_API_KEY].filter(Boolean);
   const claudeKey = process.env.CLAUDE_API_KEY;
 
   console.log(`Keys available: Gemini(${geminiKeys.length}), Cerebras(${cerebrasKeys.length}), Claude(${claudeKey ? 1 : 0})`);
@@ -183,15 +183,18 @@ export default async function handler(req: any, res: any) {
   } else if (planId === 'tier_1') {
     // Starter: Gemini 2.0 Flash-Lite (using 3.1-flash-lite as best match) -> Cerebras
     activeChain = [
-      { provider: 'gemini',   model: 'gemini-3.1-flash-lite-preview', keys: geminiKeys,   timeout: 25000 },
-      { provider: 'cerebras', model: 'llama-3.1-8b',                keys: cerebrasKeys, timeout: 20000 },
+      { provider: 'gemini',   model: 'gemini-3.1-flash-lite-preview', keys: geminiKeys,   timeout: 30000 },
+      { provider: 'cerebras', model: 'llama-3.1-8b',                keys: cerebrasKeys, timeout: 25000 },
+      { provider: 'gemini',   model: 'gemini-3-flash-preview',      keys: geminiKeys,   timeout: 25000 },
     ];
   } else {
-    // Free: Gemini 1.5 Flash-8B -> Cerebras
+    // Free: Gemini 3.1 Flash-Lite -> Gemini 1.5 Flash-8B -> Cerebras -> Gemini 3 Flash
     activeChain = [
+      { provider: 'gemini',   model: 'gemini-3.1-flash-lite-preview', keys: geminiKeys,   timeout: 30000 },
       { provider: 'gemini',   model: 'gemini-1.5-flash-8b',          keys: geminiKeys,   timeout: 25000 },
-      { provider: 'cerebras', model: 'llama-3.1-8b',                keys: cerebrasKeys, timeout: 20000 },
-      { provider: 'cerebras', model: 'Mistral-7B-Instruct-v0.2',     keys: cerebrasKeys, timeout: 20000 },
+      { provider: 'cerebras', model: 'llama-3.1-8b',                keys: cerebrasKeys, timeout: 25000 },
+      { provider: 'cerebras', model: 'Mistral-7B-Instruct-v0.2',     keys: cerebrasKeys, timeout: 25000 },
+      { provider: 'gemini',   model: 'gemini-3-flash-preview',      keys: geminiKeys,   timeout: 25000 },
     ];
   }
 
