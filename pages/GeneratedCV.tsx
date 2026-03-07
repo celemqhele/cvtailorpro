@@ -284,47 +284,11 @@ export const GeneratedCV: React.FC = () => {
           if (format === 'docx') {
               blob = await createWordBlob(elementId);
           } else {
-              // Try API first (CloudConvert/Puppeteer)
               try {
                   showToast("Generating high-quality PDF...", 'info');
                   blob = await generatePdfFromApi(elementId);
               } catch (apiError) {
-                  console.warn("API PDF generation failed, trying client-side fallback:", apiError);
-                  showToast("High-quality PDF failed. Using standard version...", 'warning');
-              }
-
-              // Client-side fallback if API fails
-              if (!blob) {
-                  try {
-                      const { jsPDF } = await import('jspdf');
-                      const html2canvas = (await import('html2canvas')).default;
-                      const element = document.getElementById(elementId);
-                      
-                      if (element) {
-                          const canvas = await html2canvas(element, {
-                              scale: 2,
-                              useCORS: true,
-                              logging: false,
-                              windowWidth: 794
-                          });
-                          
-                          const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                          const pdf = new jsPDF({
-                              orientation: 'portrait',
-                              unit: 'px',
-                              format: 'a4'
-                          });
-                          
-                          const imgProps = pdf.getImageProperties(imgData);
-                          const pdfWidth = pdf.internal.pageSize.getWidth();
-                          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-                          
-                          pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-                          blob = pdf.output('blob');
-                      }
-                  } catch (clientError) {
-                      console.error("Client-side PDF generation failed:", clientError);
-                  }
+                  console.error("API PDF generation failed:", apiError);
               }
           }
 
@@ -336,19 +300,14 @@ export const GeneratedCV: React.FC = () => {
           if (blob) {
               saveAs(blob, fileName);
           } else if (format === 'pdf') {
-              // PDF failed, prompt for DOCX and provide link
-              const copyLink = window.location.href;
-              const message = `PDF Generation service is currently unavailable. 
-Would you like to download the DOCX version instead? 
-You can also copy this link to come back later: ${copyLink}`;
-              
+              // PDF failed, prompt for DOCX
+              const message = `PDF Generation service is currently unavailable. Would you like to download the DOCX version instead?`;
               if (window.confirm(message)) {
                   handleDownload(docType, 'docx');
               }
           } else {
               showToast("Failed to generate file.", 'error');
           }
-
       } catch (e) {
           console.error("Download error:", e);
           showToast("An error occurred during download.", 'error');

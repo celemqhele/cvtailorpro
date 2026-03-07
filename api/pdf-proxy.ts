@@ -36,17 +36,7 @@ export default async function handler(request: any, response: any) {
       }
     }
 
-    // Fallback: Puppeteer
-    try {
-      console.log('Attempting PDF generation with Puppeteer fallback...');
-      const pdfBuffer = await generateWithPuppeteer(html);
-      response.setHeader('Content-Type', 'application/pdf');
-      response.setHeader('Content-Disposition', 'attachment; filename=cv.pdf');
-      return response.send(pdfBuffer);
-    } catch (puppeteerError: any) {
-      console.error('Puppeteer fallback failed:', puppeteerError);
-      return response.status(500).json({ error: 'All PDF generation methods failed' });
-    }
+    return response.status(503).json({ error: 'PDF generation service is temporarily unavailable. Please try again later.' });
 
   } catch (error: any) {
     console.error('PDF Generation Error:', error);
@@ -135,47 +125,4 @@ async function generateWithCloudConvert(html: string, apiKey: string): Promise<B
   if (!pdfResponse.ok) throw new Error('Failed to download PDF');
 
   return Buffer.from(await pdfResponse.arrayBuffer());
-}
-
-async function generateWithPuppeteer(html: string): Promise<Buffer> {
-  const chromium = await import('@sparticuz/chromium');
-  const puppeteer = await import('puppeteer-core');
-
-  let browser;
-  try {
-    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || await chromium.default.executablePath();
-    
-    // If we have an executable path, we can try to launch
-    browser = await puppeteer.default.launch({
-      args: executablePath ? [...chromium.default.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] : ['--no-sandbox'],
-      defaultViewport: chromium.default.defaultViewport,
-      executablePath: executablePath,
-      headless: chromium.default.headless === 'new' ? 'new' : true,
-      ignoreHTTPSErrors: true,
-    });
-
-    const page = await browser.newPage();
-    // Set a reasonable timeout
-    page.setDefaultNavigationTimeout(30000);
-    
-    await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
-    await page.setContent(html, {
-      waitUntil: ['networkidle0', 'domcontentloaded'],
-    });
-
-    await page.evaluateHandle('document.fonts.ready');
-
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
-      preferCSSPageSize: true,
-    });
-
-    return Buffer.from(pdfBuffer);
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
-  }
 }
