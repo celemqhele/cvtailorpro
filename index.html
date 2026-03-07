@@ -73,6 +73,41 @@
           #94a3b8 1123px
         );
       }
+
+      /* Page Breaking Logic for Preview and Print */
+      .section-container {
+        page-break-inside: auto;
+        break-inside: auto;
+        margin-bottom: 24px;
+      }
+
+      .experience-item, .skill-item, .education-item {
+        page-break-inside: avoid;
+        break-inside: avoid;
+        margin-bottom: 20px;
+        display: block;
+      }
+
+      h1, h2, h3 {
+        page-break-after: avoid;
+        break-after: avoid;
+        margin-top: 24px;
+      }
+
+      /* Keep section title with at least some content */
+      h2 + div, h2 + p, h2 + ul, h2 + table {
+        break-before: avoid;
+        page-break-before: avoid;
+      }
+
+      p, li, div {
+        orphans: 3;
+        widows: 3;
+      }
+
+      ul {
+        page-break-inside: auto;
+      }
       
       /* Print Styles for PDF Generation Fallback */
       @media print {
