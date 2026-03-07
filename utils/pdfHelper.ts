@@ -106,7 +106,7 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
                 break-inside: avoid;
              }
 
-             p, li {
+             p, li, div {
                 orphans: 3;
                 widows: 3;
              }
