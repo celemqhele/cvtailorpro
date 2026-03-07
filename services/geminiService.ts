@@ -333,52 +333,85 @@ export const generateTailoredApplication = async (
 
   // 2. Prepare Prompt
   const SCHEMA_INSTRUCTION = `
-  You are a CV optimization AI. Extract and optimize the CV data into this EXACT JSON structure.
-  
+  You are a Strategic CV Architect and ATS Optimization Expert. Your goal is to transform the existing CV into a tailored, results-driven document that maximizes ATS compatibility (target ≥85% match), improves recruiter readability, and positions the candidate as a strong match for the target role — without inventing achievements.
+
+  OBJECTIVE:
+  Reconstruct and enhance the CV to appear as the perfect fit for the provided job post. Think critically, reason independently, and position the profile to clearly show value and alignment. Do not fabricate achievements.
+
+  TASK:
+  1. Study the job post and CV carefully.
+  2. Reframe, reposition, and restructure experience, achievements, and credentials so the CV directly reflects the employer’s needs.
+  3. Emphasize, condense, reword, or move content where appropriate — do not remove real experience unless clearly redundant.
+  4. Provide a rationale covering:
+     - Why this version is stronger than the original.
+     - What changes improve alignment with job requirements.
+     - Which edits improve both ATS performance and human readability.
+     - How the positioning supports higher perceived value.
+
+  STRATEGIC GUIDELINES:
+  - Positioning & Tone: Do not fabricate numbers or achievements. Mirror the job description’s tone, structure, and key terms. Update job titles to industry-standard naming conventions (no inflation). Frame experience around measurable outcomes, leadership scope, and contributions to growth or improvement.
+  - Language & Localisation: Use UK/SA English if the CV references local regions (e.g. Durban, London). Maintain a clean, professional tone — no clichés or filler.
+  - Formatting & ATS: Use simple text structure. Keep clear headings. Date format: Mon YYYY – Mon YYYY for roles; Mon YYYY for education. Experience bullets: ~75–100 characters max, using the Challenge / Action / Result (CAR) framework. Quantify where natural — no made-up numbers.
+
   CRITICAL: You must return strictly valid JSON.
 
   Structure:
   {
     "outcome": "PROCEED",
+    "rationale": {
+        "strength": "Detailed explanation of why this version is stronger",
+        "alignment": "Key changes that improve alignment",
+        "ats_readability": "Edits for ATS and human readability",
+        "value_positioning": "How positioning supports higher perceived value"
+    },
     "meta": {
-        "jobTitle": "The specific Job Title from the description (e.g. 'Senior Data Analyst'). Do NOT use placeholders like 'Role' or 'General'. If unknown, infer the most likely title.",
-        "company": "The Company Name (or 'Company' if unknown)",
-        "suggestedFilename": "CandidateName_JobTitle_CV"
+        "jobTitle": "The specific Job Title from the description",
+        "company": "The Company Name",
+        "suggestedFilename": "[Candidate Name] - [Job Title] - [Company]"
     },
     "cvData": {
         "name": "FULL NAME",
-        "title": "Professional Title/Role",
+        "title": "Professional Title/Role reflecting actual expertise",
         "location": "City, Country",
         "phone": "Phone number",
         "email": "email@example.com",
         "linkedin": "LinkedIn URL or null",
-        "summary": "2-3 sentence professional summary tailored to job",
+        "availability": "Date or Immediate",
+        "summary": "150-200 word professional summary summarizing the candidate as the ideal fit. Include: Years of relevant experience, 2-3 specialisations, value proposition, one notable measurable achievement, and a forward-looking statement of value.",
         "skills": [
-            {"category": "Category Name", "items": "comma, separated, skills"}
+            {"category": "Primary/Secondary/Technical Category", "items": "comma, separated, skills"}
         ],
         "experience": [
             {
-            "title": "Job Title",
-            "company": "Company Name",
-            "dates": "Month Year – Month Year",
-            "achievements": ["Achievement 1", "Achievement 2"]
+              "title": "JOB TITLE",
+              "company": "COMPANY NAME",
+              "context": "Company context if relevant",
+              "dates": "Mon YYYY – Mon YYYY",
+              "achievements": ["Bullet using CAR framework: [Action] + [Achievement] + [Impact/Outcome] + [Relevance]"]
             }
         ],
-        "keyAchievements": ["Achievement 1", "Achievement 2"],
-        "education": [
-            {"degree": "Degree/Certification", "institution": "School", "year": "Year"}
+        "keyAchievements": ["5-7 total: [Quantified achievement] – [Challenge] – [Action] – [Impact] | [Company] (YYYY)"],
+        "otherExperience": [
+            {
+              "title": "Job Title",
+              "company": "Company Name",
+              "dates": "Mon YYYY – Mon YYYY",
+              "achievements": ["Earlier or supporting roles that strengthen the story"]
+            }
         ],
-        "references": [
-            {"name": "Reference Name", "contact": "Phone/Email or Relationship"}
-        ]
+        "education": [
+            {"degree": "QUALIFICATION", "institution": "INSTITUTION", "year": "YYYY"}
+        ],
+        "certifications": ["CERT NAME – ISSUING BODY – YYYY"],
+        "references": "References available on request or specific list if present"
     },
     "coverLetter": {
       "title": "Cover_Letter.docx",
-      "content": "Strictly formatted business letter text..."
+      "content": "Tailored cover letter in UK/SA English. Paragraph format only (no bullets). Explain match. Reframe missing qualifications as transferable strengths."
     },
     "rejectionDetails": {
-      "reason": "Explanation...",
-      "suggestion": "Better fit roles..."
+      "reason": "Explanation if outcome is REJECT",
+      "suggestion": "Better fit roles"
     }
   }
   `;
@@ -417,13 +450,16 @@ export const generateTailoredApplication = async (
   `;
 
   const userMessage = `
-      STEP 1: Analyze the Candidate CV and Additional Information (if any). Identify all METRICS, NUMBERS, and SPECIFIC ACHIEVEMENTS.
-      STEP 2: Analyze the Target Target Job. Identify TOP 5 KEYWORDS. Extract Job Title and Company Name for the 'meta' field. GENERATE a professional filename in the 'meta.suggestedFilename' field (e.g. "John_Smith_Senior_Accountant_CV").
-      STEP 3: Rewrite the CV Data into the JSON structure. Integrate any relevant details from the "Additional Information" section into the summary, skills, or experience as appropriate. 
-      NOTE: If References are present in the CV, extract them into the 'references' array. If none are present, leave it empty.
-      STEP 4: Write the Cover Letter content following the TRADITIONAL BUSINESS LETTER rules.
+      STEP 1: Analyze the Candidate CV and Additional Information. Identify all METRICS, NUMBERS, and SPECIFIC ACHIEVEMENTS.
+      STEP 2: Analyze the Target Job. Identify TOP 5 KEYWORDS. Extract Job Title and Company Name for the 'meta' field.
+      STEP 3: REFRAME, REPOSITION, and RESTRUCTURE the experience, achievements, and credentials. 
+      - Emphasize, condense, reword, or move content to directly reflect the employer’s needs.
+      - DO NOT remove real experience unless clearly redundant.
+      - Use the CAR (Challenge/Action/Result) framework for all experience bullets.
+      STEP 4: Generate the Rationale section explaining the strategic choices made.
+      STEP 5: Write the Cover Letter following the paragraph-only, UK/SA English rules.
       
-      CRITICAL: DO NOT use the phrase "Core Competencies" anywhere in the CV. Use "Skills" or "SKILLS" instead.
+      CRITICAL: DO NOT use the phrase "Core Competencies" as a header. Use the contextual categories identified from the job description.
       
       ${linkedinInstruction}
       ${coverLetterInstruction}

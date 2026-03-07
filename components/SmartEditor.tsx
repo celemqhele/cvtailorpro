@@ -8,7 +8,7 @@ import { ToastType } from './ToastNotification';
 interface SmartEditorProps {
   cvData: CVData | null;
   clContent?: string;
-  viewMode: 'cv' | 'cl';
+  viewMode: 'cv' | 'cl' | 'strategy';
   onSmartEdit: (instruction: string) => Promise<void>;
   onManualUpdate: (updatedData: CVData) => void;
   onManualUpdateCL: (updatedContent: string) => void;
@@ -90,7 +90,11 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
     if (cvData) {
         setFormData({ ...cvData });
         if (cvData.references) {
-            setReferencesText(cvData.references.map(r => `${r.name} - ${r.contact}`).join('\n'));
+            if (Array.isArray(cvData.references)) {
+                setReferencesText(cvData.references.map((r: any) => `${r.name} - ${r.contact}`).join('\n'));
+            } else {
+                setReferencesText(cvData.references);
+            }
         } else {
             setReferencesText('');
         }
@@ -249,6 +253,27 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
         onManualUpdateCL(manualCL);
     }
   };
+
+  if (viewMode === 'strategy') {
+    return (
+      <div className="bg-white rounded-xl shadow-lg border border-slate-200 h-full flex flex-col overflow-hidden sticky top-20 max-h-[calc(100vh-100px)] p-8 text-center items-center justify-center">
+        <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 mb-4">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </div>
+        <h3 className="text-xl font-bold text-slate-900 mb-2">Strategic Insights</h3>
+        <p className="text-slate-500 text-sm leading-relaxed">
+          The Smart Editor is currently optimized for CV and Cover Letter content. 
+          Use the Strategic Rationale to understand the logic behind your tailored profile.
+        </p>
+        <button 
+          onClick={() => (window as any).location.reload()} 
+          className="mt-6 text-indigo-600 font-bold text-sm hover:underline"
+        >
+          Refresh View
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-slate-200 h-full flex flex-col overflow-hidden sticky top-20 max-h-[calc(100vh-100px)]">

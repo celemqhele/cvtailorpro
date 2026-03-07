@@ -520,7 +520,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
             {
                 generated_at: new Date().toISOString(),
                 page_count: estimatedPages,
-                source: cvInputMode
+                source: cvInputMode,
+                rationale: dataToSave.rationale
             }
         );
         

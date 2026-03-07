@@ -31,7 +31,7 @@ export const GeneratedCV: React.FC = () => {
   const [application, setApplication] = useState<SavedApplication | null>(null);
   const [cvData, setCvData] = useState<CVData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'cv' | 'cl'>('cv');
+  const [viewMode, setViewMode] = useState<'cv' | 'cl' | 'strategy'>('cv');
   
   // Master Editor State
   const [isMasterEditMode, setIsMasterEditMode] = useState(false);
@@ -621,6 +621,14 @@ export const GeneratedCV: React.FC = () => {
                         >
                             Cover Letter
                         </button>
+                        {application?.metadata?.rationale && (
+                            <button 
+                                onClick={() => setViewMode('strategy')}
+                                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'strategy' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                            >
+                                Strategic Rationale
+                            </button>
+                        )}
                     </div>
                     <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
                         {/* Legend removed */}
@@ -646,7 +654,7 @@ export const GeneratedCV: React.FC = () => {
                                     onUpdate={handleManualUpdate}
                                 />
                             </div>
-                        ) : (
+                        ) : viewMode === 'cl' ? (
                             <div id="cl-render-target" className="bg-white shadow-2xl origin-top-left md:origin-top scale-[0.85] md:scale-100 transition-transform duration-200 shrink-0 mb-[-150px] md:mb-0">
                                 {application.cl_content ? (
                                     <CoverLetterTemplate 
@@ -660,6 +668,47 @@ export const GeneratedCV: React.FC = () => {
                                         No Cover Letter generated for this application.
                                     </div>
                                 )}
+                            </div>
+                        ) : (
+                            <div className="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-slate-200 p-8 md:p-12 animate-fade-in">
+                                <div className="flex items-center gap-4 mb-8">
+                                    <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-slate-900">Strategic Rationale</h2>
+                                        <p className="text-slate-500">How our AI optimized your profile for this specific role</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-6">
+                                        <div className="bg-slate-50 rounded-2xl p-6">
+                                            <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-2">Strategic Strength</h3>
+                                            <p className="text-slate-700 leading-relaxed">{application.metadata.rationale.strength}</p>
+                                        </div>
+                                        <div className="bg-slate-50 rounded-2xl p-6">
+                                            <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-2">Alignment Edits</h3>
+                                            <p className="text-slate-700 leading-relaxed">{application.metadata.rationale.alignment}</p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-6">
+                                        <div className="bg-slate-50 rounded-2xl p-6">
+                                            <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-2">ATS & Readability</h3>
+                                            <p className="text-slate-700 leading-relaxed">{application.metadata.rationale.ats_readability}</p>
+                                        </div>
+                                        <div className="bg-slate-50 rounded-2xl p-6">
+                                            <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-2">Value Positioning</h3>
+                                            <p className="text-slate-700 leading-relaxed">{application.metadata.rationale.value_positioning}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-12 p-6 bg-indigo-50 rounded-2xl border border-indigo-100">
+                                    <p className="text-sm text-indigo-800 italic">
+                                        "This rationale explains the 'why' behind the edits. We've reframed your experience to highlight the outcomes most relevant to the employer's needs, ensuring you stand out both to ATS filters and human recruiters."
+                                    </p>
+                                </div>
                             </div>
                         )}
                     </div>
