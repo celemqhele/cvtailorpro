@@ -10,7 +10,7 @@ const RECRUITER_PLANS = [
     price: 0, 
     searches: 1, 
     candidates: 2, 
-    quality: 'Standard AI Optimization',
+    quality: 'Gemini 1.5 Flash',
     description: 'Perfect for trying out our AI matching technology.',
     features: ['1 AI Search', 'View 2 candidates per search', 'Basic matching', 'Email support']
   },
@@ -20,7 +20,7 @@ const RECRUITER_PLANS = [
     price: 2500, 
     searches: 10, 
     candidates: 10, 
-    quality: 'Standard AI Optimization',
+    quality: 'Gemini 3.1 Flash-Lite',
     description: 'Ideal for small businesses with occasional hiring needs.',
     features: ['10 AI Searches', 'View 10 candidates per search', 'Priority matching', 'Export candidate summaries', 'High-Quality PDF Exports']
   },
@@ -30,7 +30,7 @@ const RECRUITER_PLANS = [
     price: 7500, 
     searches: 30, 
     candidates: 25, 
-    quality: 'Enhanced AI Precision & Speed',
+    quality: 'Gemini 3 Flash (High-Speed)',
     description: 'Best for growing teams with regular hiring requirements.',
     popular: true,
     features: ['30 AI Searches', 'View 25 candidates per search', 'Advanced AI ranking', 'Direct candidate contact', 'High-Quality PDF Exports', 'Priority support']
@@ -41,7 +41,7 @@ const RECRUITER_PLANS = [
     price: 25000, 
     searches: 'Unlimited', 
     candidates: 'Full Access', 
-    quality: 'Elite Deep-Reasoning AI (Maximum Quality)',
+    quality: 'Gemini 3.1 Pro (Thinking Mode)',
     description: 'For high-volume recruitment agencies and large enterprises.',
     features: ['Unlimited AI Searches', 'Full candidate access', 'Custom AI matching rules', 'High-Quality PDF Exports', 'Dedicated account manager', 'API Access']
   },
