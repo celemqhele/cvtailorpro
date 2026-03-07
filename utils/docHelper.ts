@@ -16,10 +16,11 @@ export const createHtmlToDocxBlob = async (htmlContent: string): Promise<Blob | 
             <head>
                 <meta charset="UTF-8">
                 <style>
-                    body { font-family: 'Calibri', 'Arial', sans-serif; font-size: 11pt; line-height: 1.4; }
+                    body { font-family: 'Calibri', 'Arial', sans-serif; font-size: 11pt; line-height: 1.5; }
                     h1, h2, h3 { color: #2c3e50; }
                     table { width: 100%; border-collapse: collapse; margin-bottom: 0 !important; }
                     td { vertical-align: top; padding: 0 !important; }
+                    a { color: inherit !important; text-decoration: none !important; }
                     /* Fix centering */
                     header { text-align: center !important; }
                     h1 { text-align: center !important; }

@@ -39,7 +39,10 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
                 background: white; 
                 -webkit-font-smoothing: antialiased; 
                 color: #1e293b;
+                line-height: 1.5;
              }
+             
+             a { color: inherit !important; text-decoration: none !important; }
              
              * { box-sizing: border-box; }
              

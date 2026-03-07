@@ -55,11 +55,11 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
       outline: 'none',
       display: 'flex',
       justifyContent: 'center',
-      gap: '8px',
+      gap: '12px',
       flexWrap: 'wrap' as const,
     },
     separator: {
-      margin: '0 8px',
+      margin: '0 10px',
       color: '#999999',
     },
     section: {
@@ -218,11 +218,18 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
            <span style={styles.separator}>|</span>
            <span>{data.phone}</span>
            <span style={styles.separator}>|</span>
-           <span>{data.email}</span>
+           <a href={`mailto:${data.email}`} style={{ color: 'inherit', textDecoration: 'none' }}>{data.email}</a>
            {formattedLinkedIn && (
              <>
                <span style={styles.separator}>|</span>
-               <span>{formattedLinkedIn}</span>
+               <a 
+                 href={data.linkedin?.startsWith('http') ? data.linkedin : `https://linkedin.com/in/${formattedLinkedIn}`} 
+                 target="_blank" 
+                 rel="noopener noreferrer"
+                 style={{ color: 'inherit', textDecoration: 'none' }}
+               >
+                 {formattedLinkedIn}
+               </a>
              </>
            )}
         </div>
