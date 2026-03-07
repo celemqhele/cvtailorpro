@@ -105,16 +105,25 @@ export interface CVData {
   phone: string;
   email: string;
   linkedin?: string;
+  availability?: string;
   summary: string;
   skills: CVSkill[];
   experience: CVExperience[];
   keyAchievements?: string[];
+  otherExperience?: CVExperience[];
   education: CVEducation[];
-  references?: CVReference[];
+  certifications?: string[];
+  references?: CVReference[] | string;
 }
 
 export interface GeneratorResponse {
   outcome: 'PROCEED' | 'REJECT';
+  rationale?: {
+      strength: string;
+      alignment: string;
+      ats_readability: string;
+      value_positioning: string;
+  };
   rejectionDetails?: RejectionDetails;
   cvData?: CVData; 
   coverLetter?: TailoredDocument; 
