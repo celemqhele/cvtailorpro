@@ -16,7 +16,7 @@ export interface SubscriptionPlan {
 }
 
 export const PLANS: SubscriptionPlan[] = [
-  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 1, description: '1 CV / Week (Ads)', quality: 'Gemini 1.5 Flash-8B', hasPdfDownload: true },
+  { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 1, description: '1 CV / Day (Ads)', quality: 'Gemini 1.5 Flash-8B', hasPdfDownload: true },
   { id: 'tier_1', name: 'Starter', price: 19.99, durationDays: 30, dailyLimit: 5, description: '5 CVs / Day', quality: 'Gemini 2.0 Flash-Lite', hasPdfDownload: true },
   { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 10, description: 'Skeleton Mode', quality: 'Gemini 2.5 Flash', hasSkeletonMode: true, hasReferenceUpload: true, hasPdfDownload: true },
   { id: 'tier_3', name: 'Pro', price: 99.99, durationDays: 30, dailyLimit: 25, description: 'Auto-Fill Skeleton', quality: 'Gemini 3.1 Pro (Thinking)', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true, hasPdfDownload: true },
