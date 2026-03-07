@@ -260,10 +260,11 @@ export const GeneratedCV: React.FC = () => {
           // Temporarily remove the preview lines from the DOM element to ensure clean export
           const element = document.getElementById(elementId);
           let removedClass = false;
-          if (element && element.children.length > 0) {
-              const contentContainer = element.children[0];
-              if (contentContainer.classList.contains('cv-preview-background')) {
-                  contentContainer.classList.remove('cv-preview-background');
+          if (element) {
+              // Ensure we target the right container
+              const container = element.classList.contains('cv-absolute-container') ? element : element.querySelector('.cv-absolute-container');
+              if (container && container.classList.contains('cv-preview-background')) {
+                  container.classList.remove('cv-preview-background');
                   removedClass = true;
               }
           }
@@ -273,11 +274,13 @@ export const GeneratedCV: React.FC = () => {
           if (format === 'docx') {
               blob = await createWordBlob(elementId);
           } else {
-              // Try API first (Puppeteer/CloudConvert)
+              // Try API first (CloudConvert/Puppeteer)
               try {
+                  showToast("Generating high-quality PDF...", 'info');
                   blob = await generatePdfFromApi(elementId);
               } catch (apiError) {
                   console.warn("API PDF generation failed, trying client-side fallback:", apiError);
+                  showToast("High-quality PDF failed. Using standard version...", 'warning');
               }
 
               // Client-side fallback if API fails

@@ -2,7 +2,6 @@
 /* global AbortController */
 import { GoogleGenAI } from "@google/genai";
 import Anthropic from "@anthropic-ai/sdk";
-import fetch from "node-fetch";
 
 // ============================================================
 // TODO FOR AI STUDIO (restore tier routing when ready):

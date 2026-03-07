@@ -22,30 +22,30 @@ export default async function handler(request: any, response: any) {
       return response.status(500).json({ error: 'No CloudConvert API keys configured' });
     }
 
-    // Try Puppeteer first
-    try {
-      console.log('Attempting PDF generation with Puppeteer...');
-      const pdfBuffer = await generateWithPuppeteer(html);
-      response.setHeader('Content-Type', 'application/pdf');
-      response.setHeader('Content-Disposition', 'attachment; filename=cv.pdf');
-      return response.send(pdfBuffer);
-    } catch (puppeteerError: any) {
-      console.error('Puppeteer failed:', puppeteerError);
-      // Continue to CloudConvert fallback
-    }
-
-    // Fallback: CloudConvert
+    // Try CloudConvert first (Primary)
     for (const apiKey of keys) {
       try {
+        console.log('Attempting PDF generation with CloudConvert...');
         const pdfBuffer = await generateWithCloudConvert(html, apiKey);
         response.setHeader('Content-Type', 'application/pdf');
         response.setHeader('Content-Disposition', 'attachment; filename=cv.pdf');
         return response.send(pdfBuffer);
       } catch (error: any) {
         console.warn(`CloudConvert key failed:`, error.message);
-        // If it's a specific error we can't recover from with another key, we might want to log more
         continue;
       }
+    }
+
+    // Fallback: Puppeteer
+    try {
+      console.log('Attempting PDF generation with Puppeteer fallback...');
+      const pdfBuffer = await generateWithPuppeteer(html);
+      response.setHeader('Content-Type', 'application/pdf');
+      response.setHeader('Content-Disposition', 'attachment; filename=cv.pdf');
+      return response.send(pdfBuffer);
+    } catch (puppeteerError: any) {
+      console.error('Puppeteer fallback failed:', puppeteerError);
+      return response.status(500).json({ error: 'All PDF generation methods failed' });
     }
 
   } catch (error: any) {
