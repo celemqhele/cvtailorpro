@@ -1,20 +1,28 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# CV Tailor Pro
 
-# Run and deploy your AI Studio app
+ATS-optimized CV tailoring application.
 
-This contains everything you need to run your app locally.
+## Fallback Providers
 
-View your app in AI Studio: https://ai.studio/apps/60a496a7-6424-4025-9c51-76185d4ad889
+If the primary AI providers are unavailable or over quota, the system uses a round-robin fallback chain. Below is a list of free LLM providers that are compatible with our `ai-proxy` interface.
 
-## Run Locally
+| Provider | Model (Free Tier) | Endpoint (example) | Free-quota / notes | Quick-setup |
+|----------|-------------------|--------------------|--------------------|-------------|
+| **Cerebras** | `llama-3.3-70b` | `https://api.cerebras.ai/v1/chat/completions` | High-speed Llama 3.3 | Set `CEREBRAS_KEY_2` |
+| **Cerebras** | `GLM-4.7` | `https://api.cerebras.ai/v1/chat/completions` | Fallback model | Set `CEREBRAS_KEY_2` |
+| **OpenAI** | `gpt-3.5-turbo` | `https://api.openai.com/v1/chat/completions` | $5-$18 credit for new accounts | Set `OPENAI_API_KEY` |
+| **Anthropic** | `claude-3-haiku-20240307` | `https://api.anthropic.com/v1/messages` | 5M input tokens/month free | Set `ANTHROPIC_API_KEY` |
+| **Mistral AI** | `mistral-small-latest` | `https://api.mistral.ai/v1/chat/completions` | 10M tokens/month free | Set `MISTRAL_API_KEY` |
+| **Groq** | `llama3-8b-8192` | `https://api.groq.com/openai/v1/chat/completions` | Unlimited free tier (rate-limited) | Set `GROQ_API_KEY` |
+| **Google Gemini** | `gemini-1.5-flash` | `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent` | Free tier available | Set `GOOGLE_API_KEY` |
+| **Cerebras** | `Cerebras-GPT-13B-Instruct` | `https://api.cerebras.ai/v1/chat/completions` | Free tier available | Set `CEREBRAS_API_KEY` |
 
-**Prerequisites:**  Node.js
+## Testing Connectivity
 
+You can test the connectivity of the configured models using the following command:
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```bash
+npm run test-proxy
+```
+
+This will iterate through the configured models and report their status.

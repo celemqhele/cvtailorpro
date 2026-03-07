@@ -46,6 +46,11 @@ async function startServer() {
   app.post("/api/pdf-proxy", wrap(pdfProxyHandler));
   app.post("/api/ocr-proxy", wrap(ocrProxyHandler));
   app.post("/api/paystack-verify", wrap(paystackVerifyHandler));
+  
+  // 404 for API routes
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ error: `API route ${req.method} ${req.url} not found` });
+  });
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

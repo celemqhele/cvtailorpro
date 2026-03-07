@@ -20,5 +20,6 @@ The admin logs provide essential context on:
 -   `DELETE_ARTICLE`: When an article is removed.
 -   `RESET_DAILY_CREDITS`: When the admin resets usage limits for all users.
 -   `GENERATE_JOB_SPEC`: When the admin uses the LinkedIn scraper to generate a job spec.
+-   `TEST_MODEL`: When the admin tests the connectivity of a specific AI model.
 
 **DO NOT PROCEED WITH CHANGES WITHOUT CHECKING THESE LOGS FOR CONTEXT.**
