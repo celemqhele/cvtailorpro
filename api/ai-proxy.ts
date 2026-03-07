@@ -174,12 +174,12 @@ export default async function handler(req: any, res: any) {
       // FREE: Basic version - strip almost all strategy
       processedPrompt = processedPrompt
         .replace("Strategic CV Architect and ATS Optimization Expert", "Basic CV Formatter")
-        .replace(/OBJECTIVE:[\s\S]*?achievements\./, "OBJECTIVE: Reformat the CV to match the job description.")
+        .replace(/OBJECTIVE:[\s\S]*?achievements\./, "OBJECTIVE: Reformat the CV to match the job description. Do not fabricate achievements.")
         .replace(/TASK:[\s\S]*?perceived value\./, "TASK: 1. Update the CV content to match the job keywords.")
-        .replace(/STRATEGIC GUIDELINES:[\s\S]*?no made-up numbers\./, "STRATEGIC GUIDELINES: Use simple language. Do not use CAR framework. Just list tasks.")
+        .replace(/STRATEGIC GUIDELINES:[\s\S]*?no made-up numbers\./, "STRATEGIC GUIDELINES: Use simple language. Do not use CAR framework. Just list tasks. Do not fabricate numbers or achievements.")
         .replace(/"summary": "150-200 word professional summary[\s\S]*?forward-looking statement of value."/, '"summary": "A short 50-word summary of the candidate."')
         .replace(/"achievements": \["Bullet using CAR framework: \[Action\] \+ \[Achievement\] \+ \[Impact\/Outcome\] \+ \[Relevance\]"\]/, '"achievements": ["List basic responsibilities"]');
-      processedPrompt += "\n\nTIER: FREE. Provide basic, concise tailoring. Limit the depth of analysis. Focus on standard formatting and essential keywords only. Do not provide advanced strategic insights.";
+      processedPrompt += "\n\nTIER: FREE. Provide basic, concise tailoring. Limit the depth of analysis. Focus on standard formatting and essential keywords only. Do not provide advanced strategic insights. Do not fabricate experience.";
     }
   } else {
     // For other tasks, just use the tier limiter

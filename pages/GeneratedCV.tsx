@@ -21,7 +21,7 @@ export const GeneratedCV: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, triggerAuth, triggerPayment, isPaidUser, showToast, dailyCvCount, dailyLimit, isMaxPlan } = useOutletContext<any>();
+  const { user, triggerAuth, triggerPayment, isPaidUser, showToast, dailyCvCount, dailyLimit, isMaxPlan, checkUserSession } = useOutletContext<any>();
   const hasFreeCredits = isMaxPlan || dailyCvCount < dailyLimit;
   
   const currentPlan = user?.plan_id ? PLANS.find((p: any) => p.id === user.plan_id) : PLANS[0];
@@ -587,10 +587,71 @@ export const GeneratedCV: React.FC = () => {
        )}
 
        {/* Layout with Sidebar */}
-       <div className="max-w-[1400px] mx-auto px-4 py-8 print-container grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-8 items-start">
+       <div className="max-w-[1400px] mx-auto px-4 py-8 print-container grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-8 items-start">
            
-           {/* LEFT: Main Preview Area */}
-           <div className="order-2 lg:order-1">
+           {/* LEFT: Meta Sidebar */}
+           <div className="order-2 lg:order-1 space-y-6 no-print">
+                {/* Recruiter Headhunter Opt-in */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sticky top-24">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-slate-900">Headhunter</h3>
+                            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Talent Network</p>
+                        </div>
+                    </div>
+                    
+                    {user?.opt_in_headhunter ? (
+                        <div className="bg-green-50 border border-green-100 rounded-xl p-4">
+                            <div className="flex items-center gap-2 text-green-700 font-bold text-sm mb-1">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                Profile Active
+                            </div>
+                            <p className="text-[11px] text-green-600 leading-tight">Recruiters can now find and contact you for relevant roles.</p>
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-xs text-slate-600 mb-6 leading-relaxed">
+                                Allow recruiters to find your profile and contact you directly for relevant job opportunities.
+                            </p>
+                            <button 
+                                onClick={async () => {
+                                    try {
+                                        if (!user) {
+                                            triggerAuth();
+                                            return;
+                                        }
+                                        await supabase.from('profiles').update({ opt_in_headhunter: true }).eq('id', user.id);
+                                        analytics.trackEvent('headhunter_opt_in', { user_id: user.id });
+                                        await checkUserSession();
+                                        showToast("You've successfully opted in! Recruiters can now find you.", 'success');
+                                    } catch (err) {
+                                        console.error('Opt-in failed:', err);
+                                        showToast("Failed to opt in. Please try again.", 'error');
+                                    }
+                                }}
+                                className="w-full py-3 bg-slate-900 hover:bg-black text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-sm shadow-sm"
+                            >
+                                Opt-in to Headhunter
+                            </button>
+                        </>
+                    )}
+
+                    <div className="mt-6 pt-6 border-t border-slate-100">
+                        <div className="bg-indigo-50 rounded-xl p-4">
+                            <h4 className="text-xs font-bold text-indigo-700 mb-1">Pro Tip</h4>
+                            <p className="text-[11px] text-indigo-600 leading-relaxed">
+                                Tailored CVs have a 3x higher response rate. Use the Smart Editor to tweak your summary.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {/* CENTER: Main Preview Area */}
+            <div className="order-3 lg:order-2">
                 {/* Mobile Apply Button */}
                 {application.original_link && (
                     <div className="md:hidden mb-6 no-print">
@@ -716,7 +777,7 @@ export const GeneratedCV: React.FC = () => {
            </div>
 
             {/* RIGHT: Smart Editor Sidebar */}
-            <div className="order-1 lg:order-2 sidebar-container lg:h-full no-print space-y-6">
+            <div className="order-1 lg:order-3 sidebar-container lg:h-full no-print space-y-6">
                 <SmartEditor 
                   cvData={cvData}
                   clContent={application.cl_content}
@@ -730,42 +791,6 @@ export const GeneratedCV: React.FC = () => {
                   userPlanId={user?.plan_id}
                   showToast={showToast}
                 />
-
-                {/* Recruiter Headhunter Opt-in */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-slate-900">Headhunter Opt-in</h3>
-                            <p className="text-xs text-slate-500">Get discovered by top recruiters</p>
-                        </div>
-                    </div>
-                    <p className="text-sm text-slate-600 mb-6 leading-relaxed">
-                        Allow recruiters to find your profile and contact you directly for relevant job opportunities.
-                    </p>
-                    <button 
-                        onClick={async () => {
-                            try {
-                                const { data: { user } } = await supabase.auth.getUser();
-                                if (!user) {
-                                    triggerAuth();
-                                    return;
-                                }
-                                await supabase.from('profiles').update({ opt_in_headhunter: true }).eq('id', user.id);
-                                analytics.trackEvent('headhunter_opt_in', { user_id: user.id });
-                                showToast("You've successfully opted in! Recruiters can now find you.", 'success');
-                            } catch (err) {
-                                console.error('Opt-in failed:', err);
-                                showToast("Failed to opt in. Please try again.", 'error');
-                            }
-                        }}
-                        className="w-full py-3 bg-slate-900 hover:bg-black text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2"
-                    >
-                        Opt-in to Headhunter
-                    </button>
-                </div>
             </div>
        </div>
 

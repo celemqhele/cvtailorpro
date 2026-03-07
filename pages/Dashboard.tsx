@@ -117,6 +117,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [result, setResult] = useState<GeneratorResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [generatedCvId, setGeneratedCvId] = useState<string | null>(null);
+  const [adminPlanOverride, setAdminPlanOverride] = useState<string | null>(null);
   
   // Pending actions for ad completion
   const [pendingGenParams, setPendingGenParams] = useState<{force: boolean, isTitle: boolean, isSkeleton: boolean} | null>(null);
@@ -453,7 +454,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
               textToAnalyze, 
               "",
               (useSavedCv && savedCvText) ? savedCvText : undefined,
-              user?.plan_id
+              adminPlanOverride || user?.plan_id
           );
           setAnalysis(analysisResult);
           setStatus(Status.ANALYSIS_COMPLETE);
@@ -591,7 +592,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           linkedinUrl,
           (useSavedCv && savedCvText) ? savedCvText : undefined,
           combinedAdditionalInfo, // Pass combined info
-          user?.plan_id
+          adminPlanOverride || user?.plan_id
       );
       if (response.outcome !== 'REJECT') {
           setResult(response);
@@ -663,7 +664,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       setGeneratedCvId(null);
 
       try {
-          const response = await generateSkeletonCV(textToAnalyze, "", user?.plan_id);
+          const response = await generateSkeletonCV(textToAnalyze, "", adminPlanOverride || user?.plan_id);
           if (response.outcome !== 'REJECT') {
               setResult(response);
               setStatus(Status.SUCCESS);
@@ -789,6 +790,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                         </button>
                     </div>
                  </div>
+
+                 {/* Admin Plan Override */}
+                 {user?.email === 'mqhele03@gmail.com' && (
+                    <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 p-2 rounded-xl">
+                        <span className="text-[10px] font-bold text-amber-600 uppercase">Test Plan:</span>
+                        <select 
+                            className="text-xs font-bold bg-white border border-amber-200 rounded px-2 py-1 outline-none"
+                            value={adminPlanOverride || user?.plan_id || 'free'}
+                            onChange={(e) => setAdminPlanOverride(e.target.value)}
+                        >
+                            <option value="free">Free</option>
+                            <option value="tier_1">Starter</option>
+                            <option value="tier_2">Growth</option>
+                            <option value="tier_3">Pro</option>
+                            <option value="tier_4">Unlimited</option>
+                        </select>
+                    </div>
+                 )}
+
                  {user && mode === 'user' && (
                     <button onClick={() => setShowHistoryModal(true)} className="text-sm font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 flex items-center gap-2">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
