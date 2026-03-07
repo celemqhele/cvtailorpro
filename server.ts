@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 // Import API handlers
 import ga4Handler from "./api/ga4-data.js";
 import aiProxyHandler from "./api/ai-proxy.js";
-import pdfProxyHandler from "./api/generate-pdf.js";
+import pdfProxyHandler from "./api/pdf-proxy.js";
 import ocrProxyHandler from "./api/ocr-proxy.js";
 import paystackVerifyHandler from "./api/paystack-verify.js";
 
