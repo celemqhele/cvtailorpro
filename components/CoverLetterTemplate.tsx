@@ -49,6 +49,8 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
     paragraph: {
       marginBottom: '12pt', // Distinct paragraph spacing for Word/PDF
       minHeight: '12pt', // Ensures empty lines are preserved
+      breakInside: 'avoid' as const,
+      pageBreakInside: 'avoid' as const,
     }
   };
 
