@@ -11,9 +11,16 @@ const performPdfGenerationRequest = async (html: string): Promise<Blob> => {
         });
         
         if (response.ok) {
-            return await response.blob();
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/pdf")) {
+                return await response.blob();
+            }
+            const errText = await response.text();
+            console.warn("Puppeteer returned non-PDF response:", errText);
+        } else {
+            const errData = await response.json().catch(() => ({ error: "Unknown error" }));
+            console.warn("Puppeteer PDF generation failed:", errData.error);
         }
-        console.warn("Puppeteer PDF generation failed, falling back to CloudConvert...");
     } catch (e) {
         console.warn("Puppeteer PDF generation error:", e);
     }
@@ -25,11 +32,16 @@ const performPdfGenerationRequest = async (html: string): Promise<Blob> => {
         body: JSON.stringify({ html })
     });
     
-    if (!response.ok) {
-        const err = await response.json();
-        throw new Error(`PDF Proxy Error: ${err.error}`);
+    if (response.ok) {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/pdf")) {
+            return await response.blob();
+        }
+        throw new Error("CloudConvert returned non-PDF response");
     }
-    return await response.blob();
+    
+    const err = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(`PDF Proxy Error: ${err.error}`);
 };
 
 /**
