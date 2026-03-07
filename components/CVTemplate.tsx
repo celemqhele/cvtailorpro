@@ -255,7 +255,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
           <h2 style={styles.sectionTitle}>SKILLS</h2>
           <div style={styles.skillsGrid}>
             {data.skills.map((skill, index) => (
-              <div key={index} style={styles.skillItem} className="no-break">
+              <div key={index} style={styles.skillItem} className="skill-item">
                 <span style={styles.skillCategory}>{skill.category}:</span> 
                 <span 
                   contentEditable={isEditable} 
@@ -272,10 +272,10 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
 
       {/* Professional Experience */}
       {data.experience && data.experience.length > 0 && (
-        <section style={styles.section}>
+        <section style={styles.section} className="section-container">
           <h2 style={styles.sectionTitle}>PROFESSIONAL EXPERIENCE</h2>
           {data.experience.map((job, index) => (
-            <div key={index} style={styles.experienceItem} className="no-break experience-item">
+            <div key={index} style={styles.experienceItem} className="experience-item">
               <table style={styles.jobHeader}>
                 <tbody>
                   <tr>
@@ -354,7 +354,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
             <div 
               key={index} 
               style={styles.educationItem} 
-              className="no-break" 
+              className="education-item" 
               contentEditable={isEditable} 
               suppressContentEditableWarning 
               onBlur={(e) => handleBlur('education', e.currentTarget.innerText, index)}

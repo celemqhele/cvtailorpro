@@ -76,9 +76,49 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
              }
 
              /* Prevent awkward breaks */
-             h1, h2, h3 { page-break-after: avoid; break-after: avoid; }
-             .section-container { page-break-inside: avoid; break-inside: avoid; margin-bottom: 20px; }
-             li { page-break-inside: avoid; break-inside: avoid; }
+             h1, h2, h3 { 
+                page-break-after: avoid; 
+                break-after: avoid; 
+                margin-top: 20px;
+             }
+             
+             .section-container { 
+                page-break-inside: auto; 
+                break-inside: auto; 
+                margin-bottom: 24px; 
+             }
+
+             /* Keep section title with at least some content */
+             h2 + div, h2 + p, h2 + ul, h2 + table {
+                break-before: avoid;
+                page-break-before: avoid;
+             }
+             
+             .experience-item {
+                page-break-inside: avoid;
+                break-inside: avoid;
+                margin-bottom: 20px;
+                display: block;
+             }
+
+             .skill-item, .education-item {
+                page-break-inside: avoid;
+                break-inside: avoid;
+             }
+
+             p, li {
+                orphans: 3;
+                widows: 3;
+             }
+
+             /* Ensure lists don't split weirdly */
+             ul {
+                page-break-inside: auto;
+             }
+             
+             li {
+                margin-bottom: 4px;
+             }
         </style>
     </head>
     <body>
