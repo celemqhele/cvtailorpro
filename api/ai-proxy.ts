@@ -144,24 +144,59 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  // Define Fallback Chains based on Plan
+  // Define Fallback Chains and Prompt Differentiation based on Plan
   let activeChain: any[] = [];
-  let tierLimiter = "";
+  let processedPrompt = systemPrompt;
 
-  // Define Tier Limiters (Artificial Quality Differentiators)
-  if (planId === 'tier_3' || planId === 'tier_4' || planId?.startsWith('recruiter_')) {
-    tierLimiter = "\n\nTIER: PRO/UNLIMITED. Provide ELITE, deep-reasoning analysis. Use advanced psychological triggers, hyper-tailoring, and specific metrics. Include a 'Strategic Rationale' section explaining the tailoring choices.";
-  } else if (planId === 'tier_2') {
-    tierLimiter = "\n\nTIER: GROWTH. Provide high-quality professional tailoring. Use strong action verbs and industry-specific keywords. Ensure all bullet points are impact-focused.";
-  } else if (planId === 'tier_1') {
-    tierLimiter = "\n\nTIER: STARTER. Provide standard professional tailoring. Keep descriptions concise and focused on basic job requirements. Use common professional terminology.";
+  // Task-specific prompt differentiation (primarily for CV generation)
+  if (task === 'cv_generation' || task === 'fill_skeleton') {
+    if (planId === 'tier_3' || planId === 'tier_4' || planId?.startsWith('recruiter_')) {
+      // PRO: Full prompt + Elite instructions
+      processedPrompt += "\n\nTIER: PRO/UNLIMITED. Provide ELITE, deep-reasoning analysis. Use advanced psychological triggers, hyper-tailoring, and specific metrics. Include a 'Strategic Rationale' section explaining the tailoring choices.";
+    } else if (planId === 'tier_2') {
+      // GROWTH: Remove elite branding and some strategic depth
+      processedPrompt = processedPrompt
+        .replace("Strategic CV Architect and ATS Optimization Expert", "Professional CV Writer")
+        .replace("maximizes ATS compatibility (target ≥85% match), improves recruiter readability, and positions the candidate as a strong match", "improves recruiter readability and positions the candidate as a match")
+        .replace("Think critically, reason independently, and position the profile to clearly show value and alignment.", "Position the profile to show alignment.");
+      processedPrompt += "\n\nTIER: GROWTH. Provide high-quality professional tailoring. Use strong action verbs and industry-specific keywords. Ensure all bullet points are impact-focused.";
+    } else if (planId === 'tier_1') {
+      // STARTER: Remove advanced frameworks and rationale
+      processedPrompt = processedPrompt
+        .replace("Strategic CV Architect and ATS Optimization Expert", "CV Assistant")
+        .replace("maximizes ATS compatibility (target ≥85% match), improves recruiter readability, and positions the candidate as a strong match", "improves formatting and readability")
+        .replace("Think critically, reason independently, and position the profile to clearly show value and alignment.", "Update the profile to match the job.")
+        .replace("measurable outcomes, leadership scope, and contributions to growth or improvement", "basic responsibilities and tasks")
+        .replace("Challenge / Action / Result (CAR) framework", "standard bullet points")
+        .replace(/4\. Provide a rationale covering:[\s\S]*?perceived value\./, "4. Provide a brief summary of changes.");
+      processedPrompt += "\n\nTIER: STARTER. Provide standard professional tailoring. Keep descriptions concise and focused on basic job requirements. Use common professional terminology.";
+    } else {
+      // FREE: Basic version - strip almost all strategy
+      processedPrompt = processedPrompt
+        .replace("Strategic CV Architect and ATS Optimization Expert", "Basic CV Formatter")
+        .replace(/OBJECTIVE:[\s\S]*?achievements\./, "OBJECTIVE: Reformat the CV to match the job description.")
+        .replace(/TASK:[\s\S]*?perceived value\./, "TASK: 1. Update the CV content to match the job keywords.")
+        .replace(/STRATEGIC GUIDELINES:[\s\S]*?no made-up numbers\./, "STRATEGIC GUIDELINES: Use simple language. Do not use CAR framework. Just list tasks.")
+        .replace(/"summary": "150-200 word professional summary[\s\S]*?forward-looking statement of value."/, '"summary": "A short 50-word summary of the candidate."')
+        .replace(/"achievements": \["Bullet using CAR framework: \[Action\] \+ \[Achievement\] \+ \[Impact\/Outcome\] \+ \[Relevance\]"\]/, '"achievements": ["List basic responsibilities"]');
+      processedPrompt += "\n\nTIER: FREE. Provide basic, concise tailoring. Limit the depth of analysis. Focus on standard formatting and essential keywords only. Do not provide advanced strategic insights.";
+    }
   } else {
-    tierLimiter = "\n\nTIER: FREE. Provide basic, concise tailoring. Limit the depth of analysis. Focus on standard formatting and essential keywords only. Do not provide advanced strategic insights.";
+    // For other tasks, just use the tier limiter
+    if (planId === 'tier_3' || planId === 'tier_4' || planId?.startsWith('recruiter_')) {
+      processedPrompt += "\n\nTIER: PRO. Provide elite quality.";
+    } else if (planId === 'tier_2') {
+      processedPrompt += "\n\nTIER: GROWTH. Provide professional quality.";
+    } else if (planId === 'tier_1') {
+      processedPrompt += "\n\nTIER: STARTER. Provide standard quality.";
+    } else {
+      processedPrompt += "\n\nTIER: FREE. Provide basic quality.";
+    }
   }
 
   const finalSystemPrompt = jsonMode 
-    ? `${systemPrompt}${tierLimiter}\n\nIMPORTANT: You MUST return strictly valid JSON. Do not include any text before or after the JSON object.`
-    : `${systemPrompt}${tierLimiter}`;
+    ? `${processedPrompt}\n\nIMPORTANT: You MUST return strictly valid JSON. Do not include any text before or after the JSON object.`
+    : processedPrompt;
 
   // ADMIN OVERRIDE: If an admin explicitly chooses a model for testing
   if (adminOverrideModel) {
