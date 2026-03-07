@@ -1,4 +1,5 @@
 
+/** Updated: 2026-03-06 */
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
 
 export default async function handler(req: any, res: any) {

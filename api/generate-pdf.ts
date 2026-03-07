@@ -1,3 +1,4 @@
+/** Updated: 2026-03-06 */
 import { Buffer } from 'buffer';
 
 export default async function handler(request: any, response: any) {
@@ -29,7 +30,8 @@ export default async function handler(request: any, response: any) {
       response.setHeader('Content-Disposition', 'attachment; filename=cv.pdf');
       return response.send(pdfBuffer);
     } catch (puppeteerError: any) {
-      console.warn('Puppeteer failed, falling back to CloudConvert:', puppeteerError.message);
+      console.error('Puppeteer failed:', puppeteerError);
+      // Continue to CloudConvert fallback
     }
 
     // Fallback: CloudConvert
@@ -140,33 +142,41 @@ async function generateWithPuppeteer(html: string): Promise<Buffer> {
   const chromium = await import('@sparticuz/chromium');
   const puppeteer = await import('puppeteer-core');
 
-  await chromium.default.font(
-    'https://raw.githack.com/googlefonts/noto-emoji/main/fonts/NotoColorEmoji.ttf'
-  );
+  let browser;
+  try {
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || await chromium.default.executablePath();
+    
+    // If we have an executable path, we can try to launch
+    browser = await puppeteer.default.launch({
+      args: executablePath ? [...chromium.default.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] : ['--no-sandbox'],
+      defaultViewport: chromium.default.defaultViewport,
+      executablePath: executablePath,
+      headless: chromium.default.headless === 'new' ? 'new' : true,
+      ignoreHTTPSErrors: true,
+    });
 
-  const browser = await puppeteer.default.launch({
-    args: [...chromium.default.args, '--no-sandbox', '--disable-setuid-sandbox'],
-    defaultViewport: chromium.default.defaultViewport,
-    executablePath: await chromium.default.executablePath(),
-    headless: chromium.default.headless === 'new' ? 'new' : true,
-    ignoreHTTPSErrors: true,
-  });
+    const page = await browser.newPage();
+    // Set a reasonable timeout
+    page.setDefaultNavigationTimeout(30000);
+    
+    await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
+    await page.setContent(html, {
+      waitUntil: ['networkidle0', 'domcontentloaded'],
+    });
 
-  const page = await browser.newPage();
-  await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
-  await page.setContent(html, {
-    waitUntil: ['networkidle0', 'domcontentloaded'],
-  });
+    await page.evaluateHandle('document.fonts.ready');
 
-  await page.evaluateHandle('document.fonts.ready');
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+      preferCSSPageSize: true,
+    });
 
-  const pdfBuffer = await page.pdf({
-    format: 'A4',
-    printBackground: true,
-    margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
-    preferCSSPageSize: true,
-  });
-
-  await browser.close();
-  return pdfBuffer;
+    return Buffer.from(pdfBuffer);
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
 }

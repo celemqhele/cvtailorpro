@@ -1,3 +1,4 @@
+/** Updated: 2026-03-06 */
 import { createClient } from '@supabase/supabase-js';
 
 export default async function handler(req: any, res: any) {

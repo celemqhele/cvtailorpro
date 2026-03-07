@@ -150,7 +150,7 @@ export const AdminAnalytics: React.FC = () => {
                     {useGA4 && ga4Data && <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-2 py-1 rounded">GA4 DATA SOURCE</span>}
                 </div>
                 <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                         {useGA4 && ga4Data ? (
                             <AreaChart data={ga4Data.daily}>
                                 <defs>
@@ -249,7 +249,7 @@ export const AdminAnalytics: React.FC = () => {
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="text-lg font-bold text-slate-800 mb-6">CV Generations</h3>
                     <div className="h-[250px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minHeight={250}>
                             <BarChart data={metrics?.cvChart}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis dataKey="date" fontSize={10} axisLine={false} tickLine={false} />
@@ -265,7 +265,7 @@ export const AdminAnalytics: React.FC = () => {
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="text-lg font-bold text-slate-800 mb-6">Revenue (ZAR)</h3>
                     <div className="h-[250px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minHeight={250}>
                             <LineChart data={metrics?.revenueChart}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis dataKey="date" fontSize={10} axisLine={false} tickLine={false} />

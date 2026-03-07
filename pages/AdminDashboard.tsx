@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { isPreviewOrAdmin } from '../utils/envHelper';
 import { adminLogService } from '../services/adminLogService';
 import { analytics } from '../services/analyticsService';
+import { testModel } from '../services/geminiService';
 import { GoogleGenAI } from '@google/genai';
 import ReactMarkdown from 'react-markdown';
 
@@ -82,6 +83,9 @@ export const AdminDashboard: React.FC = () => {
   const [showLiveDetails, setShowLiveDetails] = useState(false);
   const [aiDataInterpretation, setAiDataInterpretation] = useState<string | null>(null);
   const [isInterpreting, setIsInterpreting] = useState(false);
+  const [testModelName, setTestModelName] = useState('gemini-3-flash-preview');
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
 
   // Robust Admin Check on Mount
   useEffect(() => {
@@ -412,6 +416,23 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
     }
   };
 
+  const handleTestModel = async () => {
+    setIsTesting(true);
+    setTestResult(null);
+    try {
+      const result = await testModel(testModelName, '');
+      setTestResult(result);
+      showToast(`Test successful for ${testModelName}`, 'success');
+      adminLogService.logAction('TEST_MODEL', testModelName, { result });
+    } catch (err: any) {
+      console.error('Model test failed:', err);
+      setTestResult(`ERROR: ${err.message}`);
+      showToast(`Test failed for ${testModelName}`, 'error');
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   if (isChecking || loading) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
@@ -574,7 +595,7 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
                 Traffic Overview (Last 24 Hours)
               </h3>
               <div className="h-[300px] min-h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                   <AreaChart data={chartData}>
                     <defs>
                       <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
@@ -827,6 +848,63 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Brain size={18} className="text-emerald-500" />
+                  Model Connectivity Test
+                </h3>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 block">Select Model to Test</label>
+                  <select 
+                    value={testModelName}
+                    onChange={(e) => setTestModelName(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 mb-4"
+                  >
+                    <optgroup label="Claude">
+                      <option value="claude-sonnet-4-20250514">Claude 3.5 Sonnet</option>
+                    </optgroup>
+                    <optgroup label="Gemini">
+                      <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
+                      <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
+                      <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>
+                    </optgroup>
+                    <optgroup label="Cerebras">
+                      <option value="Cerebras-GPT-13B-Instruct">Cerebras GPT 13B (Free)</option>
+                      <option value="Mistral-7B-Instruct-v0.2">Mistral 7B (Free)</option>
+                      <option value="llama-3.3-70b">Llama 3.3 70B (Paid)</option>
+                      <option value="llama-3.1-8b">Llama 3.1 8B (Paid)</option>
+                    </optgroup>
+                  </select>
+                  <button 
+                    onClick={handleTestModel}
+                    disabled={isTesting}
+                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2"
+                  >
+                    {isTesting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Testing...
+                      </>
+                    ) : (
+                      <>
+                        <Zap size={16} />
+                        Run Connection Test
+                      </>
+                    )}
+                  </button>
+                </div>
+                {testResult && (
+                  <div className={`p-3 rounded-xl text-xs font-mono border ${testResult.startsWith('ERROR') ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>
+                    {testResult}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Admin Activity Logs */}
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Shield size={18} className="text-emerald-500" />
                   Admin Activity Logs
                 </h3>
@@ -902,7 +980,7 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
               ) : (
                 <div className="space-y-8">
                   <div className="h-80 min-h-[320px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={320}>
                       <AreaChart data={detailedData}>
                         <defs>
                           <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">

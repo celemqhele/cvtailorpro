@@ -273,8 +273,46 @@ export const GeneratedCV: React.FC = () => {
           if (format === 'docx') {
               blob = await createWordBlob(elementId);
           } else {
-              // Try CloudConvert
-              blob = await generatePdfFromApi(elementId);
+              // Try API first (Puppeteer/CloudConvert)
+              try {
+                  blob = await generatePdfFromApi(elementId);
+              } catch (apiError) {
+                  console.warn("API PDF generation failed, trying client-side fallback:", apiError);
+              }
+
+              // Client-side fallback if API fails
+              if (!blob) {
+                  try {
+                      const { jsPDF } = await import('jspdf');
+                      const html2canvas = (await import('html2canvas')).default;
+                      const element = document.getElementById(elementId);
+                      
+                      if (element) {
+                          const canvas = await html2canvas(element, {
+                              scale: 2,
+                              useCORS: true,
+                              logging: false,
+                              windowWidth: 794
+                          });
+                          
+                          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                          const pdf = new jsPDF({
+                              orientation: 'portrait',
+                              unit: 'px',
+                              format: 'a4'
+                          });
+                          
+                          const imgProps = pdf.getImageProperties(imgData);
+                          const pdfWidth = pdf.internal.pageSize.getWidth();
+                          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                          
+                          pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                          blob = pdf.output('blob');
+                      }
+                  } catch (clientError) {
+                      console.error("Client-side PDF generation failed:", clientError);
+                  }
+              }
           }
 
           // Restore class

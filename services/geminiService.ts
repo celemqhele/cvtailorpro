@@ -153,12 +153,12 @@ import { GoogleGenAI } from "@google/genai";
 /**
  * Executes a call to AI Provider directly from the frontend, with fallback to proxy.
  */
-async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string, task: string = 'cv_generation', planId?: string): Promise<{text: string, provider?: string}> {
+async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string, task: string = 'cv_generation', planId?: string, adminOverrideModel?: string): Promise<{text: string, provider?: string}> {
     const isJsonMode = systemInstruction.includes("JSON") || systemInstruction.includes("json");
 
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 75000); // Overall timeout for the entire chain
+        const timeoutId = setTimeout(() => controller.abort(), 120000); // Overall timeout for the entire chain
 
         const response = await fetch("/api/ai-proxy", {
             method: "POST",
@@ -169,7 +169,8 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
                 temperature,
                 jsonMode: isJsonMode,
                 task,
-                planId
+                planId,
+                adminOverrideModel
             }),
             signal: controller.signal
         });
@@ -177,28 +178,83 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
         clearTimeout(timeoutId);
 
         if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || "AI Proxy failed");
+            const contentType = response.headers.get("content-type");
+            let errMessage = `AI Proxy failed with status ${response.status}`;
+            
+            if (contentType && contentType.includes("application/json")) {
+                const err = await response.json();
+                errMessage = err.error || errMessage;
+            } else {
+                const text = await response.text();
+                errMessage = text.slice(0, 100);
+            }
+
+            if (response.status === 503) {
+                throw new Error(errMessage || "High traffic, try again in 1 minute");
+            }
+            throw new Error(errMessage);
         }
 
         const data = await response.json();
         return { text: data.text, provider: data.provider };
     } catch (e: any) {
         console.error("AI Proxy Call Failed:", e);
-        throw new Error("High traffic, try again in 1 minute");
+        // If it's already a high traffic error, just rethrow it
+        if (e.message.includes("High traffic")) {
+            throw e;
+        }
+        // Otherwise wrap it but keep some context
+        throw new Error(e.message || "High traffic, try again in 1 minute");
     }
 }
 
 // Helper to safely parse JSON from AI models that might wrap it in markdown code blocks
 function parseJsonResponse(content: string): any {
     let cleanContent = content.trim();
-    if (cleanContent.startsWith('```json')) {
-        cleanContent = cleanContent.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-    } else if (cleanContent.startsWith('```')) {
-        cleanContent = cleanContent.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    
+    // Remove markdown code blocks if present
+    if (cleanContent.includes('```')) {
+        const match = cleanContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (match && match[1]) {
+            cleanContent = match[1].trim();
+        } else {
+            // Fallback: just strip the markers if the regex failed
+            cleanContent = cleanContent.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
+        }
     }
-    return JSON.parse(cleanContent);
+
+    // Sometimes models return text before the JSON
+    if (!cleanContent.startsWith('{') && !cleanContent.startsWith('[')) {
+        const firstBrace = cleanContent.indexOf('{');
+        const firstBracket = cleanContent.indexOf('[');
+        const start = (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) ? firstBrace : firstBracket;
+        
+        if (start !== -1) {
+            const lastBrace = cleanContent.lastIndexOf('}');
+            const lastBracket = cleanContent.lastIndexOf(']');
+            const end = (lastBrace !== -1 && (lastBracket === -1 || lastBrace > lastBracket)) ? lastBrace : lastBracket;
+            
+            if (end !== -1 && end > start) {
+                cleanContent = cleanContent.substring(start, end + 1);
+            }
+        }
+    }
+
+    try {
+        return JSON.parse(cleanContent);
+    } catch (e) {
+        console.error("JSON Parse Error in parseJsonResponse:", e, "Cleaned Content:", cleanContent);
+        throw e;
+    }
 }
+
+export const testModel = async (modelName: string, apiKey: string): Promise<string> => {
+    const systemPrompt = "You are a testing assistant. Respond with 'SUCCESS: [Model Name]' if you receive this message.";
+    const userMessage = "Test connection.";
+    
+    const { text } = await runAIChain(systemPrompt, userMessage, 0.1, apiKey, 'test_connection', undefined, modelName);
+    return text;
+};
 
 export const analyzeMatch = async (
     cvFile: FileData | null,
