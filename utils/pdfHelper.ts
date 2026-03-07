@@ -1,12 +1,30 @@
 /** Updated: 2026-03-07 */
 /** Pagination fix - section breaks and top margin on continuation pages */
 // Helper function to perform the actual API call via backend proxy
-const performCloudConvertRequest = async (html: string): Promise<Blob> => {
+const performPdfGenerationRequest = async (html: string): Promise<Blob> => {
+    // Try the new Puppeteer-based generator first
+    try {
+        const response = await fetch("/api/generate-pdf", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ html })
+        });
+        
+        if (response.ok) {
+            return await response.blob();
+        }
+        console.warn("Puppeteer PDF generation failed, falling back to CloudConvert...");
+    } catch (e) {
+        console.warn("Puppeteer PDF generation error:", e);
+    }
+
+    // Fallback to CloudConvert proxy
     const response = await fetch("/api/pdf-proxy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ html })
     });
+    
     if (!response.ok) {
         const err = await response.json();
         throw new Error(`PDF Proxy Error: ${err.error}`);
@@ -130,7 +148,7 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
 
     try {
         console.log("Requesting PDF from backend proxy...");
-        const blob = await performCloudConvertRequest(htmlContent);
+        const blob = await performPdfGenerationRequest(htmlContent);
         console.log("PDF generated successfully.");
         return blob;
     } catch (error) {
