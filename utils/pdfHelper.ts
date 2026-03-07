@@ -70,7 +70,7 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
              }
              
              .pdf-page-wrapper {
-                padding: 0;
+                padding: 40px;
                 background: white;
                 width: 210mm;
              }
