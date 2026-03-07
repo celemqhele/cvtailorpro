@@ -22,7 +22,7 @@ const RECRUITER_PLANS = [
     candidates: 10, 
     quality: 'Standard AI Optimization',
     description: 'Ideal for small businesses with occasional hiring needs.',
-    features: ['10 AI Searches', 'View 10 candidates per search', 'Priority matching', 'Export candidate summaries']
+    features: ['10 AI Searches', 'View 10 candidates per search', 'Priority matching', 'Export candidate summaries', 'High-Quality PDF Exports']
   },
   { 
     id: 'recruiter_growth', 
@@ -33,7 +33,7 @@ const RECRUITER_PLANS = [
     quality: 'Enhanced AI Precision & Speed',
     description: 'Best for growing teams with regular hiring requirements.',
     popular: true,
-    features: ['30 AI Searches', 'View 25 candidates per search', 'Advanced AI ranking', 'Direct candidate contact', 'Priority support']
+    features: ['30 AI Searches', 'View 25 candidates per search', 'Advanced AI ranking', 'Direct candidate contact', 'High-Quality PDF Exports', 'Priority support']
   },
   { 
     id: 'recruiter_pro', 
@@ -43,7 +43,7 @@ const RECRUITER_PLANS = [
     candidates: 'Full Access', 
     quality: 'Elite Deep-Reasoning AI (Maximum Quality)',
     description: 'For high-volume recruitment agencies and large enterprises.',
-    features: ['Unlimited AI Searches', 'Full candidate access', 'Custom AI matching rules', 'Dedicated account manager', 'API Access']
+    features: ['Unlimited AI Searches', 'Full candidate access', 'Custom AI matching rules', 'High-Quality PDF Exports', 'Dedicated account manager', 'API Access']
   },
 ];
 

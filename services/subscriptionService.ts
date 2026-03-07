@@ -12,20 +12,21 @@ export interface SubscriptionPlan {
   hasAutoFill?: boolean; 
   hasMasterEditor?: boolean; 
   hasReferenceUpload?: boolean; 
+  hasPdfDownload?: boolean;
 }
 
 export const PLANS: SubscriptionPlan[] = [
   { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 1, description: '1 CV / Day (Ads)', quality: 'Standard AI Optimization' },
   { id: 'tier_1', name: 'Starter', price: 19.99, durationDays: 30, dailyLimit: 5, description: '5 CVs / Day', quality: 'Standard AI Optimization' },
-  { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 10, description: 'Skeleton Mode', quality: 'Enhanced AI Precision & Speed', hasSkeletonMode: true, hasReferenceUpload: true },
-  { id: 'tier_3', name: 'Pro', price: 99.99, durationDays: 30, dailyLimit: 25, description: 'Auto-Fill Skeleton', quality: 'Elite Deep-Reasoning AI (Maximum Quality)', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true },
-  { id: 'tier_4', name: 'Unlimited', price: 199.99, durationDays: 30, dailyLimit: 1000000, description: 'Unlimited + All Features', quality: 'Elite Deep-Reasoning AI (Maximum Quality)', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true },
+  { id: 'tier_2', name: 'Growth', price: 39.99, durationDays: 30, dailyLimit: 10, description: 'Skeleton Mode', quality: 'Enhanced AI Precision & Speed', hasSkeletonMode: true, hasReferenceUpload: true, hasPdfDownload: true },
+  { id: 'tier_3', name: 'Pro', price: 99.99, durationDays: 30, dailyLimit: 25, description: 'Auto-Fill Skeleton', quality: 'Elite Deep-Reasoning AI (Maximum Quality)', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true, hasPdfDownload: true },
+  { id: 'tier_4', name: 'Unlimited', price: 199.99, durationDays: 30, dailyLimit: 1000000, description: 'Unlimited + All Features', quality: 'Elite Deep-Reasoning AI (Maximum Quality)', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true, hasPdfDownload: true },
   
   // Recruiter Plans
   { id: 'recruiter_free', name: 'Recruiter Free', price: 0, durationDays: 0, dailyLimit: 1, description: '1 AI Search', quality: 'Standard AI Optimization' },
-  { id: 'recruiter_starter', name: 'Recruiter Starter', price: 2500, durationDays: 30, dailyLimit: 10, description: '10 AI Searches', quality: 'Standard AI Optimization' },
-  { id: 'recruiter_growth', name: 'Recruiter Growth', price: 7500, durationDays: 30, dailyLimit: 30, description: '30 AI Searches', quality: 'Enhanced AI Precision & Speed' },
-  { id: 'recruiter_pro', name: 'Recruiter Pro', price: 25000, durationDays: 30, dailyLimit: 1000000, description: 'Unlimited AI Searches', quality: 'Elite Deep-Reasoning AI (Maximum Quality)' },
+  { id: 'recruiter_starter', name: 'Recruiter Starter', price: 2500, durationDays: 30, dailyLimit: 10, description: '10 AI Searches', quality: 'Standard AI Optimization', hasPdfDownload: true },
+  { id: 'recruiter_growth', name: 'Recruiter Growth', price: 7500, durationDays: 30, dailyLimit: 30, description: '30 AI Searches', quality: 'Enhanced AI Precision & Speed', hasPdfDownload: true },
+  { id: 'recruiter_pro', name: 'Recruiter Pro', price: 25000, durationDays: 30, dailyLimit: 1000000, description: 'Unlimited AI Searches', quality: 'Elite Deep-Reasoning AI (Maximum Quality)', hasPdfDownload: true },
 ];
 
 export const getPlanDetails = (planId: string) => {

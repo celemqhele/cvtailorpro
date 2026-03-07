@@ -29,6 +29,7 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
              const hasSkeletonMode = plan.hasSkeletonMode;
              const hasAutoFill = plan.hasAutoFill;
              const hasMasterEditor = (plan as any).hasMasterEditor;
+             const hasPdfDownload = plan.hasPdfDownload;
 
              return (
                <div key={plan.id} className={`relative rounded-2xl p-6 flex flex-col transition-all duration-300 ${isPopular ? 'border-2 border-indigo-500 shadow-xl scale-105 z-10 bg-white' : 'border border-slate-200 shadow-sm hover:shadow-lg bg-slate-50'}`}>
@@ -88,6 +89,12 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
                         <li className="flex items-center gap-2 text-sm text-emerald-700 font-bold bg-emerald-50 p-1 rounded-md -ml-1">
                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                            <span>Master Editor (Direct Edit)</span>
+                        </li>
+                    )}
+                    {hasPdfDownload && (
+                        <li className="flex items-center gap-2 text-sm text-indigo-700 font-bold bg-indigo-50 p-1 rounded-md -ml-1">
+                           <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                           <span>High-Quality PDF Download</span>
                         </li>
                     )}
                      {!isFree && (

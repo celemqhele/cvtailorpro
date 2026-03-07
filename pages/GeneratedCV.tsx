@@ -22,7 +22,9 @@ export const GeneratedCV: React.FC = () => {
   const location = useLocation();
   const { user, triggerAuth, triggerPayment, isPaidUser, showToast } = useOutletContext<any>();
   
-  const hasMasterEditorAccess = user?.plan_id && (PLANS.find((p: any) => p.id === user.plan_id) as any)?.hasMasterEditor;
+  const currentPlan = user?.plan_id ? PLANS.find((p: any) => p.id === user.plan_id) : PLANS[0];
+  const hasMasterEditorAccess = (currentPlan as any)?.hasMasterEditor;
+  const hasPdfAccess = (currentPlan as any)?.hasPdfDownload;
 
   const [application, setApplication] = useState<SavedApplication | null>(null);
   const [cvData, setCvData] = useState<CVData | null>(null);
@@ -35,6 +37,7 @@ export const GeneratedCV: React.FC = () => {
   // Smart Edit State
   const [isSmartEditing, setIsSmartEditing] = useState(false);
   const [showLockedModal, setShowLockedModal] = useState(false);
+  const [showPdfLockedModal, setShowPdfLockedModal] = useState(false);
   const [showEditSuccess, setShowEditSuccess] = useState(false);
   
   // Download State
@@ -224,6 +227,12 @@ export const GeneratedCV: React.FC = () => {
   const handleDownload = async (docType: 'cv' | 'cl', format: 'pdf' | 'docx') => {
       if (!application || !cvData) return;
       
+      // Check PDF Access
+      if (format === 'pdf' && !hasPdfAccess) {
+          setShowPdfLockedModal(true);
+          return;
+      }
+
       // Check if lead capture is needed
       const hasCapturedLead = localStorage.getItem(`lead_captured_${analytics.getToken()}`);
       if (!isPaidUser && !hasCapturedLead) {
@@ -742,6 +751,14 @@ You can also copy this link to come back later: ${copyLink}`;
           onUpgrade={() => { setShowLockedModal(false); triggerPayment(); }}
           title="Unlock Smart Editing"
           description="Pro users can make unlimited AI tweaks and manual edits to their generated CVs. Upgrade now to perfect your application."
+       />
+
+       <FeatureLockedModal 
+          isOpen={showPdfLockedModal}
+          onClose={() => setShowPdfLockedModal(false)}
+          onUpgrade={() => { setShowPdfLockedModal(false); triggerPayment(); }}
+          title="Unlock PDF Downloads"
+          description="High-quality PDF generation costs credits. Upgrade to a Growth or Pro plan to unlock professional PDF downloads for all your CVs."
        />
 
        {/* Subscription Modal (New) */}
