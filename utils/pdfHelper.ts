@@ -83,8 +83,8 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
              }
              
              .section-container { 
-                page-break-inside: auto; 
-                break-inside: auto; 
+                page-break-inside: avoid; 
+                break-inside: avoid; 
                 margin-bottom: 24px; 
              }
 
@@ -113,7 +113,8 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
 
              /* Ensure lists don't split weirdly */
              ul {
-                page-break-inside: auto;
+                page-break-inside: avoid;
+                break-inside: avoid;
              }
              
              li {

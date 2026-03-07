@@ -486,12 +486,12 @@ You can also copy this link to come back later: ${copyLink}`;
                <div className="flex items-center gap-4">
                    <Link to={user ? "/dashboard" : "/guestuserdashboard"} className="text-slate-500 hover:text-slate-800 flex items-center gap-1 text-sm font-medium">
                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                       Back
+                       <span className="hidden sm:inline">Back</span>
                    </Link>
                    <div className="h-6 w-px bg-slate-200"></div>
                    <div>
-                       <h1 className="text-lg font-bold text-slate-900 leading-none line-clamp-1">{application.job_title}</h1>
-                       <p className="text-xs text-slate-500">{application.company_name} • {new Date(application.created_at).toLocaleDateString()}</p>
+                       <h1 className="text-sm sm:text-lg font-bold text-slate-900 leading-none truncate">{application.job_title}</h1>
+                       <p className="text-[10px] sm:text-xs text-slate-500 truncate">{application.company_name}</p>
                    </div>
                </div>
 
@@ -523,7 +523,8 @@ You can also copy this link to come back later: ${copyLink}`;
                             ) : (
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                             )}
-                            Download Free CV
+                            <span className="hidden sm:inline">Download Free CV</span>
+                            <span className="sm:hidden">CV</span>
                             <svg className={`w-3 h-3 transition-transform ${activeMenu === 'cv' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                        </button>
 

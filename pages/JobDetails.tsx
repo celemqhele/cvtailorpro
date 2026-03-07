@@ -251,7 +251,18 @@ export const JobDetails: React.FC = () => {
   };
 
   if (isLoading) return <div className="p-20 text-center">Loading...</div>;
-  if (!job) return <div className="p-20 text-center">Job not found.</div>;
+  if (!job) return (
+    <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6 text-slate-400">
+            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </div>
+        <h1 className="text-2xl font-bold text-slate-900 mb-2">Job No Longer Exists</h1>
+        <p className="text-slate-600 mb-8 max-w-md">This position has been filled or removed by the employer. Don't worry, there are plenty of other opportunities waiting for you!</p>
+        <Button onClick={() => navigate('/find-jobs')} className="bg-indigo-600 hover:bg-indigo-700 px-8">
+            Find Other Jobs
+        </Button>
+    </div>
+  );
 
   return (
     <>
@@ -383,76 +394,75 @@ export const JobDetails: React.FC = () => {
 
         {/* Apply Modal (Existing) */}
         {showApplyModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-fade-in">
-                {/* ... (Existing Apply Modal Content) ... */}
-                <div className={`bg-white rounded-3xl shadow-2xl w-full p-8 relative flex flex-col md:flex-row gap-8 overflow-hidden max-h-[90vh] ${exampleCV ? 'max-w-5xl' : 'max-w-lg'}`}>
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-fade-in overflow-y-auto">
+                <div className={`bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full p-6 sm:p-8 relative flex flex-col lg:flex-row gap-6 sm:gap-8 overflow-hidden my-auto ${exampleCV ? 'max-w-5xl' : 'max-w-lg'}`}>
                     
-                    <button onClick={() => setShowApplyModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 z-10 bg-white rounded-full p-1 shadow-sm">
+                    <button onClick={() => setShowApplyModal(false)} className="absolute top-3 right-3 sm:top-4 sm:right-4 text-slate-400 hover:text-slate-600 z-20 bg-white/80 backdrop-blur-sm rounded-full p-1 shadow-sm">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
 
                     {/* Left Column: CTA */}
-                    <div className="flex-1 flex flex-col justify-center">
-                        <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-6">
-                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    <div className="flex-1 flex flex-col justify-center overflow-y-auto max-h-full">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-4 sm:mb-6 shrink-0">
+                            <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                         </div>
 
-                        <h2 className="text-2xl font-bold text-slate-900 mb-3">Tailor Your CV for Free?</h2>
-                        <div className="space-y-4 text-slate-600 mb-8 leading-relaxed">
+                        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 sm:mb-3">Tailor Your CV for Free?</h2>
+                        <div className="space-y-3 sm:space-y-4 text-slate-600 mb-6 sm:mb-8 leading-relaxed text-sm sm:text-base">
                             <p>
                                 Get an ATS-optimized CV tailored specifically for this role in under 60 seconds. 
-                                <span className="font-bold text-indigo-600"> 100% Free. No credit card. No hidden fees.</span>
+                                <span className="font-bold text-indigo-600"> 100% Free. No hidden fees.</span>
                             </p>
                             
-                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">The 60-Second Process:</h4>
-                                <ul className="text-sm space-y-3">
-                                    <li className="flex items-start gap-3">
-                                        <div className="bg-indigo-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center mt-0.5 shrink-0 shadow-sm">1</div>
+                            <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100 space-y-2 sm:space-y-3">
+                                <h4 className="font-bold text-slate-800 text-[10px] sm:text-xs uppercase tracking-wider">The 60-Second Process:</h4>
+                                <ul className="text-xs sm:text-sm space-y-2 sm:space-y-3">
+                                    <li className="flex items-start gap-2 sm:gap-3">
+                                        <div className="bg-indigo-600 text-white text-[8px] sm:text-[10px] font-bold w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center mt-0.5 shrink-0 shadow-sm">1</div>
                                         <div>
                                             <span className="font-bold text-slate-900">Tailor My CV:</span>
-                                            <p className="text-xs text-slate-500">We generate a custom structure for this job instantly.</p>
+                                            <p className="text-[10px] sm:text-xs text-slate-500">We generate a custom structure instantly.</p>
                                         </div>
                                     </li>
-                                    <li className="flex items-start gap-3">
-                                        <div className="bg-indigo-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center mt-0.5 shrink-0 shadow-sm">2</div>
+                                    <li className="flex items-start gap-2 sm:gap-3">
+                                        <div className="bg-indigo-600 text-white text-[8px] sm:text-[10px] font-bold w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center mt-0.5 shrink-0 shadow-sm">2</div>
                                         <div>
                                             <span className="font-bold text-slate-900">Fill Details:</span>
-                                            <p className="text-xs text-slate-500">Upload your current CV to auto-fill the structure.</p>
+                                            <p className="text-[10px] sm:text-xs text-slate-500">Upload your current CV to auto-fill.</p>
                                         </div>
                                     </li>
-                                    <li className="flex items-start gap-3">
-                                        <div className="bg-indigo-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center mt-0.5 shrink-0 shadow-sm">3</div>
+                                    <li className="flex items-start gap-2 sm:gap-3">
+                                        <div className="bg-indigo-600 text-white text-[8px] sm:text-[10px] font-bold w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center mt-0.5 shrink-0 shadow-sm">3</div>
                                         <div>
                                             <span className="font-bold text-slate-900">Done:</span>
-                                            <p className="text-xs text-slate-500">Download your ATS-optimized CV and apply!</p>
+                                            <p className="text-[10px] sm:text-xs text-slate-500">Download and apply!</p>
                                         </div>
                                     </li>
                                 </ul>
                             </div>
                             
-                            <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                 <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" /> No Redirection</span>
                                 <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" /> No Paywall</span>
                                 <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" /> No Login</span>
                             </div>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-3 sm:space-y-4 shrink-0">
                             <button 
                                 onClick={handleApplyTailor}
-                                className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all hover:scale-[1.02] flex flex-col items-center justify-center gap-0.5 group"
+                                className="w-full py-3 sm:py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95 flex flex-col items-center justify-center gap-0.5 group"
                             >
-                                <span className="flex items-center gap-2">
-                                    <Zap className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+                                <span className="flex items-center gap-2 text-sm sm:text-base">
+                                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 group-hover:scale-110 transition-transform" />
                                     Tailor My CV Now (100% Free)
                                 </span>
-                                <span className="text-[10px] opacity-80 font-normal">Takes ~30 seconds • No credit card required</span>
+                                <span className="text-[8px] sm:text-[10px] opacity-80 font-normal">Takes ~30 seconds • No credit card</span>
                             </button>
                             
                             <button 
                                 onClick={handleApplyDirect}
-                                className="w-full py-3 bg-white text-slate-500 font-medium rounded-xl border border-slate-200 hover:bg-slate-50 hover:text-slate-800 transition-colors text-sm"
+                                className="w-full py-2 sm:py-3 bg-white text-slate-500 font-medium rounded-xl border border-slate-200 hover:bg-slate-50 hover:text-slate-800 transition-colors text-xs sm:text-sm"
                             >
                                 No thanks, use my current CV
                             </button>
@@ -461,7 +471,7 @@ export const JobDetails: React.FC = () => {
 
                     {/* Right Column: Example CV Preview */}
                     {exampleCV && (
-                        <div className="hidden md:block flex-1 bg-slate-100 rounded-2xl border border-slate-200 overflow-hidden relative group">
+                        <div className="hidden lg:block flex-1 bg-slate-100 rounded-2xl border border-slate-200 overflow-hidden relative group">
                             <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-t from-slate-100 via-transparent to-transparent opacity-50"></div>
                             
                             {/* "Sample" Overlay */}

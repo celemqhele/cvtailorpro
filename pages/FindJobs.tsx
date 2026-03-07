@@ -9,7 +9,10 @@ import { isPreviewOrAdmin } from '../utils/envHelper';
 export const FindJobs: React.FC = () => {
   const { isPaidUser, user, showToast } = useOutletContext<any>();
   const [jobs, setJobs] = useState<JobListing[]>([]);
+  const [filteredJobs, setFilteredJobs] = useState<JobListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
   
   const showAdmin = isPreviewOrAdmin() || user?.email === 'mqhele03@gmail.com';
 
@@ -18,6 +21,7 @@ export const FindJobs: React.FC = () => {
       try {
         const data = await jobService.getJobs();
         setJobs(data);
+        setFilteredJobs(data);
       } catch (e) {
         console.error("Failed to fetch jobs", e);
       } finally {
@@ -26,6 +30,17 @@ export const FindJobs: React.FC = () => {
     };
     fetchJobs();
   }, []);
+
+  useEffect(() => {
+    const filtered = jobs.filter(job => {
+      const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           job.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           job.summary.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesLocation = job.location.toLowerCase().includes(locationFilter.toLowerCase());
+      return matchesSearch && matchesLocation;
+    });
+    setFilteredJobs(filtered);
+  }, [searchQuery, locationFilter, jobs]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
@@ -46,6 +61,30 @@ export const FindJobs: React.FC = () => {
             <p className="mt-4 text-xl text-slate-500">Curated opportunities ready for a tailored application.</p>
         </div>
 
+        {/* Filters */}
+        <div className="mb-10 flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+                <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <input 
+                    type="text" 
+                    placeholder="Search by job title, company, or keywords..." 
+                    className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all shadow-sm"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
+            </div>
+            <div className="md:w-64 relative">
+                <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <input 
+                    type="text" 
+                    placeholder="Location..." 
+                    className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all shadow-sm"
+                    value={locationFilter}
+                    onChange={(e) => setLocationFilter(e.target.value)}
+                />
+            </div>
+        </div>
+
         {!isPaidUser && <AdBanner variant="display" className="mb-12" />}
 
         {isLoading ? (
@@ -55,22 +94,22 @@ export const FindJobs: React.FC = () => {
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
             </div>
-        ) : jobs.length === 0 ? (
+        ) : filteredJobs.length === 0 ? (
             <div className="text-center py-20 bg-slate-50 rounded-xl border border-dashed border-slate-300">
                 <div className="inline-block p-4 bg-white rounded-full mb-4 shadow-sm">
                     <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
-                <h3 className="text-lg font-bold text-slate-700">No open positions found</h3>
-                <p className="text-slate-500 mt-2">We curate jobs weekly. Please check back later.</p>
+                <h3 className="text-lg font-bold text-slate-700">No matching positions found</h3>
+                <p className="text-slate-500 mt-2">Try adjusting your filters or check back later.</p>
                 <div className="mt-6">
-                    <Link to="/guestuserdashboard" className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700">
-                        Tailor my CV for other jobs
-                    </Link>
+                    <button onClick={() => { setSearchQuery(''); setLocationFilter(''); }} className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700">
+                        Clear Filters
+                    </button>
                 </div>
             </div>
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {jobs.map(job => (
+                {filteredJobs.map(job => (
                     <div key={job.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow flex flex-col relative group">
                         {showAdmin && (
                             <button onClick={(e) => handleDelete(e, job.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors z-20">

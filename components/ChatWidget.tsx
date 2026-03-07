@@ -67,7 +67,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ userPlanId }) => {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-[60] w-[350px] md:w-[400px] h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col border border-slate-200 animate-fade-in overflow-hidden">
+    <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[60] w-[calc(100vw-2rem)] md:w-[400px] h-[500px] max-h-[calc(100vh-6rem)] bg-white rounded-2xl shadow-2xl flex flex-col border border-slate-200 animate-fade-in overflow-hidden">
       {/* Header */}
       <div className="bg-indigo-600 p-4 flex justify-between items-center text-white">
         <div className="flex items-center gap-2">
