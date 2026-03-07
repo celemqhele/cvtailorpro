@@ -58,17 +58,12 @@ export const createPdfBlob = async (elementId: string): Promise<Blob | null> => 
              
              @page {
                  size: A4;
-                 margin: 0;
-             }
-
-             @page :not(:first) {
-                 margin-top: 40px;
+                 margin: 40px;
              }
              
              .pdf-page-wrapper {
-                padding: 40px;
                 background: white;
-                width: 210mm;
+                width: 100%;
              }
 
              /* Headings should not be left orphaned at bottom of a page */

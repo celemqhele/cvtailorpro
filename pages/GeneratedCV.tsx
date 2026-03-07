@@ -646,9 +646,7 @@ You can also copy this link to come back later: ${copyLink}`;
                         </button>
                     </div>
                     <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                        <span className="w-3 h-px bg-slate-300"></span>
-                        Gray lines indicate page breaks
-                        <span className="w-3 h-px bg-slate-300"></span>
+                        {/* Legend removed */}
                     </div>
                 </div>
 
