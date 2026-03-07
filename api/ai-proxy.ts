@@ -128,10 +128,6 @@ export default async function handler(req: any, res: any) {
 
   const { systemPrompt, userPrompt, temperature, jsonMode, task, planId, adminOverrideModel } = req.body;
 
-  const finalSystemPrompt = jsonMode 
-    ? `${systemPrompt}\n\nIMPORTANT: You MUST return strictly valid JSON. Do not include any text before or after the JSON object.`
-    : systemPrompt;
-
   if (!userPrompt) {
     return res.status(400).json({ error: 'Missing userPrompt' });
   }
@@ -150,6 +146,22 @@ export default async function handler(req: any, res: any) {
 
   // Define Fallback Chains based on Plan
   let activeChain: any[] = [];
+  let tierLimiter = "";
+
+  // Define Tier Limiters (Artificial Quality Differentiators)
+  if (planId === 'tier_3' || planId === 'tier_4' || planId?.startsWith('recruiter_')) {
+    tierLimiter = "\n\nTIER: PRO/UNLIMITED. Provide ELITE, deep-reasoning analysis. Use advanced psychological triggers, hyper-tailoring, and specific metrics. Include a 'Strategic Rationale' section explaining the tailoring choices.";
+  } else if (planId === 'tier_2') {
+    tierLimiter = "\n\nTIER: GROWTH. Provide high-quality professional tailoring. Use strong action verbs and industry-specific keywords. Ensure all bullet points are impact-focused.";
+  } else if (planId === 'tier_1') {
+    tierLimiter = "\n\nTIER: STARTER. Provide standard professional tailoring. Keep descriptions concise and focused on basic job requirements. Use common professional terminology.";
+  } else {
+    tierLimiter = "\n\nTIER: FREE. Provide basic, concise tailoring. Limit the depth of analysis. Focus on standard formatting and essential keywords only. Do not provide advanced strategic insights.";
+  }
+
+  const finalSystemPrompt = jsonMode 
+    ? `${systemPrompt}${tierLimiter}\n\nIMPORTANT: You MUST return strictly valid JSON. Do not include any text before or after the JSON object.`
+    : `${systemPrompt}${tierLimiter}`;
 
   // ADMIN OVERRIDE: If an admin explicitly chooses a model for testing
   if (adminOverrideModel) {
@@ -159,7 +171,6 @@ export default async function handler(req: any, res: any) {
     } else if (adminOverrideModel.includes('gemini')) {
       activeChain = [{ provider: 'gemini', model: adminOverrideModel, keys: geminiKeys, timeout: 60000 }];
     } else {
-      // Assume Cerebras for other models
       activeChain = [{ provider: 'cerebras', model: adminOverrideModel, keys: cerebrasKeys, timeout: 60000 }];
     }
   } else if (planId === 'tier_3' || planId === 'tier_4' || planId?.startsWith('recruiter_')) {
@@ -170,26 +181,12 @@ export default async function handler(req: any, res: any) {
       { provider: 'gemini',   model: 'gemini-3-flash-preview',   keys: geminiKeys,   timeout: 20000 },
       { provider: 'cerebras', model: 'llama3.3-70b',             keys: cerebrasKeys, timeout: 30000 },
     ];
-  } else if (planId === 'tier_2') {
-    // Growth: Gemini 2.5 Flash (using 3-flash-preview as best match) -> Cerebras
-    activeChain = [
-      { provider: 'gemini',   model: 'gemini-3-flash-preview',      keys: geminiKeys,   timeout: 25000 },
-      { provider: 'gemini',   model: 'gemini-3.1-flash-lite-preview', keys: geminiKeys,   timeout: 20000 },
-      { provider: 'cerebras', model: 'llama3.3-70b',             keys: cerebrasKeys, timeout: 30000 },
-    ];
-  } else if (planId === 'tier_1') {
-    // Starter: Gemini 3.1 Flash-Lite -> Llama 8b -> Flash-8b
-    activeChain = [
-      { provider: 'gemini',   model: 'gemini-3.1-flash-lite-preview', keys: geminiKeys,   timeout: 30000 },
-      { provider: 'cerebras', model: 'llama3.1-8b',                keys: cerebrasKeys, timeout: 25000 },
-      { provider: 'gemini',   model: 'gemini-1.5-flash-8b',          keys: geminiKeys,   timeout: 25000 },
-    ];
   } else {
-    // Free: Gemini 1.5 Flash -> Llama 8b (Optional Relief) -> Flash-8b
+    // Free, Starter, Growth: Gemini 3 Flash -> Cerebras Fallback
     activeChain = [
-      { provider: 'gemini',   model: 'gemini-1.5-flash',             keys: geminiKeys,   timeout: 25000 },
+      { provider: 'gemini',   model: 'gemini-3-flash-preview',      keys: geminiKeys,   timeout: 30000 },
+      { provider: 'gemini',   model: 'gemini-3.1-flash-lite-preview', keys: geminiKeys,   timeout: 25000 },
       { provider: 'cerebras', model: 'llama3.1-8b',                keys: cerebrasKeys, timeout: 25000 },
-      { provider: 'gemini',   model: 'gemini-1.5-flash-8b',          keys: geminiKeys,   timeout: 25000 },
     ];
   }
 
