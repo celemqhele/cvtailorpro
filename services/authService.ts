@@ -80,8 +80,32 @@ export const authService = {
       }
 
       if (!profileData) {
-        console.error("Failed to fetch profile after retries. This usually means the profile row was never created or RLS is blocking access.", lastError);
-        return null;
+        console.warn("Profile row missing or inaccessible. Attempting to self-heal.");
+        
+        // Try to create the profile row if it's missing (Self-healing)
+        const { error: insertError } = await supabase.from('profiles').insert({
+            id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name,
+            role: (user.user_metadata?.role as any) || 'candidate'
+        });
+        
+        if (insertError) {
+             console.error("Failed to auto-create missing profile row:", insertError);
+        }
+
+        // Fallback: Construct profile from auth user to allow login regardless of DB state
+        return {
+            id: user.id,
+            email: user.email || '',
+            full_name: user.user_metadata?.full_name || '',
+            is_pro_plus: false,
+            plan_id: 'free',
+            role: (user.user_metadata?.role as any) || 'candidate',
+            credits: 0,
+            has_used_discount: false,
+            opt_in_headhunter: false
+        };
       }
 
       return profileData as UserProfile;
