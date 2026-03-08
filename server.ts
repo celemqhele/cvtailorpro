@@ -11,6 +11,7 @@ import aiProxyHandler from "./api/ai-proxy.js";
 import pdfProxyHandler from "./api/pdf-proxy.js";
 import ocrProxyHandler from "./api/ocr-proxy.js";
 import paystackVerifyHandler from "./api/paystack-verify.js";
+import hubspotProxyHandler from "./api/hubspot-proxy";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,6 +47,7 @@ async function startServer() {
   app.post("/api/pdf-proxy", wrap(pdfProxyHandler));
   app.post("/api/ocr-proxy", wrap(ocrProxyHandler));
   app.post("/api/paystack-verify", wrap(paystackVerifyHandler));
+  app.post("/api/hubspot-proxy", wrap(hubspotProxyHandler));
   
   // 404 for API routes
   app.all("/api/*", (req, res) => {
