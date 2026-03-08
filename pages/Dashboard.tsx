@@ -579,7 +579,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
           if (response.outcome !== 'REJECT') {
               setResult(response);
-              setStatus(Status.SUCCESS);
+              // Do not set SUCCESS yet, wait for save/navigation to keep progress bar mounted
               if (user?.id) await progressService.completeJob(user.id);
               
               if (!isAdmin) {
@@ -594,7 +594,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                       company: response.meta?.company,
                       mode: 'skeleton'
                   });
+                  setStatus(Status.SUCCESS); // Now safe to set success
                   setPendingNavigation({ url: `/cv-generated/${savedId}` });
+              } else {
+                  setStatus(Status.ERROR);
+                  setErrorMsg("Failed to save generated CV.");
               }
           } else {
               setResult(response);
@@ -704,7 +708,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       );
       if (response.outcome !== 'REJECT') {
           setResult(response);
-          setStatus(Status.SUCCESS);
+          // Do not set SUCCESS yet, wait for save/navigation to keep progress bar mounted
           if (user?.id) await progressService.completeJob(user.id);
 
           if (!isAdmin) {
@@ -726,7 +730,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
               const isJobBoardFlow = !!location.state?.autofillJobDescription;
               const showSubscribe = isJobBoardFlow && (!user || user.plan_id === 'free');
 
+              setStatus(Status.SUCCESS); // Now safe to set success
               setPendingNavigation({ url: `/cv-generated/${savedId}`, state: { showSubscribe } });
+          } else {
+              setStatus(Status.ERROR);
+              setErrorMsg("Failed to save generated CV.");
           }
       } else {
           setResult(response);
