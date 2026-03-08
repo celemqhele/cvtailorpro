@@ -146,7 +146,7 @@ export default async function handler(req: any, res: any) {
               res.setHeader('Transfer-Encoding', 'chunked');
               
               for await (const chunk of result.stream) {
-                const chunkText = chunk.text();
+                const chunkText = chunk.text;
                 if (chunkText) {
                   res.write(chunkText);
                 }
