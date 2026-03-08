@@ -18,21 +18,30 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({ isOpen, onCl
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !email.includes('@')) {
+    setError(null);
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
       setError('Please enter a valid email address.');
       return;
     }
-    if (!jobType || !seniority) {
-      setError('Please select your job type and seniority.');
+    if (!jobType) {
+      setError('Please select a job type.');
+      return;
+    }
+    if (!seniority) {
+      setError('Please select your seniority level.');
       return;
     }
 
     setIsSubmitting(true);
-    setError(null);
     try {
       await onSubmit(email, jobType, seniority);
+      // Don't close here, let the parent handle it or close on success
+      // But typically we want to close if successful
       onClose();
     } catch (err) {
+      console.error("Submission error:", err);
       setError('Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);

@@ -238,12 +238,21 @@ export const GeneratedCV: React.FC = () => {
           return;
       }
 
-      // Ad Reward & Lead Capture for Free Users on Download
+      // Ad Reward & Lead Capture for Free Users on Download (Paid users skip this)
       if (!isPaidUser && !bypassAd) {
           setPendingDownload({ docType, format });
           
           // Check if lead capture is needed first
-          const hasCapturedLead = localStorage.getItem(`lead_captured_${analytics.getToken()}`);
+          let hasCapturedLead = false;
+          
+          if (user) {
+              // Logged in user: check profile flag (lifetime of account)
+              hasCapturedLead = !!user.opt_in_headhunter;
+          } else {
+              // Guest user: check session storage (once per session)
+              hasCapturedLead = !!localStorage.getItem(`lead_captured_${analytics.getToken()}`);
+          }
+
           if (!hasCapturedLead) {
               setShowLeadModal(true);
           } else {
@@ -350,7 +359,16 @@ export const GeneratedCV: React.FC = () => {
           }).catch(err => console.error('HubSpot sync failed:', err));
           
           analytics.trackEvent('lead_captured', { email, jobType, seniority });
-          localStorage.setItem(`lead_captured_${analytics.getToken()}`, 'true');
+          
+          if (user) {
+              // Logged in: update profile for lifetime tracking
+              await authService.updateHeadhunterOptIn(true);
+              // Refresh session to update local user object
+              checkUserSession();
+          } else {
+              // Guest: update session storage
+              localStorage.setItem(`lead_captured_${analytics.getToken()}`, 'true');
+          }
           
           if (pendingDownload) {
               // After lead capture, show the ad

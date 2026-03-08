@@ -144,6 +144,18 @@ export const authService = {
     if (error) throw error;
   },
 
+  async updateHeadhunterOptIn(optIn: boolean) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ opt_in_headhunter: optIn })
+      .eq('id', user.id);
+
+    if (error) console.error("Failed to update headhunter opt-in", error);
+  },
+
   async updatePassword(newPassword: string) {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw error;
