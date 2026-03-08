@@ -230,24 +230,25 @@ export const GeneratedCV: React.FC = () => {
   const handleDownload = async (docType: 'cv' | 'cl', format: 'pdf' | 'docx', bypassAd: boolean = false) => {
       if (!application || !cvData) return;
       
-      // Check PDF Access - Now free for all, but we keep the check for safety
-      if (format === 'pdf' && !hasPdfAccess) {
+      // Check PDF Access - Now free for all via lead capture/ads
+      if (format === 'pdf' && !hasPdfAccess && !isPaidUser) {
+          // Fall through to lead capture/ad flow
+      } else if (format === 'pdf' && !hasPdfAccess) {
           setShowPdfLockedModal(true);
           return;
       }
 
-      // Ad Reward for Free Users on Download
+      // Ad Reward & Lead Capture for Free Users on Download
       if (!isPaidUser && !bypassAd) {
           setPendingDownload({ docType, format });
-          setShowRewardedAd(true);
-          return;
-      }
-
-      // Check if lead capture is needed
-      const hasCapturedLead = localStorage.getItem(`lead_captured_${analytics.getToken()}`);
-      if (!isPaidUser && !hasCapturedLead) {
-          setPendingDownload({ docType, format });
-          setShowLeadModal(true);
+          
+          // Check if lead capture is needed first
+          const hasCapturedLead = localStorage.getItem(`lead_captured_${analytics.getToken()}`);
+          if (!hasCapturedLead) {
+              setShowLeadModal(true);
+          } else {
+              setShowRewardedAd(true);
+          }
           return;
       }
 
@@ -352,8 +353,8 @@ export const GeneratedCV: React.FC = () => {
           localStorage.setItem(`lead_captured_${analytics.getToken()}`, 'true');
           
           if (pendingDownload) {
-              handleDownload(pendingDownload.docType, pendingDownload.format);
-              setPendingDownload(null);
+              // After lead capture, show the ad
+              setShowRewardedAd(true);
           }
       } catch (err) {
           console.error('Failed to save lead:', err);

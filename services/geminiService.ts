@@ -431,6 +431,8 @@ export const generateTailoredApplication = async (
   }
   `;
 
+  const isGeneralOptimization = targetType === 'title' && (jobSpec.includes("General Professional Optimization") || jobSpec.trim() === "");
+
   let systemContent = SCHEMA_INSTRUCTION;
 
   if (isGeneralOptimization) {
@@ -440,8 +442,6 @@ export const generateTailoredApplication = async (
   if (force || targetType === 'title') {
     systemContent += `\nIMPORTANT OVERRIDE: Set "outcome" to "PROCEED". Do not reject. ${targetType === 'title' ? 'Optimize for the INDUSTRY STANDARD of the provided Job Title.' : 'Force generation despite low match.'}`;
   }
-
-  const isGeneralOptimization = targetType === 'title' && (jobSpec.includes("General Professional Optimization") || jobSpec.trim() === "");
 
   const jobContext = targetType === 'specific' 
     ? `TARGET JOB DESCRIPTION (KEYWORDS TO INJECT):\n${jobSpec}`
