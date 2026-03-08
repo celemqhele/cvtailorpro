@@ -67,8 +67,8 @@ export const Layout: React.FC = () => {
       }
   };
 
-  const checkUserSession = async () => {
-    setIsAuthLoading(true);
+  const checkUserSession = async (showLoading = true) => {
+    if (showLoading) setIsAuthLoading(true);
     const profile = await authService.getCurrentProfile();
     setUser(profile);
     
@@ -113,16 +113,19 @@ export const Layout: React.FC = () => {
 
     setIsPaidUser(isPaid);
     setIsMaxPlan(maxPlan);
-    setIsAuthLoading(false);
+    if (showLoading) setIsAuthLoading(false);
     
     // Fetch stats with the correct plan ID
     fetchStats(profile?.id, currentPlanId);
   };
 
   useEffect(() => {
-    setTimeout(() => checkUserSession(), 0);
+    setTimeout(() => checkUserSession(true), 0);
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setTimeout(() => checkUserSession(), 0);
+      // Only show loading on explicit sign in/out, not token refresh or initial session recovery
+      const shouldShowLoading = event === 'SIGNED_IN' || event === 'SIGNED_OUT';
+      setTimeout(() => checkUserSession(shouldShowLoading), 0);
+      
       // If a user just signed in or signed up, sync their guest usage to their account
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
           const createdAt = new Date(session.user.created_at).getTime();
