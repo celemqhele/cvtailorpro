@@ -6,16 +6,16 @@ interface LoadingProgressBarProps {
   isComplete: boolean;
   onCompleteAnimationFinished?: () => void;
   type?: 'cv' | 'skeleton';
+  startTime?: number; // Optional timestamp when job started
 }
 
-export const LoadingProgressBar: React.FC<LoadingProgressBarProps> = ({ isComplete, onCompleteAnimationFinished, type = 'cv' }) => {
+export const LoadingProgressBar: React.FC<LoadingProgressBarProps> = ({ isComplete, onCompleteAnimationFinished, type = 'cv', startTime }) => {
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState(type === 'skeleton' ? "Analyzing job description..." : "Analyzing job requirements...");
   const [showCheckmark, setShowCheckmark] = useState(false);
 
   useEffect(() => {
     if (isComplete) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setProgress(100);
       setMessage(type === 'skeleton' ? "Skeleton Ready!" : "Complete! Loading your CV...");
       setShowCheckmark(true);
@@ -24,24 +24,25 @@ export const LoadingProgressBar: React.FC<LoadingProgressBarProps> = ({ isComple
         if (onCompleteAnimationFinished) {
           onCompleteAnimationFinished();
         }
-      }, 1000); // Wait 1s for the user to see the 100% and checkmark
+      }, 1000); 
       return () => clearTimeout(timer);
     }
 
     // Phase 1: Fake Progress (0-90%) over 45 seconds
     const totalDuration = 45000;
-    const updateInterval = 100; // Update every 100ms for smooth animation
-    const steps = totalDuration / updateInterval;
-    const incrementPerStep = 90 / steps;
-
-    let currentProgress = 0;
+    const updateInterval = 100;
+    
+    // If startTime provided, calculate initial progress
+    let elapsed = startTime ? Date.now() - startTime : 0;
+    let currentProgress = Math.min(90, (elapsed / totalDuration) * 90);
     
     const interval = setInterval(() => {
-      currentProgress += incrementPerStep;
+      elapsed += updateInterval;
+      currentProgress = Math.min(90, (elapsed / totalDuration) * 90);
       
       if (currentProgress >= 90) {
         currentProgress = 90;
-        clearInterval(interval);
+        // Keep checking completion via prop, don't clear interval unless complete
         setMessage(type === 'skeleton' ? "Finalizing skeleton structure..." : "Finalizing your tailored CV...");
       } else if (currentProgress < 30) {
         setMessage(type === 'skeleton' ? "Analyzing job description..." : "Analyzing job requirements...");
@@ -55,7 +56,7 @@ export const LoadingProgressBar: React.FC<LoadingProgressBarProps> = ({ isComple
     }, updateInterval);
 
     return () => clearInterval(interval);
-  }, [isComplete, onCompleteAnimationFinished, type]);
+  }, [isComplete, onCompleteAnimationFinished, type, startTime]);
 
   return (
     <div className="w-full max-w-md mx-auto mt-6 p-6 bg-white rounded-2xl shadow-lg border border-indigo-50">

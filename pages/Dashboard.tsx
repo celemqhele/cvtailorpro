@@ -19,6 +19,7 @@ import { ModelSelectionModal } from '../components/ModelSelectionModal';
 
 import { analytics } from '../services/analyticsService';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile, generateSkeletonCV, generateGeneralJobDescriptionFromCV } from '../services/geminiService';
+import { progressService } from '../services/progressService';
 import { authService } from '../services/authService';
 import { checkUsageLimit, incrementUsage } from '../services/usageService';
 import { getPlanDetails, PLANS } from '../services/subscriptionService';
@@ -113,6 +114,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [directApplyLink, setDirectApplyLink] = useState<string | null>(null);
 
   const [status, setStatus] = useState<Status>(Status.IDLE);
+  const [generationStartTime, setGenerationStartTime] = useState<number | undefined>(undefined);
+
+  // Check for active job on mount
+  useEffect(() => {
+      const checkActiveJob = async () => {
+          if (!user?.id) return;
+          const activeJob = await progressService.getActiveJob(user.id);
+          if (activeJob && activeJob.status === 'processing') {
+              setStatus(Status.GENERATING);
+              setGenerationStartTime(new Date(activeJob.started_at).getTime());
+          }
+      };
+      checkActiveJob();
+  }, [user?.id]);
   const [analysis, setAnalysis] = useState<MatchAnalysis | null>(null);
   const [result, setResult] = useState<GeneratorResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -534,13 +549,67 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       } catch (e) {
           console.error("Failed to auto-save to history:", e);
       }
+
       return null;
   };
 
+  const handleGenerateSkeleton = async (bypassAd: boolean = false) => {
+      const isAdmin = user?.email === 'mqhele03@gmail.com';
+      // If they hit the limit, they are done. No more ads. Must upgrade.
+      const canProceed = bypassAd || await checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
+      if (!canProceed && !isAdmin) {
+          setShowAdDecisionModal(false);
+          setShowLimitModal(true); // Block them
+          return;
+      }
+
+      setStatus(Status.GENERATING);
+      setGenerationStartTime(Date.now());
+      if (user?.id) await progressService.startJob(user.id, 'skeleton');
+
+      setErrorMsg(null);
+      setResult(null);
+      setGeneratedCvId(null);
+
+      try {
+          const response = await generateSkeletonCV(
+              jobSpec,
+              adminPlanOverride || user?.plan_id
+          );
+
+          if (response.outcome !== 'REJECT') {
+              setResult(response);
+              setStatus(Status.SUCCESS);
+              if (user?.id) await progressService.completeJob(user.id);
+              
+              if (!isAdmin) {
+                  await incrementUsage(user?.id);
+                  setDailyCvCount((prev: number) => prev + 1);
+              }
+
+              const savedId = await saveCurrentResultToHistory(response);
+              if (savedId) {
+                  analytics.trackEvent('cv_generated', {
+                      job_title: response.meta?.jobTitle,
+                      company: response.meta?.company,
+                      mode: 'skeleton'
+                  });
+                  setPendingNavigation({ url: `/cv-generated/${savedId}` });
+              }
+          } else {
+              setResult(response);
+              setStatus(Status.REJECTED);
+              if (user?.id) await progressService.completeJob(user.id);
+          }
+      } catch (e: any) {
+          console.error(e);
+          setStatus(Status.ERROR);
+          setErrorMsg(e.message || "An unexpected error occurred.");
+          if (user?.id) await progressService.completeJob(user.id);
+      }
+  };
+
   const handleGenerate = async (forceOverride: boolean = false, isDirectTitleMode: boolean = false, bypassAd: boolean = false) => {
-    // 1. Check if user is free and needs to watch ad or is blocked
-    // IMPORTANT: Check this BEFORE setStatus(Status.GENERATING) to avoid interrupting progress bar
-    if (!isPaidUser && !bypassAd) {
         // If they hit the limit, they are done. No more ads. Must upgrade.
         const canProceed = await checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
         if (!canProceed) {
@@ -551,13 +620,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
         // NO MORE AD FOR GENERATION - User wants it for download instead
         // Just proceed to generation
-    }
 
     // 2. Double check limit just in case (for paid users too)
-    const canProceed = bypassAd || await checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
+    const canProceedFinal = bypassAd || await checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
     const isAdmin = user?.email === 'mqhele03@gmail.com';
 
-    if (!canProceed && !isAdmin) {
+    if (!canProceedFinal && !isAdmin) {
         setShowLimitModal(true);
         return;
     }
@@ -566,6 +634,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     const currentJobSpec = isDirectTitleMode ? jobTitle : jobSpec;
 
     setStatus(Status.GENERATING);
+    setGenerationStartTime(Date.now());
+    if (user?.id) await progressService.startJob(user.id, 'cv');
+
     setErrorMsg(null);
     setResult(null);
     setGeneratedCvId(null);
@@ -634,6 +705,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       if (response.outcome !== 'REJECT') {
           setResult(response);
           setStatus(Status.SUCCESS);
+          if (user?.id) await progressService.completeJob(user.id);
+
           if (!isAdmin) {
              await incrementUsage(user?.id);
              setDailyCvCount((prev: number) => prev + 1);
@@ -658,77 +731,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       } else {
           setResult(response);
           setStatus(Status.REJECTED);
+          if (user?.id) await progressService.completeJob(user.id);
       }
     } catch (e: any) {
       console.error(e);
       setStatus(Status.ERROR);
       setErrorMsg(e.message || "An unexpected error occurred.");
+      if (user?.id) await progressService.completeJob(user.id);
     }
   };
 
-  const handleGenerateSkeleton = async (bypassAd: boolean = false) => {
-      // 1. Process Job Spec
-      let textToAnalyze = '';
-      if (targetMode === 'title') {
-          textToAnalyze = jobTitle;
-      } else if (targetMode === 'url') {
-          try {
-            textToAnalyze = await scrapeJobFromUrl(jobLink);
-            setDirectApplyLink(jobLink);
-          } catch(e: any) {
-             setErrorMsg(e.message);
-             return;
-          }
-      } else {
-          textToAnalyze = manualJobText;
-      }
-      setJobSpec(textToAnalyze);
 
-      // 2. Check Limit
-      // We share the same daily limit pool for now (until complex DB migration)
-      // but only Growth+ users can access this function anyway.
-      const canProceed = bypassAd || await checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
-      const isAdmin = user?.email === 'mqhele03@gmail.com';
-
-      if (!canProceed && !isAdmin) {
-          setShowLimitModal(true);
-          return;
-      }
-
-      setStatus(Status.GENERATING);
-      setErrorMsg(null);
-      setResult(null);
-      setGeneratedCvId(null);
-
-      try {
-          const response = await generateSkeletonCV(textToAnalyze, "", adminPlanOverride || user?.plan_id);
-          if (response.outcome !== 'REJECT') {
-              setResult(response);
-              setStatus(Status.SUCCESS);
-              if (!isAdmin) {
-                 await incrementUsage(user?.id);
-                 setDailyCvCount((prev: number) => prev + 1);
-              }
-              const savedId = await saveCurrentResultToHistory(response);
-              if (savedId) {
-                  // Track Generation in Meta Pixel & DB
-                  analytics.trackEvent('cv_generated', {
-                      job_title: response.meta?.jobTitle,
-                      company: response.meta?.company,
-                      mode: 'skeleton'
-                  });
-                  setPendingNavigation({ url: `/cv-generated/${savedId}` });
-              }
-          } else {
-              setResult(response);
-              setStatus(Status.REJECTED);
-          }
-      } catch (e: any) {
-          console.error(e);
-          setStatus(Status.ERROR);
-          setErrorMsg(e.message || "Failed to generate skeleton CV.");
-      }
-  };
 
   const handleLoadHistory = (app: SavedApplication) => {
       // Intentionally empty
@@ -1076,6 +1089,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                         <div className="pt-4 border-t border-slate-200">
                             <LoadingProgressBar 
                                 isComplete={!!pendingNavigation} 
+                                startTime={generationStartTime}
                                 onCompleteAnimationFinished={() => {
                                     if (pendingNavigation) {
                                         navigate(pendingNavigation.url, { state: pendingNavigation.state });
