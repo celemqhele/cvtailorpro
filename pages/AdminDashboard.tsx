@@ -860,19 +860,10 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
                     onChange={(e) => setTestModelName(e.target.value)}
                     className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 mb-4"
                   >
-                    <optgroup label="Claude">
-                      <option value="claude-sonnet-4-20250514">Claude 3.5 Sonnet</option>
-                    </optgroup>
                     <optgroup label="Gemini">
                       <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
                       <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
                       <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>
-                    </optgroup>
-                    <optgroup label="Cerebras">
-                      <option value="Cerebras-GPT-13B-Instruct">Cerebras GPT 13B (Free)</option>
-                      <option value="Mistral-7B-Instruct-v0.2">Mistral 7B (Free)</option>
-                      <option value="llama-3.3-70b">Llama 3.3 70B (Paid)</option>
-                      <option value="llama-3.1-8b">Llama 3.1 8B (Paid)</option>
                     </optgroup>
                   </select>
                   <button 

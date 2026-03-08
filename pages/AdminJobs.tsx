@@ -108,7 +108,7 @@ export const AdminJobs: React.FC = () => {
       const aiResult = await rewriteJobDescription(jobTitle, jobRawDesc, "", user?.plan_id);
       
       // 2. Generate Example CV JSON (New)
-      console.log("Generating fictional CV with Cerebras...");
+      console.log("Generating fictional CV...");
       let exampleCvJson = null;
       try {
           exampleCvJson = await generateFictionalCV(aiResult.description, aiResult.title, "", user?.plan_id);

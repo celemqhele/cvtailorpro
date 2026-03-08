@@ -7,19 +7,37 @@ interface LoadingProgressBarProps {
   onCompleteAnimationFinished?: () => void;
   type?: 'cv' | 'skeleton';
   startTime?: number; // Optional timestamp when job started
+  progress?: number; // Optional real progress (0-100)
 }
 
-export const LoadingProgressBar: React.FC<LoadingProgressBarProps> = ({ isComplete, onCompleteAnimationFinished, type = 'cv', startTime }) => {
-  const [progress, setProgress] = useState(0);
-  const [message, setMessage] = useState(type === 'skeleton' ? "Analyzing job description..." : "Analyzing job requirements...");
-  const [showCheckmark, setShowCheckmark] = useState(false);
+export const LoadingProgressBar: React.FC<LoadingProgressBarProps> = ({ isComplete, onCompleteAnimationFinished, type = 'cv', startTime, progress: externalProgress }) => {
+  const [simulatedProgress, setSimulatedProgress] = useState(() => {
+      if (startTime) {
+          const elapsed = Date.now() - startTime;
+          return Math.min(90, (elapsed / 45000) * 90);
+      }
+      return 0;
+  });
+  const isExternal = typeof externalProgress === 'number';
+  let currentProgress = isExternal ? Math.min(95, Math.max(0, externalProgress!)) : simulatedProgress;
+  
+  if (isComplete) {
+      currentProgress = 100;
+  }
+
+  let message = type === 'skeleton' ? "Analyzing job description..." : "Analyzing job requirements...";
+  if (isComplete) {
+      message = type === 'skeleton' ? "Skeleton Ready!" : "Complete! Loading your CV...";
+  } else if (currentProgress < 30) {
+      message = type === 'skeleton' ? "Analyzing job description..." : "Analyzing job requirements...";
+  } else if (currentProgress < 60) {
+      message = type === 'skeleton' ? "Architecting CV structure..." : "Matching your experience to role...";
+  } else {
+      message = type === 'skeleton' ? "Optimizing for ATS keywords..." : "Finalizing your tailored CV...";
+  }
 
   useEffect(() => {
     if (isComplete) {
-      setProgress(100);
-      setMessage(type === 'skeleton' ? "Skeleton Ready!" : "Complete! Loading your CV...");
-      setShowCheckmark(true);
-      
       const timer = setTimeout(() => {
         if (onCompleteAnimationFinished) {
           onCompleteAnimationFinished();
@@ -28,54 +46,40 @@ export const LoadingProgressBar: React.FC<LoadingProgressBarProps> = ({ isComple
       return () => clearTimeout(timer);
     }
 
-    // Phase 1: Fake Progress (0-90%) over 45 seconds
+    if (isExternal) return;
+
     const totalDuration = 45000;
     const updateInterval = 100;
     
-    // If startTime provided, calculate initial progress
-    let elapsed = startTime ? Date.now() - startTime : 0;
-    let currentProgress = Math.min(90, (elapsed / totalDuration) * 90);
-    
     const interval = setInterval(() => {
-      elapsed += updateInterval;
-      currentProgress = Math.min(90, (elapsed / totalDuration) * 90);
-      
-      if (currentProgress >= 90) {
-        currentProgress = 90;
-        // Keep checking completion via prop, don't clear interval unless complete
-        setMessage(type === 'skeleton' ? "Finalizing skeleton structure..." : "Finalizing your tailored CV...");
-      } else if (currentProgress < 30) {
-        setMessage(type === 'skeleton' ? "Analyzing job description..." : "Analyzing job requirements...");
-      } else if (currentProgress < 60) {
-        setMessage(type === 'skeleton' ? "Architecting CV structure..." : "Matching your experience to role...");
-      } else {
-        setMessage(type === 'skeleton' ? "Optimizing for ATS keywords..." : "Optimizing keywords for ATS...");
-      }
-      
-      setProgress(currentProgress);
+      setSimulatedProgress(prev => {
+        if (prev >= 90) return 90;
+        const increment = 90 / (totalDuration / updateInterval);
+        return Math.min(90, prev + increment);
+      });
     }, updateInterval);
 
     return () => clearInterval(interval);
-  }, [isComplete, onCompleteAnimationFinished, type, startTime]);
+  }, [isComplete, isExternal, onCompleteAnimationFinished]);
 
   return (
     <div className="w-full max-w-md mx-auto mt-6 p-6 bg-white rounded-2xl shadow-lg border border-indigo-50">
       <div className="flex justify-between items-end mb-3">
         <span className="text-sm font-bold text-slate-700">{message}</span>
-        <span className="text-sm font-bold text-indigo-600">{Math.round(progress)}%</span>
+        <span className="text-sm font-bold text-indigo-600">{Math.round(currentProgress)}%</span>
       </div>
       
       <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden relative">
         <motion.div 
           className="h-full bg-indigo-600 rounded-full"
           initial={{ width: 0 }}
-          animate={{ width: `${progress}%` }}
+          animate={{ width: `${currentProgress}%` }}
           transition={{ ease: "linear", duration: 0.1 }}
         />
       </div>
 
       <AnimatePresence>
-        {showCheckmark && (
+        {isComplete && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.5, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}

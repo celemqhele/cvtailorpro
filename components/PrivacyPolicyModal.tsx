@@ -52,7 +52,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
           <section>
             <h4 className="font-bold text-slate-900 mb-2">3. Third-Party AI Processing</h4>
              <p>
-              This service utilizes Third-Party Artificial Intelligence providers (specifically Cerebras AI) to process your data. By using this tool, you grant us permission to send your anonymized CV text and Job Descriptions to these providers for the sole purpose of content generation.
+              This service utilizes Third-Party Artificial Intelligence providers (specifically Google Gemini) to process your data. By using this tool, you grant us permission to send your anonymized CV text and Job Descriptions to these providers for the sole purpose of content generation.
             </p>
           </section>
 

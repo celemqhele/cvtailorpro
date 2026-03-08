@@ -153,7 +153,7 @@ import { GoogleGenAI } from "@google/genai";
 /**
  * Executes a call to AI Provider directly from the frontend, with fallback to proxy.
  */
-async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string, task: string = 'cv_generation', planId?: string, adminOverrideModel?: string): Promise<{text: string, provider?: string}> {
+async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string, task: string = 'cv_generation', planId?: string, adminOverrideModel?: string, onProgress?: (chars: number) => void): Promise<{text: string, provider?: string}> {
     const isJsonMode = systemInstruction.includes("JSON") || systemInstruction.includes("json");
     let attempts = 0;
     const maxAttempts = 2;
@@ -173,7 +173,8 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
                     jsonMode: isJsonMode,
                     task,
                     planId,
-                    adminOverrideModel
+                    adminOverrideModel,
+                    stream: !!onProgress
                 }),
                 signal: controller.signal
             });
@@ -192,16 +193,34 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
                     errMessage = text.slice(0, 100);
                 }
 
-                if (response.status === 503 || errMessage.includes("High traffic")) {
+                if (response.status === 503 || errMessage.includes("busy")) {
                     attempts++;
                     if (attempts < maxAttempts) {
-                        console.warn(`High traffic detected, retrying (attempt ${attempts + 1})...`);
+                        console.warn(`System busy detected, retrying (attempt ${attempts + 1})...`);
                         await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
                         continue;
                     }
-                    throw new Error(errMessage || "High traffic, try again in 1 minute");
+                    throw new Error(errMessage || "System is currently busy. Please try again in a moment.");
                 }
                 throw new Error(errMessage);
+            }
+
+            if (onProgress && response.body) {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = "";
+                let charsReceived = 0;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value, { stream: true });
+                    fullText += chunk;
+                    charsReceived += chunk.length;
+                    onProgress(charsReceived);
+                }
+                
+                return { text: fullText, provider: 'gemini-stream' };
             }
 
             const data = await response.json();
@@ -209,18 +228,18 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
         } catch (e: any) {
             if (e.name === 'AbortError') throw new Error("Request timed out. Please try again.");
             
-            if (e.message.includes("High traffic") && attempts < maxAttempts) {
+            if ((e.message.includes("busy") || e.message.includes("503")) && attempts < maxAttempts) {
                 attempts++;
-                console.warn(`High traffic detected in catch, retrying (attempt ${attempts + 1})...`);
+                console.warn(`System busy detected in catch, retrying (attempt ${attempts + 1})...`);
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 continue;
             }
             
             console.error("AI Proxy Call Failed:", e);
-            throw new Error(e.message || "High traffic, try again in 1 minute");
+            throw new Error(e.message || "System is currently busy. Please try again in a moment.");
         }
     }
-    throw new Error("High traffic, try again in 1 minute");
+    throw new Error("System is currently busy. Please try again in a moment.");
 }
 
 // Helper to safely parse JSON from AI models that might wrap it in markdown code blocks
@@ -321,7 +340,8 @@ export const generateTailoredApplication = async (
   linkedinUrl?: string,
   savedCvText?: string,
   additionalInfo?: string,
-  planId?: string
+  planId?: string,
+  onProgress?: (chars: number) => void
 ): Promise<GeneratorResponse> => {
   
   // 1. Extract Text
@@ -530,14 +550,15 @@ export const generateTailoredApplication = async (
       
       Perform the generation and return the JSON object.`;
 
-  const { text: responseText, provider } = await runAIChain(systemContent, userMessage, 0.6, apiKey, 'cv_generation', planId);
+  const { text: responseText, provider } = await runAIChain(systemContent, userMessage, 0.6, apiKey, 'cv_generation', planId, undefined, onProgress);
   return parseAndProcessResponse(responseText, provider);
 };
 
 export const generateSkeletonCV = async (
     jobSpec: string,
     apiKey: string,
-    planId?: string
+    planId?: string,
+    onProgress?: (chars: number) => void
 ): Promise<GeneratorResponse> => {
     const SCHEMA_INSTRUCTION = `
     You are a Strategic Career Architect. Your task is to build a "Perfect Candidate Skeleton CV" based strictly on the provided Job Description.
@@ -600,7 +621,7 @@ export const generateSkeletonCV = async (
     Generate the Skeleton CV JSON now.
     `;
 
-    const { text: responseText, provider } = await runAIChain(SCHEMA_INSTRUCTION, userMessage, 0.7, apiKey, 'cv_generation', planId);
+    const { text: responseText, provider } = await runAIChain(SCHEMA_INSTRUCTION, userMessage, 0.7, apiKey, 'cv_generation', planId, undefined, onProgress);
     return parseAndProcessResponse(responseText, provider);
 };
 
@@ -635,7 +656,8 @@ export const fillSkeletonCV = async (
     skeletonData: CVData,
     userCvText: string,
     apiKey: string,
-    planId?: string
+    planId?: string,
+    onProgress?: (chars: number) => void
 ): Promise<CVData> => {
     const userMessage = `
     SKELETON CV DATA (The Target Structure):
@@ -647,7 +669,7 @@ export const fillSkeletonCV = async (
     Please merge the Real Candidate Facts into the Skeleton Structure, replacing [Placeholders].
     `;
 
-    const { text: responseText } = await runAIChain(SKELETON_FILLER_PROMPT, userMessage, 0.3, apiKey, 'cv_generation', planId);
+    const { text: responseText } = await runAIChain(SKELETON_FILLER_PROMPT, userMessage, 0.3, apiKey, 'cv_generation', planId, undefined, onProgress);
     
     try {
         const result = parseJsonResponse(responseText);

@@ -38,7 +38,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ userPlanId }) => {
     setIsTyping(true);
 
     // Pass the *previous* history to the context to avoid including the just-added message twice if logic requires,
-    // but the service takes full history. We filter out the initial greeting if needed, but Cerebras handles it fine usually.
+    // but the service takes full history. We filter out the initial greeting if needed, but the model handles it fine usually.
     // Ideally, we send the history excluding the static greeting if it wasn't from API, but here we just send everything.
     const apiHistory = messages.map(m => ({ role: m.role, content: m.content }));
 

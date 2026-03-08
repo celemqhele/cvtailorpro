@@ -39,7 +39,7 @@ export const Privacy: React.FC = () => {
           <section className="mb-8">
             <h3 className="text-xl font-bold text-slate-800 mb-3">4. Third-Party AI Processing (Operator Agreement)</h3>
              <p>
-                This service utilizes Third-Party Artificial Intelligence providers (specifically Cerebras AI and Google Gemini) to process your data. 
+                This service utilizes Third-Party Artificial Intelligence providers (specifically Google Gemini) to process your data. 
                 By using this tool, you grant us permission to send your <strong>anonymized CV text</strong> and <strong>Job Descriptions</strong> to these providers for the sole purpose of content generation. 
                 These providers do not retain your data for model training purposes.
              </p>

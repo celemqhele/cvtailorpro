@@ -38,6 +38,7 @@ export const JobDetails: React.FC = () => {
   const [skeletonData, setSkeletonData] = useState<CVData | null>(null);
   const [toast, setToast] = useState<{message: string, type: ToastType} | null>(null);
   const [limitType, setLimitType] = useState<'quick' | 'daily'>('quick');
+  const [generationProgress, setGenerationProgress] = useState<number | undefined>(undefined);
 
   // Helper to generate a placeholder tailored CV if the DB doesn't have one
   const getFallbackCV = (jobTitle: string, company: string): CVData => ({
@@ -159,11 +160,18 @@ export const JobDetails: React.FC = () => {
     const jobSpec = job.description || job.summary || "No description provided.";
 
     setIsGenerating(true);
+    setGenerationProgress(0);
     try {
         // 1. Generate Skeleton
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "demo-key"; 
         
-        const response = await geminiService.generateSkeletonCV(jobSpec, apiKey, user?.plan_id);
+        const onProgress = (chars: number) => {
+            // Estimate: Skeleton is smaller, maybe 2000 chars = 90%
+            const p = Math.min(90, (chars / 2000) * 90);
+            setGenerationProgress(p);
+        };
+
+        const response = await geminiService.generateSkeletonCV(jobSpec, apiKey, user?.plan_id, onProgress);
         
         if (response.cvData) {
             setSkeletonData(response.cvData);
@@ -196,14 +204,21 @@ export const JobDetails: React.FC = () => {
   const handleUploadCV = async (file: FileData) => {
     if (!skeletonData || !job) return;
     setIsGenerating(true);
+    setGenerationProgress(0);
     try {
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "demo-key";
         
         // 1. Extract text from uploaded file
         const userCvText = await geminiService.extractTextFromFile(file);
         
+        const onProgress = (chars: number) => {
+            // Estimate: Filling skeleton might be around 3000-4000 chars
+            const p = Math.min(90, (chars / 3500) * 90);
+            setGenerationProgress(p);
+        };
+
         // 2. Fill the skeleton
-        const finalCV = await geminiService.fillSkeletonCV(skeletonData, userCvText, apiKey, user?.plan_id);
+        const finalCV = await geminiService.fillSkeletonCV(skeletonData, userCvText, apiKey, user?.plan_id, onProgress);
         
         // 3. Save to DB
         const savedApp = await authService.saveApplication(
@@ -317,6 +332,7 @@ export const JobDetails: React.FC = () => {
                 <LoadingProgressBar 
                     isComplete={pendingPreview} 
                     type={skeletonData && !pendingNavigation ? 'skeleton' : 'cv'}
+                    progress={generationProgress}
                     onCompleteAnimationFinished={() => {
                         setIsGenerating(false);
                         setPendingPreview(false);
