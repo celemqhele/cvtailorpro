@@ -1,5 +1,5 @@
 
-import { supabase } from './supabaseClient';
+import { supabase, storageAdapter } from './supabaseClient';
 import { UserProfile, SavedApplication } from '../types';
 import { naturalizeText } from '../utils/textHelpers';
 
@@ -21,12 +21,20 @@ export const authService = {
   },
 
   async signIn(email: string, password: string, rememberMe: boolean = true) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
+    // Set persistence mode on our custom adapter
+    storageAdapter.mode = rememberMe ? 'local' : 'session';
+    
+    try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        return data;
+    } finally {
+        // Reset mode to auto so future updates (refresh token) respect current location
+        storageAdapter.mode = 'auto';
+    }
   },
 
   async resetPasswordForEmail(email: string) {

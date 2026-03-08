@@ -16,8 +16,6 @@ import { QuickApplyUploadModal } from '../components/QuickApplyUploadModal';
 import { ToastNotification, ToastType } from '../components/ToastNotification';
 import { LimitReachedModal } from '../components/LimitReachedModal';
 
-import { LoadingProgressBar } from '../components/LoadingProgressBar';
-
 export const JobDetails: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -33,13 +31,9 @@ export const JobDetails: React.FC = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [pendingPreview, setPendingPreview] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState<{url: string, state: any} | null>(null);
   const [skeletonData, setSkeletonData] = useState<CVData | null>(null);
   const [toast, setToast] = useState<{message: string, type: ToastType} | null>(null);
   const [limitType, setLimitType] = useState<'quick' | 'daily'>('quick');
-  const [generationProgress, setGenerationProgress] = useState<number | undefined>(undefined);
-  const [generationMessage, setGenerationMessage] = useState<string | undefined>(undefined);
 
   // Helper to generate a placeholder tailored CV if the DB doesn't have one
   const getFallbackCV = (jobTitle: string, company: string): CVData => ({
@@ -161,27 +155,11 @@ export const JobDetails: React.FC = () => {
     const jobSpec = job.description || job.summary || "No description provided.";
 
     setIsGenerating(true);
-    setGenerationProgress(0);
-    setGenerationMessage("Initializing Skeleton...");
     try {
         // 1. Generate Skeleton
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "demo-key"; 
         
-        const onProgress = (chars: number, text: string) => {
-            // Estimate: Skeleton is smaller, maybe 2000 chars = 90%
-            const p = Math.min(90, (chars / 2000) * 90);
-            setGenerationProgress(p);
-
-            // Live Status Updates
-            if (text.includes('"coverLetter"')) setGenerationMessage("Drafting placeholder cover letter...");
-            else if (text.includes('"education"')) setGenerationMessage("Structuring education section...");
-            else if (text.includes('"experience"')) setGenerationMessage("Building experience placeholders...");
-            else if (text.includes('"skills"')) setGenerationMessage("Identifying required skills...");
-            else if (text.includes('"summary"')) setGenerationMessage("Drafting summary structure...");
-            else if (text.includes('"meta"')) setGenerationMessage("Analyzing job description...");
-        };
-
-        const response = await geminiService.generateSkeletonCV(jobSpec, apiKey, user?.plan_id, onProgress);
+        const response = await geminiService.generateSkeletonCV(jobSpec, apiKey, user?.plan_id);
         
         if (response.cvData) {
             setSkeletonData(response.cvData);
@@ -202,7 +180,8 @@ export const JobDetails: React.FC = () => {
             }
             
             // 3. Show Preview
-            setPendingPreview(true);
+            setIsGenerating(false);
+            setShowSkeletonPreview(true);
         }
     } catch (e) {
         console.error("Skeleton Generation Failed", e);
@@ -214,30 +193,14 @@ export const JobDetails: React.FC = () => {
   const handleUploadCV = async (file: FileData) => {
     if (!skeletonData || !job) return;
     setIsGenerating(true);
-    setGenerationProgress(0);
-    setGenerationMessage("Extracting CV data...");
     try {
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "demo-key";
         
         // 1. Extract text from uploaded file
         const userCvText = await geminiService.extractTextFromFile(file);
         
-        const onProgress = (chars: number, text: string) => {
-            // Estimate: Filling skeleton might be around 3000-4000 chars
-            const p = Math.min(90, (chars / 3500) * 90);
-            setGenerationProgress(p);
-
-            // Live Status Updates
-            if (text.includes('"coverLetter"')) setGenerationMessage("Tailoring cover letter...");
-            else if (text.includes('"education"')) setGenerationMessage("Adding education details...");
-            else if (text.includes('"experience"')) setGenerationMessage("Filling experience placeholders...");
-            else if (text.includes('"skills"')) setGenerationMessage("Mapping skills...");
-            else if (text.includes('"summary"')) setGenerationMessage("Personalizing summary...");
-            else if (text.includes('"meta"')) setGenerationMessage("Processing CV data...");
-        };
-
         // 2. Fill the skeleton
-        const finalCV = await geminiService.fillSkeletonCV(skeletonData, userCvText, apiKey, user?.plan_id, onProgress);
+        const finalCV = await geminiService.fillSkeletonCV(skeletonData, userCvText, apiKey, user?.plan_id);
         
         // 3. Save to DB
         const savedApp = await authService.saveApplication(
@@ -252,11 +215,8 @@ export const JobDetails: React.FC = () => {
         if (!savedApp) throw new Error("Failed to save application");
 
         // 4. Navigate to result
-        setPendingPreview(true);
-        // We need to store the navigation details somewhere to use them after the progress bar finishes
-        // Let's use a state for pendingNavigation like in Dashboard.tsx
-        setPendingNavigation({
-            url: `/cv-generated/${savedApp.id}`,
+        setIsGenerating(false);
+        navigate(`/cv-generated/${savedApp.id}`, {
             state: { 
                 cvData: finalCV,
                 jobId: job.id,
@@ -346,23 +306,15 @@ export const JobDetails: React.FC = () => {
         </div>
         
         {/* Loading Overlay for Generation */}
-        {(isGenerating || pendingPreview) && (
+        {isGenerating && (
             <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
-                <LoadingProgressBar 
-                    isComplete={pendingPreview} 
-                    type={skeletonData && !pendingNavigation ? 'skeleton' : 'cv'}
-                    progress={generationProgress}
-                    customMessage={generationMessage}
-                    onCompleteAnimationFinished={() => {
-                        setIsGenerating(false);
-                        setPendingPreview(false);
-                        if (pendingNavigation) {
-                            navigate(pendingNavigation.url, { state: pendingNavigation.state });
-                        } else {
-                            setShowSkeletonPreview(true);
-                        }
-                    }} 
-                />
+                 <div className="flex flex-col items-center justify-center text-center space-y-4 bg-white p-8 rounded-2xl shadow-2xl">
+                     <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                     <div>
+                         <h3 className="text-lg font-bold text-slate-900">Generating your CV...</h3>
+                         <p className="text-slate-500 text-sm">This may take up to 30 seconds.</p>
+                     </div>
+                </div>
             </div>
         )}
 

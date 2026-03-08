@@ -14,7 +14,6 @@ import { ProPlusFeatureCard } from '../components/ProPlusFeatureCard';
 import { AdDecisionModal } from '../components/AdDecisionModal';
 import { FeatureLockedModal } from '../components/FeatureLockedModal';
 import { SkeletonPromoModal } from '../components/SkeletonPromoModal';
-import { LoadingProgressBar } from '../components/LoadingProgressBar';
 import { ModelSelectionModal } from '../components/ModelSelectionModal';
 
 import { analytics } from '../services/analyticsService';
@@ -48,8 +47,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
   const navigate = useNavigate();
   const location = useLocation();
-
-  const [pendingNavigation, setPendingNavigation] = useState<{ url: string, state?: any } | null>(null);
 
   // Redirect Logic - Only strict for logged-in user dashboard
   useEffect(() => {
@@ -114,9 +111,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [directApplyLink, setDirectApplyLink] = useState<string | null>(null);
 
   const [status, setStatus] = useState<Status>(Status.IDLE);
-  const [generationStartTime, setGenerationStartTime] = useState<number | undefined>(undefined);
-  const [generationProgress, setGenerationProgress] = useState<number | undefined>(undefined);
-  const [generationMessage, setGenerationMessage] = useState<string | undefined>(undefined);
 
   // Check for active job on mount
   useEffect(() => {
@@ -125,7 +119,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           const activeJob = await progressService.getActiveJob(user.id);
           if (activeJob && activeJob.status === 'processing') {
               setStatus(Status.GENERATING);
-              setGenerationStartTime(new Date(activeJob.started_at).getTime());
           }
       };
       checkActiveJob();
@@ -566,9 +559,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       }
 
       setStatus(Status.GENERATING);
-      setGenerationStartTime(Date.now());
-      setGenerationProgress(0);
-      setGenerationMessage("Initializing Skeleton...");
       if (user?.id) await progressService.startJob(user.id, 'skeleton');
 
       setErrorMsg(null);
@@ -576,25 +566,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       setGeneratedCvId(null);
 
       try {
-          const onProgress = (chars: number, text: string) => {
-              // Estimate: Skeleton is smaller, maybe 2000 chars = 90%
-              const p = Math.min(90, (chars / 2000) * 90);
-              setGenerationProgress(p);
-
-              // Live Status Updates
-              if (text.includes('"coverLetter"')) setGenerationMessage("Drafting placeholder cover letter...");
-              else if (text.includes('"education"')) setGenerationMessage("Structuring education section...");
-              else if (text.includes('"experience"')) setGenerationMessage("Building experience placeholders...");
-              else if (text.includes('"skills"')) setGenerationMessage("Identifying required skills...");
-              else if (text.includes('"summary"')) setGenerationMessage("Drafting summary structure...");
-              else if (text.includes('"meta"')) setGenerationMessage("Analyzing job description...");
-          };
-
           const response = await generateSkeletonCV(
               jobSpec,
               "", // apiKey
-              adminPlanOverride || user?.plan_id,
-              onProgress
+              adminPlanOverride || user?.plan_id
           );
 
           if (response.outcome !== 'REJECT') {
@@ -615,7 +590,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                       mode: 'skeleton'
                   });
                   setStatus(Status.SUCCESS); // Now safe to set success
-                  setPendingNavigation({ url: `/cv-generated/${savedId}` });
+                  navigate(`/cv-generated/${savedId}`);
               } else {
                   setStatus(Status.ERROR);
                   setErrorMsg("Failed to save generated CV.");
@@ -658,9 +633,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     const currentJobSpec = isDirectTitleMode ? jobTitle : jobSpec;
 
     setStatus(Status.GENERATING);
-    setGenerationStartTime(Date.now());
-    setGenerationProgress(0);
-    setGenerationMessage("Initializing AI...");
     if (user?.id) await progressService.startJob(user.id, 'cv');
 
     setErrorMsg(null);
@@ -716,22 +688,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           }
       }
 
-      const onProgress = (chars: number, text: string) => {
-          // Estimate: CV is larger, maybe 5000 chars = 90%
-          const p = Math.min(95, (chars / 5000) * 95);
-          setGenerationProgress(p);
-
-          // Live Status Updates based on content
-          if (text.includes('"coverLetter"')) setGenerationMessage("Drafting cover letter...");
-          else if (text.includes('"references"')) setGenerationMessage("Finalizing references...");
-          else if (text.includes('"education"')) setGenerationMessage("Formatting education...");
-          else if (text.includes('"keyAchievements"')) setGenerationMessage("Highlighting key achievements...");
-          else if (text.includes('"experience"')) setGenerationMessage("Optimizing work experience...");
-          else if (text.includes('"skills"')) setGenerationMessage("Selecting relevant skills...");
-          else if (text.includes('"summary"')) setGenerationMessage("Drafting professional summary...");
-          else if (text.includes('"meta"')) setGenerationMessage("Analyzing job requirements...");
-      };
-
       const response = await generateTailoredApplication(
           file, 
           cvInputMode === 'scratch' ? manualData : null,
@@ -742,8 +698,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           linkedinUrl,
           (useSavedCv && savedCvText) ? savedCvText : undefined,
           combinedAdditionalInfo, // Pass combined info
-          adminPlanOverride || user?.plan_id,
-          onProgress
+          adminPlanOverride || user?.plan_id
       );
       if (response.outcome !== 'REJECT') {
           setResult(response);
@@ -770,7 +725,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
               const showSubscribe = isJobBoardFlow && (!user || user.plan_id === 'free');
 
               setStatus(Status.SUCCESS); // Now safe to set success
-              setPendingNavigation({ url: `/cv-generated/${savedId}`, state: { showSubscribe } });
+              navigate(`/cv-generated/${savedId}`, { state: { showSubscribe } });
           } else {
               setStatus(Status.ERROR);
               setErrorMsg("Failed to save generated CV.");
@@ -1132,19 +1087,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                         </div>
                     )}
 
-                    {status === Status.GENERATING || pendingNavigation ? (
-                        <div className="pt-4 border-t border-slate-200">
-                            <LoadingProgressBar 
-                                isComplete={!!pendingNavigation} 
-                                startTime={generationStartTime}
-                                progress={generationProgress}
-                                customMessage={generationMessage}
-                                onCompleteAnimationFinished={() => {
-                                    if (pendingNavigation) {
-                                        navigate(pendingNavigation.url, { state: pendingNavigation.state });
-                                    }
-                                }} 
-                            />
+                    {status === Status.GENERATING ? (
+                        <div className="pt-8 border-t border-slate-200 flex flex-col items-center justify-center text-center space-y-4">
+                             <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                             <div>
+                                 <h3 className="text-lg font-bold text-slate-900">Generating your CV...</h3>
+                                 <p className="text-slate-500 text-sm">This may take up to 30 seconds. Please do not close this tab.</p>
+                             </div>
                         </div>
                     ) : (
                         <div className="flex flex-col md:flex-row gap-4 pt-4 border-t border-slate-200">
