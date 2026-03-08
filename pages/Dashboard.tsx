@@ -582,6 +582,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
           const response = await generateSkeletonCV(
               jobSpec,
+              "", // apiKey
               adminPlanOverride || user?.plan_id,
               onProgress
           );
