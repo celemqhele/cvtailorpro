@@ -777,6 +777,39 @@ export const rewriteJobDescription = async (
     return naturalizeObject(result);
 };
 
+export const generateGeneralJobDescriptionFromCV = async (
+    cvText: string,
+    apiKey: string,
+    planId?: string
+): Promise<string> => {
+    const systemPrompt = `
+    You are an expert HR Specialist and Job Analyst.
+    Your task is to analyze a candidate's CV and reverse-engineer a comprehensive, general Job Description (JD) that this candidate would be perfectly suited for.
+    
+    THE GOAL IS FOR THE CANDIDATE TO USE THIS JOB POST TO COME UP WITH A CV THAT THEY CAN USE FOR ALL SIMILAR JOBS.
+
+    MAKE SURE THAT THE JOB IS:
+    1. HIGHLY DETAILED
+    2. ACCURATE OF THE ACTUAL DETAILS AND INFO ABOUT THE INDUSTRY SPECS REGARDLESS OF LOCATION
+    3. MUST INCLUDE ALL INFORMATION FROM SUMMARY, RESPONSIBILITIES, REQUIREMENTS, PREFERED QUALIFICATIONS, ETC.
+    4. DON'T INCLUDE COMPANY NAME, JUST USE "WE"
+    5. DON'T NICHE IT TO A SPECIFIC INDUSTRY, MAKE A GENERAL VERSION OF THAT JOB ROLE
+    
+    OUTPUT FORMAT:
+    Return strictly the raw text of the Job Description. Do not include any conversational filler.
+    `;
+
+    const userMessage = `
+    CANDIDATE CV CONTENT:
+    ${cvText.substring(0, 20000)}
+
+    Please generate the comprehensive General Job Description now.
+    `;
+
+    const { text } = await runAIChain(systemPrompt, userMessage, 0.7, apiKey, 'cv_generation', planId);
+    return text;
+};
+
 export const generateFictionalCV = async (
     jobDescription: string,
     jobTitle: string,

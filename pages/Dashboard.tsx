@@ -18,7 +18,7 @@ import { LoadingProgressBar } from '../components/LoadingProgressBar';
 import { ModelSelectionModal } from '../components/ModelSelectionModal';
 
 import { analytics } from '../services/analyticsService';
-import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile, generateSkeletonCV } from '../services/geminiService';
+import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile, generateSkeletonCV, generateGeneralJobDescriptionFromCV } from '../services/geminiService';
 import { authService } from '../services/authService';
 import { checkUsageLimit, incrementUsage } from '../services/usageService';
 import { getPlanDetails, PLANS } from '../services/subscriptionService';
@@ -320,8 +320,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       
       if (targetMode === 'url' && !jobLink) return false;
       if (targetMode === 'text' && !manualJobText.trim()) return false;
-      // For 'title' mode (Optimize), we allow empty title for guests
-      if (targetMode === 'title' && mode !== 'guest' && !jobTitle.trim()) return false;
+      // For 'title' mode (General Optimization), no input is required now
+      if (targetMode === 'title') return true;
       return true;
   };
 
@@ -583,17 +583,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           setFile(null);
       }
 
-      // If title mode and empty title, use default optimization
+      // If title mode (General Optimization), generate the job description first
       let currentJobSpec = jobSpec;
-      if (targetMode === 'title' && !jobTitle.trim()) {
-          currentJobSpec = "General Professional Optimization and Industry Standard Formatting";
+      let effectiveTargetType: 'specific' | 'title' = targetMode === 'title' ? 'title' : 'specific';
+
+      if (targetMode === 'title') {
+          // 1. Get CV Text
+          let cvTextForGen = "";
+          if (cvInputMode === 'upload' && (useSavedCv && savedCvText)) {
+              cvTextForGen = savedCvText;
+          } else if (cvInputMode === 'upload' && file) {
+               // Should have been extracted above, but double check
+               if (savedCvText) cvTextForGen = savedCvText;
+               else cvTextForGen = await extractTextFromFile(file);
+          } else if (cvInputMode === 'scratch') {
+              cvTextForGen = JSON.stringify(manualData);
+          }
+
+          if (cvTextForGen) {
+              // 2. Generate General Job Description
+              showToast("Analyzing your profile to create a perfect general job target...", "info");
+              const generatedJobDescription = await generateGeneralJobDescriptionFromCV(
+                  cvTextForGen, 
+                  "", // API Key handled in service
+                  adminPlanOverride || user?.plan_id
+              );
+              
+              currentJobSpec = generatedJobDescription;
+              // We switch to 'specific' because we now have a "specific" job description to target,
+              // even though it was generated to be general. This ensures the AI optimizes against it.
+              effectiveTargetType = 'specific'; 
+          } else {
+              // Fallback if no CV text found (shouldn't happen due to validation)
+              currentJobSpec = "General Professional Optimization and Industry Standard Formatting";
+          }
       }
 
       const response = await generateTailoredApplication(
           file, 
           cvInputMode === 'scratch' ? manualData : null,
           currentJobSpec,
-          targetMode === 'title' ? 'title' : 'specific',
+          effectiveTargetType,
           "", 
           force,
           linkedinUrl,
@@ -957,18 +987,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                      <textarea className="w-full h-full p-2 text-sm border-none focus:ring-0 resize-none" placeholder="Paste the full job description here..." value={manualJobText} onChange={e => setManualJobText(e.target.value)} />
                                  )}
                                  {targetMode === 'title' && (
-                                     <div className="space-y-2">
-                                         <p className="text-sm text-slate-600">
-                                             We'll polish your CV for general professional standards, improving clarity, impact, and ATS readability.
-                                         </p>
-                                         <input 
-                                            type="text" 
-                                            placeholder="Optional: Target Job Title (e.g. Project Manager)" 
-                                            className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none" 
-                                            value={jobTitle} 
-                                            onChange={e => setJobTitle(e.target.value)} 
-                                         />
-                                         <p className="text-xs text-slate-400">Leave blank for a broad professional update, or add a title to guide the style.</p>
+                                     <div className="space-y-4 flex flex-col items-center justify-center h-full text-center px-4">
+                                         <div className="bg-indigo-50 p-4 rounded-full">
+                                             <Zap className="w-8 h-8 text-indigo-600" />
+                                         </div>
+                                         <div>
+                                             <h3 className="font-bold text-slate-900 mb-2">General Professional Optimization</h3>
+                                             <p className="text-sm text-slate-600 max-w-sm mx-auto">
+                                                 We will analyze your CV to create a <strong>comprehensive general job description</strong> tailored to your skills, then optimize your CV to match it perfectly.
+                                             </p>
+                                         </div>
+                                         <div className="text-xs text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                                             No input required • AI Auto-Detection
+                                         </div>
                                      </div>
                                  )}
                              </div>

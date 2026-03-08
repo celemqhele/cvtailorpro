@@ -73,9 +73,9 @@ export const authService = {
         lastError = error;
         console.warn(`Profile fetch attempt ${i + 1} failed:`, error?.message || "Row not found");
         
-        // Wait 500ms before next attempt
+        // Wait 100ms before next attempt
         if (i < maxRetries - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
 
