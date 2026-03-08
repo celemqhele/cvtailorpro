@@ -103,7 +103,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   });
 
   // Job Target Modes
-  const [targetMode, setTargetMode] = useState<'url' | 'text' | 'title'>(mode === 'guest' ? 'title' : 'text');
+  const [targetMode, setTargetMode] = useState<'url' | 'text' | 'title'>('title');
   const [jobLink, setJobLink] = useState('');
   const [manualJobText, setManualJobText] = useState('');
   const [jobTitle, setJobTitle] = useState('');
