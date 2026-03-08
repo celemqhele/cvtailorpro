@@ -48,18 +48,17 @@ const getFingerprint = (): string => {
 const getIdentifier = async (userId?: string): Promise<string> => {
     if (userId) return userId;
     
-    // For guests, use the IP address + Fingerprint to prevent incognito/cache clearing bypass
+    // For guests, use STRICTLY the IP address to prevent incognito/cache clearing bypass
     const ip = await getIpAddress();
-    const fp = getFingerprint();
     
     if (ip !== 'unknown_ip') {
-        // Use a combination of IP and fingerprint for better accuracy
-        return `guest_${ip}_${fp}`;
+        return `ip_${ip}`;
     }
 
     // Fallback to localStorage ONLY if IP fetch fails (very rare)
     let guestId = localStorage.getItem('cv_tailor_guest_id');
     if (!guestId) {
+        const fp = getFingerprint();
         guestId = `guest_fallback_${fp}_` + Math.random().toString(36).substring(2, 15);
         localStorage.setItem('cv_tailor_guest_id', guestId);
     }
@@ -141,8 +140,7 @@ export const getUsageCount = async (userId?: string, planId: string = 'free'): P
 export const syncIpUsageToUser = async (userId: string): Promise<void> => {
     try {
         const ip = await getIpAddress();
-        const fp = getFingerprint();
-        const identifier = ip !== 'unknown_ip' ? `guest_${ip}_${fp}` : localStorage.getItem('cv_tailor_guest_id');
+        const identifier = ip !== 'unknown_ip' ? `ip_${ip}` : localStorage.getItem('cv_tailor_guest_id');
         
         if (!identifier) return;
 
@@ -186,8 +184,7 @@ export const checkQuickApplyLimit = async (userPlanId?: string): Promise<boolean
 
     try {
         const ip = await getIpAddress();
-        const fp = getFingerprint();
-        const identifier = ip !== 'unknown_ip' ? `guest_${ip}_${fp}` : 'unknown_ip';
+        const identifier = ip !== 'unknown_ip' ? `ip_${ip}` : 'unknown_ip';
         const { data, error } = await supabase.rpc('check_quick_apply_eligibility', { user_ip: identifier });
         
         if (error) {
@@ -207,8 +204,7 @@ export const checkQuickApplyLimit = async (userPlanId?: string): Promise<boolean
 export const incrementQuickApply = async (): Promise<void> => {
     try {
         const ip = await getIpAddress();
-        const fp = getFingerprint();
-        const identifier = ip !== 'unknown_ip' ? `guest_${ip}_${fp}` : 'unknown_ip';
+        const identifier = ip !== 'unknown_ip' ? `ip_${ip}` : 'unknown_ip';
         const { error } = await supabase.rpc('record_quick_apply_usage', { user_ip: identifier });
         
         if (error) {
