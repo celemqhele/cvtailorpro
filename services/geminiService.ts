@@ -436,7 +436,34 @@ export const generateTailoredApplication = async (
   let systemContent = SCHEMA_INSTRUCTION;
 
   if (isGeneralOptimization) {
-    systemContent += `\n\nSPECIAL MODE: GENERAL OPTIMIZATION. Ignore instructions about "matching a job description" or "ATS match percentage against a job". Instead, focus on maximizing the candidate's professional appeal, clarity, and impact across all industries.`;
+    if (planId === 'tier_4' || planId === 'tier_3') {
+        // Pro / Unlimited: Executive/High-Impact
+        systemContent += `\n\nSPECIAL MODE: EXECUTIVE GENERAL OPTIMIZATION. 
+        Ignore instructions about "matching a job description". 
+        Your goal is to transform this CV into a High-Impact, Executive-Level document suitable for top-tier opportunities.
+        1. STRATEGY: Focus on leadership, strategic impact, and quantifiable value.
+        2. LANGUAGE: Use sophisticated, C-suite level terminology.
+        3. SUMMARY: Craft a powerful "Executive Summary" that positions the candidate as an industry authority.
+        4. METRICS: Aggressively highlight ROI, revenue growth, and efficiency gains.
+        5. FORMATTING: Ensure the structure is impeccable and modern.`;
+    } else if (planId === 'tier_2') {
+        // Growth: Advanced/Professional
+        systemContent += `\n\nSPECIAL MODE: ADVANCED GENERAL OPTIMIZATION.
+        Ignore instructions about "matching a job description".
+        Your goal is to significantly upgrade the professional quality of this CV.
+        1. STRATEGY: Focus on career progression and key achievements.
+        2. LANGUAGE: Use strong action verbs and professional phrasing.
+        3. SUMMARY: Write a compelling professional summary.
+        4. METRICS: Ensure all achievements are clearly quantified where possible.`;
+    } else {
+        // Free / Starter: Basic/Standard
+        systemContent += `\n\nSPECIAL MODE: BASIC GENERAL OPTIMIZATION.
+        Ignore instructions about "matching a job description".
+        Your goal is to clean up and standardize this CV.
+        1. STRATEGY: Fix grammar, clarity, and formatting.
+        2. LANGUAGE: Ensure professional tone.
+        3. SUMMARY: Write a clear and concise summary.`;
+    }
   }
 
   if (force || targetType === 'title') {
@@ -446,7 +473,7 @@ export const generateTailoredApplication = async (
   const jobContext = targetType === 'specific' 
     ? `TARGET JOB DESCRIPTION (KEYWORDS TO INJECT):\n${jobSpec}`
     : isGeneralOptimization
-      ? `MODE: GENERAL PROFESSIONAL OPTIMIZATION\n\nCRITICAL INSTRUCTION: There is no specific target job. Your task is to perform a high-level professional modernization of the candidate's EXISTING CV. 
+      ? `MODE: GENERAL PROFESSIONAL OPTIMIZATION\n\nCRITICAL INSTRUCTION: There is no specific target job. Your task is to perform a professional modernization of the candidate's EXISTING CV according to the SPECIAL MODE instructions provided above.
          1. Improve the "Summary" to be punchy, modern, and value-driven.
          2. Rewrite experience bullets using strong action verbs and the CAR (Challenge/Action/Result) framework.
          3. Ensure the layout and language meet the highest industry standards for professional CVs.

@@ -942,7 +942,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                  <div className="flex bg-slate-100 p-1 rounded-lg">
                                      <button onClick={() => setTargetMode('url')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'url' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Link</button>
                                      <button onClick={() => setTargetMode('text')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'text' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Text</button>
-                                     <button onClick={() => setTargetMode('title')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'title' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>{mode === 'guest' ? 'Optimize' : 'Title'}</button>
+                                     <button onClick={() => setTargetMode('title')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${targetMode === 'title' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>General Optimization</button>
                                  </div>
                              </div>
 
@@ -959,17 +959,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                  {targetMode === 'title' && (
                                      <div className="space-y-2">
                                          <p className="text-sm text-slate-600">
-                                             {mode === 'guest' 
-                                                ? "We'll optimize your CV for general industry standards and best practices." 
-                                                : "Enter a Job Title. We'll optimize for industry standards."}
+                                             We'll polish your CV for general professional standards, improving clarity, impact, and ATS readability.
                                          </p>
                                          <input 
                                             type="text" 
-                                            placeholder={mode === 'guest' ? "Job Title (Optional)" : "e.g. Senior Project Manager"} 
+                                            placeholder="Optional: Target Job Title (e.g. Project Manager)" 
                                             className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none" 
                                             value={jobTitle} 
                                             onChange={e => setJobTitle(e.target.value)} 
                                          />
+                                         <p className="text-xs text-slate-400">Leave blank for a broad professional update, or add a title to guide the style.</p>
                                      </div>
                                  )}
                              </div>
