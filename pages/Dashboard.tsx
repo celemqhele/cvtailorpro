@@ -116,6 +116,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [status, setStatus] = useState<Status>(Status.IDLE);
   const [generationStartTime, setGenerationStartTime] = useState<number | undefined>(undefined);
   const [generationProgress, setGenerationProgress] = useState<number | undefined>(undefined);
+  const [generationMessage, setGenerationMessage] = useState<string | undefined>(undefined);
 
   // Check for active job on mount
   useEffect(() => {
@@ -567,6 +568,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       setStatus(Status.GENERATING);
       setGenerationStartTime(Date.now());
       setGenerationProgress(0);
+      setGenerationMessage("Initializing Skeleton...");
       if (user?.id) await progressService.startJob(user.id, 'skeleton');
 
       setErrorMsg(null);
@@ -574,10 +576,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       setGeneratedCvId(null);
 
       try {
-          const onProgress = (chars: number) => {
+          const onProgress = (chars: number, text: string) => {
               // Estimate: Skeleton is smaller, maybe 2000 chars = 90%
               const p = Math.min(90, (chars / 2000) * 90);
               setGenerationProgress(p);
+
+              // Live Status Updates
+              if (text.includes('"coverLetter"')) setGenerationMessage("Drafting placeholder cover letter...");
+              else if (text.includes('"education"')) setGenerationMessage("Structuring education section...");
+              else if (text.includes('"experience"')) setGenerationMessage("Building experience placeholders...");
+              else if (text.includes('"skills"')) setGenerationMessage("Identifying required skills...");
+              else if (text.includes('"summary"')) setGenerationMessage("Drafting summary structure...");
+              else if (text.includes('"meta"')) setGenerationMessage("Analyzing job description...");
           };
 
           const response = await generateSkeletonCV(
@@ -650,6 +660,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     setStatus(Status.GENERATING);
     setGenerationStartTime(Date.now());
     setGenerationProgress(0);
+    setGenerationMessage("Initializing AI...");
     if (user?.id) await progressService.startJob(user.id, 'cv');
 
     setErrorMsg(null);
@@ -705,10 +716,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           }
       }
 
-      const onProgress = (chars: number) => {
+      const onProgress = (chars: number, text: string) => {
           // Estimate: CV is larger, maybe 5000 chars = 90%
-          const p = Math.min(90, (chars / 5000) * 90);
+          const p = Math.min(95, (chars / 5000) * 95);
           setGenerationProgress(p);
+
+          // Live Status Updates based on content
+          if (text.includes('"coverLetter"')) setGenerationMessage("Drafting cover letter...");
+          else if (text.includes('"references"')) setGenerationMessage("Finalizing references...");
+          else if (text.includes('"education"')) setGenerationMessage("Formatting education...");
+          else if (text.includes('"keyAchievements"')) setGenerationMessage("Highlighting key achievements...");
+          else if (text.includes('"experience"')) setGenerationMessage("Optimizing work experience...");
+          else if (text.includes('"skills"')) setGenerationMessage("Selecting relevant skills...");
+          else if (text.includes('"summary"')) setGenerationMessage("Drafting professional summary...");
+          else if (text.includes('"meta"')) setGenerationMessage("Analyzing job requirements...");
       };
 
       const response = await generateTailoredApplication(
@@ -1117,6 +1138,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                                 isComplete={!!pendingNavigation} 
                                 startTime={generationStartTime}
                                 progress={generationProgress}
+                                customMessage={generationMessage}
                                 onCompleteAnimationFinished={() => {
                                     if (pendingNavigation) {
                                         navigate(pendingNavigation.url, { state: pendingNavigation.state });

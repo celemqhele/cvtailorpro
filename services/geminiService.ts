@@ -153,7 +153,7 @@ import { GoogleGenAI } from "@google/genai";
 /**
  * Executes a call to AI Provider directly from the frontend, with fallback to proxy.
  */
-async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string, task: string = 'cv_generation', planId?: string, adminOverrideModel?: string, onProgress?: (chars: number) => void): Promise<{text: string, provider?: string}> {
+async function runAIChain(systemInstruction: string, userMessage: string, temperature: number, _apiKey: string, task: string = 'cv_generation', planId?: string, adminOverrideModel?: string, onProgress?: (chars: number, text: string) => void): Promise<{text: string, provider?: string}> {
     const isJsonMode = systemInstruction.includes("JSON") || systemInstruction.includes("json");
     let attempts = 0;
     const maxAttempts = 2;
@@ -217,7 +217,7 @@ async function runAIChain(systemInstruction: string, userMessage: string, temper
                     const chunk = decoder.decode(value, { stream: true });
                     fullText += chunk;
                     charsReceived += chunk.length;
-                    onProgress(charsReceived);
+                    onProgress(charsReceived, fullText);
                 }
                 
                 return { text: fullText, provider: 'gemini-stream' };
@@ -341,7 +341,7 @@ export const generateTailoredApplication = async (
   savedCvText?: string,
   additionalInfo?: string,
   planId?: string,
-  onProgress?: (chars: number) => void
+  onProgress?: (chars: number, text: string) => void
 ): Promise<GeneratorResponse> => {
   
   // 1. Extract Text
@@ -558,7 +558,7 @@ export const generateSkeletonCV = async (
     jobSpec: string,
     apiKey: string,
     planId?: string,
-    onProgress?: (chars: number) => void
+    onProgress?: (chars: number, text: string) => void
 ): Promise<GeneratorResponse> => {
     const SCHEMA_INSTRUCTION = `
     You are a Strategic Career Architect. Your task is to build a "Perfect Candidate Skeleton CV" based strictly on the provided Job Description.
@@ -657,7 +657,7 @@ export const fillSkeletonCV = async (
     userCvText: string,
     apiKey: string,
     planId?: string,
-    onProgress?: (chars: number) => void
+    onProgress?: (chars: number, text: string) => void
 ): Promise<CVData> => {
     const userMessage = `
     SKELETON CV DATA (The Target Structure):

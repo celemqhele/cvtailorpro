@@ -8,9 +8,10 @@ interface LoadingProgressBarProps {
   type?: 'cv' | 'skeleton';
   startTime?: number; // Optional timestamp when job started
   progress?: number; // Optional real progress (0-100)
+  customMessage?: string; // Optional custom message to override default
 }
 
-export const LoadingProgressBar: React.FC<LoadingProgressBarProps> = ({ isComplete, onCompleteAnimationFinished, type = 'cv', startTime, progress: externalProgress }) => {
+export const LoadingProgressBar: React.FC<LoadingProgressBarProps> = ({ isComplete, onCompleteAnimationFinished, type = 'cv', startTime, progress: externalProgress, customMessage }) => {
   const [simulatedProgress, setSimulatedProgress] = useState(() => {
       if (startTime) {
           const elapsed = Date.now() - startTime;
@@ -18,6 +19,7 @@ export const LoadingProgressBar: React.FC<LoadingProgressBarProps> = ({ isComple
       }
       return 0;
   });
+
   const isExternal = typeof externalProgress === 'number';
   let currentProgress = isExternal ? Math.min(95, Math.max(0, externalProgress!)) : simulatedProgress;
   
@@ -28,6 +30,8 @@ export const LoadingProgressBar: React.FC<LoadingProgressBarProps> = ({ isComple
   let message = type === 'skeleton' ? "Analyzing job description..." : "Analyzing job requirements...";
   if (isComplete) {
       message = type === 'skeleton' ? "Skeleton Ready!" : "Complete! Loading your CV...";
+  } else if (customMessage) {
+      message = customMessage;
   } else if (currentProgress < 30) {
       message = type === 'skeleton' ? "Analyzing job description..." : "Analyzing job requirements...";
   } else if (currentProgress < 60) {

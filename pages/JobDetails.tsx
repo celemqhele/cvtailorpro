@@ -39,6 +39,7 @@ export const JobDetails: React.FC = () => {
   const [toast, setToast] = useState<{message: string, type: ToastType} | null>(null);
   const [limitType, setLimitType] = useState<'quick' | 'daily'>('quick');
   const [generationProgress, setGenerationProgress] = useState<number | undefined>(undefined);
+  const [generationMessage, setGenerationMessage] = useState<string | undefined>(undefined);
 
   // Helper to generate a placeholder tailored CV if the DB doesn't have one
   const getFallbackCV = (jobTitle: string, company: string): CVData => ({
@@ -161,14 +162,23 @@ export const JobDetails: React.FC = () => {
 
     setIsGenerating(true);
     setGenerationProgress(0);
+    setGenerationMessage("Initializing Skeleton...");
     try {
         // 1. Generate Skeleton
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "demo-key"; 
         
-        const onProgress = (chars: number) => {
+        const onProgress = (chars: number, text: string) => {
             // Estimate: Skeleton is smaller, maybe 2000 chars = 90%
             const p = Math.min(90, (chars / 2000) * 90);
             setGenerationProgress(p);
+
+            // Live Status Updates
+            if (text.includes('"coverLetter"')) setGenerationMessage("Drafting placeholder cover letter...");
+            else if (text.includes('"education"')) setGenerationMessage("Structuring education section...");
+            else if (text.includes('"experience"')) setGenerationMessage("Building experience placeholders...");
+            else if (text.includes('"skills"')) setGenerationMessage("Identifying required skills...");
+            else if (text.includes('"summary"')) setGenerationMessage("Drafting summary structure...");
+            else if (text.includes('"meta"')) setGenerationMessage("Analyzing job description...");
         };
 
         const response = await geminiService.generateSkeletonCV(jobSpec, apiKey, user?.plan_id, onProgress);
@@ -205,16 +215,25 @@ export const JobDetails: React.FC = () => {
     if (!skeletonData || !job) return;
     setIsGenerating(true);
     setGenerationProgress(0);
+    setGenerationMessage("Extracting CV data...");
     try {
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "demo-key";
         
         // 1. Extract text from uploaded file
         const userCvText = await geminiService.extractTextFromFile(file);
         
-        const onProgress = (chars: number) => {
+        const onProgress = (chars: number, text: string) => {
             // Estimate: Filling skeleton might be around 3000-4000 chars
             const p = Math.min(90, (chars / 3500) * 90);
             setGenerationProgress(p);
+
+            // Live Status Updates
+            if (text.includes('"coverLetter"')) setGenerationMessage("Tailoring cover letter...");
+            else if (text.includes('"education"')) setGenerationMessage("Adding education details...");
+            else if (text.includes('"experience"')) setGenerationMessage("Filling experience placeholders...");
+            else if (text.includes('"skills"')) setGenerationMessage("Mapping skills...");
+            else if (text.includes('"summary"')) setGenerationMessage("Personalizing summary...");
+            else if (text.includes('"meta"')) setGenerationMessage("Processing CV data...");
         };
 
         // 2. Fill the skeleton
@@ -333,6 +352,7 @@ export const JobDetails: React.FC = () => {
                     isComplete={pendingPreview} 
                     type={skeletonData && !pendingNavigation ? 'skeleton' : 'cv'}
                     progress={generationProgress}
+                    customMessage={generationMessage}
                     onCompleteAnimationFinished={() => {
                         setIsGenerating(false);
                         setPendingPreview(false);
