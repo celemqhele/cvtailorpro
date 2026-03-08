@@ -286,15 +286,6 @@ export const Layout: React.FC = () => {
 
   const hasFreeCredits = isMaxPlan || dailyCvCount < dailyLimit;
 
-  if (isAuthLoading) {
-      return (
-          <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
-              <p className="text-slate-500 font-medium animate-pulse">Verifying session...</p>
-          </div>
-      );
-  }
-
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
        {/* Sophisticated Sticky Navigation */}
