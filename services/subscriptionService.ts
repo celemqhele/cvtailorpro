@@ -17,7 +17,7 @@ export interface SubscriptionPlan {
 
 export const PLANS: SubscriptionPlan[] = [
   { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 1, description: '1 CV / Day (Basic)', quality: 'Gemini 3 Flash (Standard)', hasPdfDownload: false },
-  { id: 'tier_1', name: 'Starter', price: 49.00, durationDays: 30, dailyLimit: 5, description: '5 CVs / Day', quality: 'Gemini 3 Flash (Professional)', hasPdfDownload: true },
+  { id: 'tier_1', name: 'Starter', price: 49.00, durationDays: 30, dailyLimit: 5, description: '5 CVs / Day', quality: 'Gemini 3 Flash (Professional)', hasPdfDownload: false },
   { id: 'tier_2', name: 'Growth', price: 99.00, durationDays: 30, dailyLimit: 10, description: 'Skeleton Mode', quality: 'Gemini 3 Flash (High-Impact)', hasSkeletonMode: true, hasReferenceUpload: true, hasPdfDownload: true },
   { id: 'tier_3', name: 'Pro', price: 199.00, durationDays: 30, dailyLimit: 25, description: 'Auto-Fill Skeleton', quality: 'Gemini 3.1 Pro (Elite Reasoning)', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true, hasPdfDownload: true },
   { id: 'tier_4', name: 'Unlimited', price: 399.00, durationDays: 30, dailyLimit: 1000000, description: 'Unlimited + All Features', quality: 'Gemini 3.1 Pro (Elite Reasoning)', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true, hasPdfDownload: true },

@@ -80,12 +80,16 @@ export const Layout: React.FC = () => {
     let currentPlanId = 'free';
 
     if (profile) {
-        currentPlanId = profile.plan_id || 'free';
+        // Admin Override: Force Unlimited Plan
         if (profile.email === 'mqhele03@gmail.com') {
+            profile.plan_id = 'tier_4';
+            profile.is_pro_plus = true;
+            currentPlanId = 'tier_4';
             planLimit = 1000000;
             isPaid = true;
             maxPlan = true;
         } else {
+            currentPlanId = profile.plan_id || 'free';
             const isExpired = profile.subscription_end_date && new Date(profile.subscription_end_date) < new Date();
             if (!isExpired && profile.plan_id) {
                 const planDetails = getPlanDetails(profile.plan_id);

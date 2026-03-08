@@ -231,15 +231,19 @@ export const GeneratedCV: React.FC = () => {
       if (!application || !cvData) return;
       
       // Check PDF Access - Now free for all via lead capture/ads
+      // We no longer block paid users without PDF access (Starter), they just fall through to the Ad flow.
+      /*
       if (format === 'pdf' && !hasPdfAccess && !isPaidUser) {
           // Fall through to lead capture/ad flow
       } else if (format === 'pdf' && !hasPdfAccess) {
           setShowPdfLockedModal(true);
           return;
       }
+      */
 
       // Ad Reward & Lead Capture for Free Users on Download (Paid users skip this)
-      if (!isPaidUser && !bypassAd) {
+      // Updated: Now checks hasPdfAccess instead of isPaidUser so Starter users also see ads/leads
+      if (!hasPdfAccess && !bypassAd) {
           setPendingDownload({ docType, format });
           
           // Check if lead capture is needed first
