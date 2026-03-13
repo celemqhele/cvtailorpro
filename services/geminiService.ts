@@ -74,6 +74,40 @@ async function extractTextFromPdfOcrSpace(base64: string): Promise<string> {
     return data.text;
 }
 
+async function extractTextWithGeminiProxy(file: FileData): Promise<string> {
+    console.log("Attempting Gemini fallback for scanned PDF...");
+    const response = await fetch("/api/ai-proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            systemPrompt: "You are a document extraction assistant. Your only job is to extract all the text from the provided document. Preserve the structure and formatting as much as possible. Do not summarize, just extract the text.",
+            userPrompt: {
+                parts: [
+                    {
+                        inlineData: {
+                            mimeType: file.mimeType,
+                            data: file.base64
+                        }
+                    },
+                    {
+                        text: "Extract all the text from this document."
+                    }
+                ]
+            },
+            temperature: 0.1,
+            jsonMode: false,
+            task: 'text_extraction'
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error("Gemini extraction failed");
+    }
+
+    const data = await response.json();
+    return data.text;
+}
+
 /**
  * Helper to extract raw text from the uploaded file.
  * Now Exported for use in Dashboard to save text to DB.
@@ -134,9 +168,25 @@ export async function extractTextFromFile(file: FileData): Promise<string> {
                 fullText += pageText + "\n\n";
             }
             
+            // If PDF.js extracted very little text, it's likely a scanned image PDF.
+            // Fallback to Gemini to read the image PDF.
+            if (fullText.trim().length < 50) {
+                try {
+                    return await extractTextWithGeminiProxy(file);
+                } catch (geminiError) {
+                    console.error("Gemini fallback failed", geminiError);
+                }
+            }
+
             return fullText;
         } catch (pdfJsError) {
             console.error("PDF.js extraction failed", pdfJsError);
+            // If PDF.js completely fails, try Gemini as a last resort
+            try {
+                return await extractTextWithGeminiProxy(file);
+            } catch (geminiError) {
+                console.error("Gemini fallback failed", geminiError);
+            }
             throw new Error("Failed to read PDF. Please ensure it is a valid text-based PDF or try a DOCX file.");
         }
     }
