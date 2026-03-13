@@ -72,17 +72,22 @@ export const checkUsageLimit = async (userId: string | undefined, limit: number,
     try {
         const identifier = await getIdentifier(userId);
         
-        // Secure RPC call for daily plans (including free now)
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+
         const { data, error } = await supabase
-            .rpc('get_user_usage_stats', { user_identifier: identifier });
+            .from('daily_usage')
+            .select('cv_count')
+            .eq('identifier', identifier)
+            .eq('date', todayStr)
+            .maybeSingle();
 
         if (error) {
             console.warn("Usage check error:", error);
-            // Fail safe: allow if we can't check, but usually this means network error
             return true; 
         }
 
-        const currentCount = data?.count || 0;
+        const currentCount = data?.cv_count || 0;
         return currentCount < limit;
     } catch (e) {
         return true;
@@ -97,9 +102,27 @@ export const incrementUsage = async (userId: string | undefined): Promise<void> 
     try {
         const identifier = await getIdentifier(userId);
         
-        // Call the secure RPC function
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+
+        // First get current count
+        const { data: current } = await supabase
+            .from('daily_usage')
+            .select('cv_count')
+            .eq('identifier', identifier)
+            .eq('date', todayStr)
+            .maybeSingle();
+
+        const newCount = (current?.cv_count || 0) + 1;
+
+        // Then upsert
         const { error } = await supabase
-            .rpc('increment_usage_secure', { user_identifier: identifier });
+            .from('daily_usage')
+            .upsert({ 
+                identifier, 
+                date: todayStr, 
+                cv_count: newCount 
+            });
 
         if (error) {
             console.error("Failed to increment usage securely:", error);
@@ -116,14 +139,22 @@ export const getUsageStats = async (userId?: string, planId: string = 'free'): P
      try {
         const identifier = await getIdentifier(userId);
         
-        const { data, error } = await supabase
-            .rpc('get_user_usage_stats', { user_identifier: identifier });
-
-        if (error || !data) {
-            return { count: 0, secondsLeft: 0 };
-        }
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
         
-        return { count: data.count, secondsLeft: data.seconds_left };
+        const { data, error } = await supabase
+            .from('daily_usage')
+            .select('cv_count')
+            .eq('identifier', identifier)
+            .eq('date', todayStr)
+            .maybeSingle();
+
+        const count = data?.cv_count || 0;
+        
+        const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+        const secondsLeft = Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
+
+        return { count, secondsLeft };
     } catch {
         return { count: 0, secondsLeft: 0 };
     }
@@ -144,16 +175,51 @@ export const syncIpUsageToUser = async (userId: string): Promise<void> => {
         
         if (!identifier) return;
 
-        // Call secure RPC - we keep the name for compatibility if it's hardcoded in DB,
-        // but we pass the guestId as the identifier to sync from.
-        const { error } = await supabase
-            .rpc('sync_usage_from_ip', { ip_address: identifier });
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
 
-        if (error) {
-            console.error("Failed to sync guest usage via RPC:", error);
+        // 1. Get guest usage
+        const { data: guestUsage } = await supabase
+            .from('daily_usage')
+            .select('cv_count')
+            .eq('identifier', identifier)
+            .eq('date', todayStr)
+            .maybeSingle();
+
+        if (guestUsage && guestUsage.cv_count > 0) {
+            // 2. Get user usage
+            const { data: userUsage } = await supabase
+                .from('daily_usage')
+                .select('cv_count')
+                .eq('identifier', userId)
+                .eq('date', todayStr)
+                .maybeSingle();
+
+            const newCount = (userUsage?.cv_count || 0) + guestUsage.cv_count;
+
+            // 3. Upsert user usage
+            const { error } = await supabase
+                .from('daily_usage')
+                .upsert({ 
+                    identifier: userId, 
+                    date: todayStr, 
+                    cv_count: newCount 
+                });
+
+            if (error) {
+                console.error("Failed to sync guest usage:", error);
+            } else {
+                // 4. Delete guest usage to prevent double counting
+                await supabase
+                    .from('daily_usage')
+                    .delete()
+                    .eq('identifier', identifier)
+                    .eq('date', todayStr);
+                
+                localStorage.removeItem('cv_tailor_guest_id');
+            }
         } else {
-            // Clear guest ID after successful sync to avoid double syncing
-            localStorage.removeItem('cv_tailor_guest_id');
+             localStorage.removeItem('cv_tailor_guest_id');
         }
     } catch (e) {
         console.error("Failed to sync guest usage to user:", e);

@@ -351,7 +351,7 @@ export const Layout: React.FC = () => {
                             </span>
                         )}
                     </div>
-                    {!isRecruiterMode && !isMaxPlan && <CreditCountdown initialSecondsLeft={secondsUntilReset} onReset={handleDayReset} className="mt-1 mr-1" />}
+                    {!isRecruiterMode && !isMaxPlan && dailyCvCount > 0 && <CreditCountdown initialSecondsLeft={secondsUntilReset} onReset={handleDayReset} className="mt-1 mr-1" />}
                     {isRecruiterMode && <span className="text-[9px] text-slate-400 mt-1 mr-1 uppercase font-bold tracking-tighter">Monthly Limit</span>}
                  </div>
 
