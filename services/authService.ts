@@ -21,8 +21,15 @@ export const authService = {
   },
 
   async signIn(email: string, password: string, rememberMe: boolean = true) {
-    // Set persistence mode on our custom adapter
-    storageAdapter.mode = rememberMe ? 'local' : 'session';
+    // Always use local storage so it survives tab closes, but enforce our custom expiry
+    storageAdapter.mode = 'local';
+    
+    if (rememberMe) {
+      localStorage.removeItem('goapply_session_expiry');
+    } else {
+      // Expire in 24 hours if "Keep me logged in" is not checked
+      localStorage.setItem('goapply_session_expiry', (Date.now() + 24 * 60 * 60 * 1000).toString());
+    }
     
     try {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -32,7 +39,6 @@ export const authService = {
         if (error) throw error;
         return data;
     } finally {
-        // Reset mode to auto so future updates (refresh token) respect current location
         storageAdapter.mode = 'auto';
     }
   },

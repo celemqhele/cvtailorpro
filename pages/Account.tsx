@@ -80,6 +80,9 @@ export const Account: React.FC = () => {
 
   const handleSignOut = async () => {
       await authService.signOut();
+      document.cookie = "goapply_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      localStorage.removeItem('goapply_cached_user');
+      localStorage.removeItem('goapply_session_expiry');
       checkUserSession();
       navigate('/');
   };

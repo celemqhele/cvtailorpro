@@ -30,6 +30,13 @@ export const Layout: React.FC = () => {
   
   // Global State
   const [user, setUser] = useState<UserProfile | null>(() => {
+      const expiry = localStorage.getItem('goapply_session_expiry');
+      if (expiry && Date.now() > parseInt(expiry, 10)) {
+          localStorage.removeItem('goapply_cached_user');
+          localStorage.removeItem('goapply_session_expiry');
+          document.cookie = "goapply_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          return null;
+      }
       const cached = localStorage.getItem('goapply_cached_user');
       return cached ? JSON.parse(cached) : null;
   });
@@ -42,6 +49,7 @@ export const Layout: React.FC = () => {
   const [isMaxPlan, setIsMaxPlan] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false); // Mobile menu state
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isCreditsLoading, setIsCreditsLoading] = useState(true);
 
   // Toast State
   const [toast, setToast] = useState<{ msg: string; type: ToastType; visible: boolean }>({
@@ -60,6 +68,7 @@ export const Layout: React.FC = () => {
   const showAdmin = isPreviewOrAdmin() || user?.email === 'mqhele03@gmail.com';
 
   const fetchStats = async (userId?: string, planId: string = 'free') => {
+      setIsCreditsLoading(true);
       const stats = await getUsageStats(userId, planId);
       setDailyCvCount(stats.count);
       setSecondsUntilReset(stats.secondsLeft);
@@ -68,9 +77,26 @@ export const Layout: React.FC = () => {
           const searchCount = await getRecruiterSearchStats(userId);
           setRecruiterSearchCount(searchCount);
       }
+      setIsCreditsLoading(false);
   };
 
   const checkUserSession = async (showLoading = true) => {
+    const expiry = localStorage.getItem('goapply_session_expiry');
+    if (expiry && Date.now() > parseInt(expiry, 10)) {
+        try { await authService.signOut(); } catch (e) { console.error("Sign out error:", e); }
+        localStorage.removeItem('goapply_session_expiry');
+        localStorage.removeItem('goapply_cached_user');
+        document.cookie = "goapply_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        setUser(null);
+        setIsPaidUser(false);
+        setIsMaxPlan(false);
+        setDailyLimit(1);
+        setRecruiterSearchLimit(1);
+        if (showLoading) setIsAuthLoading(false);
+        fetchStats(undefined, 'free');
+        return;
+    }
+
     if (showLoading) setIsAuthLoading(true);
     const profile = await authService.getCurrentProfile();
     setUser(profile);
@@ -84,7 +110,9 @@ export const Layout: React.FC = () => {
 
     if (profile) {
         // Set cookie for instant login optimistic UI
-        document.cookie = "goapply_auth=true; path=/; max-age=2592000; SameSite=Lax";
+        const isKeepLoggedIn = !localStorage.getItem('goapply_session_expiry');
+        const maxAge = isKeepLoggedIn ? 2592000 : 86400; // 30 days vs 1 day
+        document.cookie = `goapply_auth=true; path=/; max-age=${maxAge}; SameSite=Lax`;
         localStorage.setItem('goapply_cached_user', JSON.stringify(profile));
         
         // Admin Override: Force Unlimited Plan
@@ -283,6 +311,7 @@ export const Layout: React.FC = () => {
       await authService.signOut();
       document.cookie = "goapply_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       localStorage.removeItem('goapply_cached_user');
+      localStorage.removeItem('goapply_session_expiry');
       setUser(null);
       navigate('/');
   };
@@ -364,7 +393,9 @@ export const Layout: React.FC = () => {
                  {/* Credits Counter - Visible to all */}
                  <div className="flex flex-col items-end">
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
-                        {isRecruiterMode ? (
+                        {isCreditsLoading ? (
+                            <div className="w-16 h-4 bg-slate-200 animate-pulse rounded"></div>
+                        ) : isRecruiterMode ? (
                             <span className={recruiterSearchLimit !== 'Unlimited' && recruiterSearchCount >= (recruiterSearchLimit as number) ? 'text-red-500' : 'text-blue-600'}>
                                 {recruiterSearchLimit === 'Unlimited' ? '∞' : Math.max(0, (recruiterSearchLimit as number) - recruiterSearchCount)} Search Credits
                             </span>
@@ -374,8 +405,8 @@ export const Layout: React.FC = () => {
                             </span>
                         )}
                     </div>
-                    {!isRecruiterMode && !isMaxPlan && dailyCvCount > 0 && <CreditCountdown initialSecondsLeft={secondsUntilReset} onReset={handleDayReset} className="mt-1 mr-1" />}
-                    {isRecruiterMode && <span className="text-[9px] text-slate-400 mt-1 mr-1 uppercase font-bold tracking-tighter">Monthly Limit</span>}
+                    {!isCreditsLoading && !isRecruiterMode && !isMaxPlan && dailyCvCount > 0 && <CreditCountdown initialSecondsLeft={secondsUntilReset} onReset={handleDayReset} className="mt-1 mr-1" />}
+                    {!isCreditsLoading && isRecruiterMode && <span className="text-[9px] text-slate-400 mt-1 mr-1 uppercase font-bold tracking-tighter">Monthly Limit</span>}
                  </div>
 
                  {/* Auth Dependent Links */}
@@ -448,16 +479,20 @@ export const Layout: React.FC = () => {
                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
                     <span className="text-sm font-medium text-slate-600">{isRecruiterMode ? 'Search Credits' : 'Daily Credits'}</span>
                     <div className="flex flex-col items-end">
-                        <span className={`text-sm font-bold ${isRecruiterMode 
-                            ? (recruiterSearchLimit !== 'Unlimited' && recruiterSearchCount >= (recruiterSearchLimit as number) ? 'text-red-500' : 'text-blue-600')
-                            : (dailyCvCount >= dailyLimit && !isMaxPlan ? 'text-red-500' : 'text-indigo-600')}`}>
-                            {isRecruiterMode 
-                                ? (recruiterSearchLimit === 'Unlimited' ? '∞' : Math.max(0, (recruiterSearchLimit as number) - recruiterSearchCount))
-                                : (isMaxPlan ? '∞' : Math.max(0, dailyLimit - dailyCvCount))
-                            } Left
-                        </span>
-                        {!isRecruiterMode && !isMaxPlan && <CreditCountdown initialSecondsLeft={secondsUntilReset} onReset={handleDayReset} />}
-                        {isRecruiterMode && <span className="text-[10px] text-slate-400">Monthly</span>}
+                        {isCreditsLoading ? (
+                            <div className="w-16 h-5 bg-slate-200 animate-pulse rounded"></div>
+                        ) : (
+                            <span className={`text-sm font-bold ${isRecruiterMode 
+                                ? (recruiterSearchLimit !== 'Unlimited' && recruiterSearchCount >= (recruiterSearchLimit as number) ? 'text-red-500' : 'text-blue-600')
+                                : (dailyCvCount >= dailyLimit && !isMaxPlan ? 'text-red-500' : 'text-indigo-600')}`}>
+                                {isRecruiterMode 
+                                    ? (recruiterSearchLimit === 'Unlimited' ? '∞' : Math.max(0, (recruiterSearchLimit as number) - recruiterSearchCount))
+                                    : (isMaxPlan ? '∞' : Math.max(0, dailyLimit - dailyCvCount))
+                                } Left
+                            </span>
+                        )}
+                        {!isCreditsLoading && !isRecruiterMode && !isMaxPlan && <CreditCountdown initialSecondsLeft={secondsUntilReset} onReset={handleDayReset} />}
+                        {!isCreditsLoading && isRecruiterMode && <span className="text-[10px] text-slate-400">Monthly</span>}
                     </div>
                  </div>
 
