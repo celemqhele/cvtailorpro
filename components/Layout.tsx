@@ -29,7 +29,10 @@ export const Layout: React.FC = () => {
   const navigate = useNavigate();
   
   // Global State
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(() => {
+      const cached = localStorage.getItem('goapply_cached_user');
+      return cached ? JSON.parse(cached) : null;
+  });
   const [dailyCvCount, setDailyCvCount] = useState<number>(0);
   const [secondsUntilReset, setSecondsUntilReset] = useState<number>(0);
   const [dailyLimit, setDailyLimit] = useState(1); // Default to free limit (1)
@@ -80,6 +83,10 @@ export const Layout: React.FC = () => {
     let currentPlanId = 'free';
 
     if (profile) {
+        // Set cookie for instant login optimistic UI
+        document.cookie = "goapply_auth=true; path=/; max-age=2592000; SameSite=Lax";
+        localStorage.setItem('goapply_cached_user', JSON.stringify(profile));
+        
         // Admin Override: Force Unlimited Plan
         if (profile.email === 'mqhele03@gmail.com') {
             profile.plan_id = 'tier_4';
@@ -100,6 +107,10 @@ export const Layout: React.FC = () => {
                 }
             }
         }
+    } else {
+        // Clear cookie if no profile
+        document.cookie = "goapply_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        localStorage.removeItem('goapply_cached_user');
     }
     setDailyLimit(planLimit);
     
@@ -270,6 +281,8 @@ export const Layout: React.FC = () => {
 
   const handleSignOut = async () => {
       await authService.signOut();
+      document.cookie = "goapply_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      localStorage.removeItem('goapply_cached_user');
       setUser(null);
       navigate('/');
   };
@@ -277,6 +290,7 @@ export const Layout: React.FC = () => {
   // Context to pass to pages
   const contextData = {
     user,
+    isAuthLoading,
     dailyCvCount,
     setDailyCvCount,
     dailyLimit,
@@ -381,6 +395,11 @@ export const Layout: React.FC = () => {
                             </div>
                         </div>
                      </>
+                 ) : isAuthLoading && document.cookie.includes('goapply_auth=true') ? (
+                     <div className="flex items-center gap-4">
+                         <div className="w-20 h-8 bg-slate-200 animate-pulse rounded-full"></div>
+                         <div className="w-8 h-8 bg-slate-200 animate-pulse rounded-full"></div>
+                     </div>
                  ) : (
                      <div className="flex items-center gap-4">
                          <button onClick={() => setShowAuthModal(true)} className="text-sm font-bold text-slate-600 hover:text-indigo-600">
@@ -448,6 +467,11 @@ export const Layout: React.FC = () => {
                         <Link to="/account" className="block text-base font-medium text-slate-600">Account Settings</Link>
                         <button onClick={handleSignOut} className="block w-full text-left text-base font-medium text-red-500">Sign Out</button>
                      </>
+                 ) : isAuthLoading && document.cookie.includes('goapply_auth=true') ? (
+                     <div className="pt-4 border-t border-slate-100 flex flex-col gap-3">
+                         <div className="w-full h-12 bg-slate-200 animate-pulse rounded-xl"></div>
+                         <div className="w-full h-12 bg-slate-200 animate-pulse rounded-xl"></div>
+                     </div>
                  ) : (
                      <div className="pt-4 border-t border-slate-100 flex flex-col gap-3">
                          <button onClick={() => setShowAuthModal(true)} className="w-full py-3 border border-slate-300 rounded-xl font-bold text-slate-700">Log In</button>

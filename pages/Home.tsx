@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Cookie, ShieldCheck, X, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export const Home: React.FC = () => {
-  const { user, triggerAuth, isPaidUser, triggerPayment, dailyCvCount, dailyLimit, isMaxPlan } = useOutletContext<any>();
+  const { user, isAuthLoading, triggerAuth, isPaidUser, triggerPayment, dailyCvCount, dailyLimit, isMaxPlan } = useOutletContext<any>();
   const hasFreeCredits = isMaxPlan || dailyCvCount < dailyLimit;
   const [showConsent, setShowConsent] = useState(false);
   const [activePricingTab, setActivePricingTab] = useState<'applicant' | 'recruiter'>('applicant');
@@ -116,13 +116,17 @@ export const Home: React.FC = () => {
                 </p>
                 <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
                     {/* Primary CTA changes based on auth state */}
-                    <Link 
-                        to={user ? "/dashboard" : "/guestuserdashboard"} 
-                        className="w-full sm:w-auto rounded-full bg-indigo-600 px-8 py-4 text-base font-bold text-white shadow-lg hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all hover:-translate-y-1 flex items-center justify-center gap-2 group"
-                    >
-                        {user ? "Go to Dashboard" : (hasFreeCredits ? "Get My Free CV (No Login Required)" : "Get Started (No Login Required)")}
-                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                    </Link>
+                    {!user && isAuthLoading && document.cookie.includes('goapply_auth=true') ? (
+                        <div className="w-full sm:w-64 h-14 bg-slate-200 animate-pulse rounded-full"></div>
+                    ) : (
+                        <Link 
+                            to={user ? "/dashboard" : "/guestuserdashboard"} 
+                            className="w-full sm:w-auto rounded-full bg-indigo-600 px-8 py-4 text-base font-bold text-white shadow-lg hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all hover:-translate-y-1 flex items-center justify-center gap-2 group"
+                        >
+                            {user ? "Go to Dashboard" : (hasFreeCredits ? "Get My Free CV (No Login Required)" : "Get Started (No Login Required)")}
+                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        </Link>
+                    )}
                     
                     <Link 
                         to="/recruiter" 

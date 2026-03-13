@@ -34,6 +34,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   // Context from Layout
   const { 
       user, 
+      isAuthLoading,
       dailyLimit, 
       isPaidUser, 
       isMaxPlan, 
@@ -50,7 +51,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
   // Redirect Logic - Only strict for logged-in user dashboard
   useEffect(() => {
-    if (mode === 'user' && user === null) {
+    if (mode === 'user' && user === null && !isAuthLoading) {
          const timeout = setTimeout(() => {
              if (!user) navigate('/'); 
          }, 1000);
@@ -60,7 +61,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     if (mode === 'guest' && user) {
         navigate('/dashboard');
     }
-  }, [mode, user, navigate]);
+  }, [mode, user, isAuthLoading, navigate]);
 
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showRewardedModal, setShowRewardedModal] = useState(false);

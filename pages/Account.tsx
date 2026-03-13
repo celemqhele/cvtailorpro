@@ -5,7 +5,7 @@ import { authService } from '../services/authService';
 import { Button } from '../components/Button';
 
 export const Account: React.FC = () => {
-  const { user, checkUserSession, triggerPayment } = useOutletContext<any>();
+  const { user, isAuthLoading, checkUserSession, triggerPayment } = useOutletContext<any>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -84,7 +84,14 @@ export const Account: React.FC = () => {
       navigate('/');
   };
 
-  if (!user) return null;
+  if (!user && !isAuthLoading) return null;
+  if (!user && isAuthLoading) {
+      return (
+          <div className="max-w-4xl mx-auto px-4 py-12 flex justify-center items-center min-h-[500px]">
+              <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+      );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12 animate-fade-in">
