@@ -206,6 +206,15 @@ export const Layout: React.FC = () => {
             return;
         }
 
+        // Fallback to client-side update if backend couldn't do it (e.g. missing service role key)
+        if (verification.backendSyncFailed) {
+            console.warn("Backend sync failed, falling back to client-side update...");
+            const clientUpdateSuccess = await updateUserSubscription(user.id, planId, paymentDiscount, true);
+            if (!clientUpdateSuccess) {
+                showToast("Payment verified, but failed to update profile. Please contact support.", "error");
+            }
+        }
+
         // 2. Refresh session
         await checkUserSession();
         

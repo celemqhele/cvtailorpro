@@ -48,7 +48,7 @@ export const verifyPayment = async (
     planId: string, 
     userId: string,
     discountUsed: boolean = false
-): Promise<{ success: boolean; message?: string; error?: string }> => {
+): Promise<{ success: boolean; message?: string; error?: string; backendSyncFailed?: boolean }> => {
     try {
         const response = await fetch('/api/paystack-verify', {
             method: 'POST',
@@ -60,7 +60,11 @@ export const verifyPayment = async (
         if (!response.ok) {
             throw new Error(data.error || 'Verification failed');
         }
-        return { success: true, message: data.message };
+        return { 
+            success: true, 
+            message: data.message,
+            backendSyncFailed: data.message?.includes('backend sync failed') 
+        };
     } catch (err: any) {
         console.error("Payment verification error:", err);
         return { success: false, error: err.message };

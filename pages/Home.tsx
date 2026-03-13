@@ -136,7 +136,7 @@ export const Home: React.FC = () => {
                 <div className="mt-8 flex items-center justify-center gap-2 text-slate-500 text-sm font-medium">
                   <div className="flex -space-x-2">
                     {[1,2,3,4].map(i => (
-                      <img key={i} src={`https://i.pravatar.cc/100?img=${i+10}`} className="w-6 h-6 rounded-full border-2 border-white" alt="User" />
+                      <img key={i} src={`https://i.pravatar.cc/100?img=${i+10}`} className="w-6 h-6 rounded-full border-2 border-white" alt="User" loading="lazy" />
                     ))}
                   </div>
                   <span>2,847 free CVs generated this week — No logins, no payments</span>
