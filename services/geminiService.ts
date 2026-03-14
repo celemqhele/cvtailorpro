@@ -321,6 +321,40 @@ function parseJsonResponse(content: string): any {
     }
 }
 
+export const adminChat = async (metricsData: any, messages: any[], userMessageContent: string, apiKey: string): Promise<string> => {
+    const systemPrompt = `You are an expert data analyst assistant for the CV Tailor Admin Dashboard.
+You have access to the following current metrics data:
+${JSON.stringify(metricsData, null, 2)}
+
+Analyze the data and answer the user's questions clearly and concisely.
+Highlight key trends, anomalies, or areas of concern.
+Format your response using Markdown for readability.`;
+
+    const chatHistory = messages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
+    const userPrompt = `Chat History:\n${chatHistory}\n\nUser: ${userMessageContent}\nAssistant:`;
+
+    const { text } = await runAIChain(systemPrompt, userPrompt, 0.4, apiKey, 'admin_analytics');
+    return text;
+};
+
+export const interpretAnalytics = async (dataSummary: any, apiKey: string): Promise<string> => {
+    const systemPrompt = `You are an expert business and technical analyst. Interpret the following platform analytics data for the admin:
+${JSON.stringify(dataSummary, null, 2)}
+
+Provide a detailed report using Markdown formatting:
+1. **Executive Summary**: A high-level overview of platform performance.
+2. **Trend Analysis**: Identification of any worrying trends (e.g., high error rates, low conversion) or positive growth.
+3. **Actionable Recommendations**: 3-5 specific, prioritized recommendations to improve user growth, revenue, or platform stability.
+4. **Platform Health Score**: A score out of 100 with a brief justification.
+
+Use bold headings, bullet points, and clear structure. Keep it professional and insightful.`;
+    
+    const userMessage = "Please interpret the analytics data.";
+    
+    const { text } = await runAIChain(systemPrompt, userMessage, 0.4, apiKey, 'admin_analytics');
+    return text;
+};
+
 export const testModel = async (modelName: string, apiKey: string): Promise<string> => {
     const systemPrompt = "You are a testing assistant. Respond with 'SUCCESS: [Model Name]' if you receive this message.";
     const userMessage = "Test connection.";

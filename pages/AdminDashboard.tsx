@@ -14,8 +14,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { isPreviewOrAdmin } from '../utils/envHelper';
 import { adminLogService } from '../services/adminLogService';
 import { analytics } from '../services/analyticsService';
-import { testModel } from '../services/geminiService';
-import { interpretAnalytics } from '../services/geminiService';
+import { testModel, interpretAnalytics } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
 
 import { AdminAIAssistant } from '../components/AdminAIAssistant';

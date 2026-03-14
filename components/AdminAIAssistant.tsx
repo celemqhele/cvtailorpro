@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Send, X, Loader2, MessageSquare } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
+import { adminChat } from '../services/geminiService';
 
 interface AdminAIAssistantProps {
   metricsData: any; // Pass the current dashboard metrics here
@@ -37,31 +37,12 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({ metricsData 
     setIsLoading(true);
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
-
-      const ai = new GoogleGenAI({ apiKey });
-      
-      const systemPrompt = `You are an expert data analyst assistant for the CV Tailor Admin Dashboard.
-You have access to the following current metrics data:
-${JSON.stringify(metricsData, null, 2)}
-
-Analyze the data and answer the user's questions clearly and concisely.
-Highlight key trends, anomalies, or areas of concern.
-Format your response using Markdown for readability.`;
-
-      const chatHistory = messages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
-      const prompt = `${systemPrompt}\n\nChat History:\n${chatHistory}\n\nUser: ${userMessage.content}\nAssistant:`;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.1-pro-preview',
-        contents: prompt,
-      });
+      const responseText = await adminChat(metricsData, messages, userMessage.content, 'proxy');
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: response.text || "I couldn't generate an analysis."
+        content: responseText || "I couldn't generate an analysis."
       };
 
       setMessages(prev => [...prev, assistantMessage]);
