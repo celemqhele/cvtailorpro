@@ -140,6 +140,7 @@ export const GeneratedCV: React.FC = () => {
         return;
     }
     loadApplication(id);
+    analytics.trackEvent('document_preview');
   }, [id, navigate, loadApplication]);
 
   // Check for Subscription Trigger from Dashboard

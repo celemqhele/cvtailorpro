@@ -155,6 +155,34 @@ class AnalyticsService {
                 }
             }
 
+            // Google Analytics (gtag) Mapping
+            if (window.gtag) {
+                switch (eventName) {
+                    case 'cv_generated':
+                        window.gtag('event', 'generate_lead', {
+                            event_category: 'CV',
+                            event_label: metadata.job_title || 'Unknown',
+                            ...metadata
+                        });
+                        break;
+                    case 'purchase_complete':
+                        window.gtag('event', 'purchase', {
+                            transaction_id: metadata.reference,
+                            value: metadata.value || 0,
+                            currency: metadata.currency || 'ZAR',
+                            items: [{
+                                item_id: metadata.plan_id,
+                                item_name: metadata.plan_id,
+                                price: metadata.value || 0,
+                                quantity: 1
+                            }]
+                        });
+                        break;
+                    default:
+                        window.gtag('event', eventName, metadata);
+                }
+            }
+
             await supabase.from('user_events').insert({
                 session_token: this.sessionToken,
                 user_id: user?.id || null,
@@ -203,7 +231,67 @@ class AnalyticsService {
         };
     }
 
-    async getRecentCVGenerations(limit = 50) {
+    async getDailyMetrics() {
+        const { data: cvData, error: cvError } = await supabase
+            .from('user_events')
+            .select('created_at')
+            .eq('event_name', 'cv_generated');
+            
+        if (cvError) throw cvError;
+
+        const { data: revData, error: revError } = await supabase
+            .from('user_events')
+            .select('created_at, metadata')
+            .eq('event_name', 'purchase_complete');
+            
+        if (revError) throw revError;
+
+        const dailyStats: Record<string, { cvs: number, revenue: number }> = {};
+
+        // Process CVs
+        cvData?.forEach(event => {
+            const date = new Date(event.created_at).toLocaleDateString();
+            if (!dailyStats[date]) dailyStats[date] = { cvs: 0, revenue: 0 };
+            dailyStats[date].cvs += 1;
+        });
+
+        // Process Revenue
+        revData?.forEach(event => {
+            const date = new Date(event.created_at).toLocaleDateString();
+            if (!dailyStats[date]) dailyStats[date] = { cvs: 0, revenue: 0 };
+            const amount = event.metadata?.value || 0;
+            dailyStats[date].revenue += amount;
+        });
+
+        // Convert to array and sort by date
+        return Object.entries(dailyStats)
+            .map(([date, stats]) => ({
+                date,
+                cvs: stats.cvs,
+                revenue: stats.revenue
+            }))
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }
+
+    async getFunnelData() {
+        // Get counts for each step of the funnel
+        const [pageViews, dataEntry, preview, generated, purchase] = await Promise.all([
+            supabase.from('page_views').select('id', { count: 'exact' }),
+            supabase.from('user_events').select('id', { count: 'exact' }).eq('event_name', 'data_entry_start'),
+            supabase.from('user_events').select('id', { count: 'exact' }).eq('event_name', 'document_preview'),
+            supabase.from('user_events').select('id', { count: 'exact' }).eq('event_name', 'cv_generated'),
+            supabase.from('user_events').select('id', { count: 'exact' }).eq('event_name', 'purchase_complete')
+        ]);
+
+        return [
+            { step: 'Site Visitors', count: pageViews.count || 0 },
+            { step: 'Started Data Entry', count: dataEntry.count || 0 },
+            { step: 'Previewed CV', count: preview.count || 0 },
+            { step: 'Generated CV', count: generated.count || 0 },
+            { step: 'Purchased Pro', count: purchase.count || 0 }
+        ];
+    }
+    async getRecentCVGenerations(limit = 10) {
         const { data, error } = await supabase
             .from('user_events')
             .select('*')

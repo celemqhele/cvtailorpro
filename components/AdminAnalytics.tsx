@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { analyticsService } from '../services/analyticsService';
-import { metricsService } from '../services/metricsService';
 import { errorService } from '../services/errorService';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, AreaChart, Area } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, AreaChart, Area, Cell } from 'recharts';
 
 export const AdminAnalytics: React.FC = () => {
     const [trafficData, setTrafficData] = useState<any[]>([]);
     const [realtime, setRealtime] = useState<any>(null);
     const [journeys, setJourneys] = useState<any[]>([]);
-    const [metrics, setMetrics] = useState<any>(null);
     const [errorLogs, setErrorLogs] = useState<any[]>([]);
+    const [funnelData, setFunnelData] = useState<any[]>([]);
+    const [dailyMetrics, setDailyMetrics] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
     // GA4 State
@@ -25,12 +25,13 @@ export const AdminAnalytics: React.FC = () => {
 
     const loadAllData = async () => {
         try {
-            const [traffic, rt, userJourneys, dashboardMetrics, logs] = await Promise.all([
+            const [traffic, rt, userJourneys, logs, funnel, daily] = await Promise.all([
                 analyticsService.getTrafficStats(),
                 analyticsService.getRealtimeUsers(),
                 analyticsService.getUserJourneys(),
-                metricsService.getDashboardData(),
-                errorService.getLogs()
+                errorService.getLogs(),
+                analyticsService.getFunnelData(),
+                analyticsService.getDailyMetrics()
             ]);
 
             // Fetch GA4 Data
@@ -57,27 +58,12 @@ export const AdminAnalytics: React.FC = () => {
             });
             const trafficChart = Object.entries(dailyTraffic).map(([date, count]) => ({ date, count }));
 
-            // Process CV generations for graph
-            const dailyCVs: Record<string, number> = {};
-            dashboardMetrics.cvGenerations.forEach((v: any) => {
-                const date = new Date(v.created_at).toLocaleDateString();
-                dailyCVs[date] = (dailyCVs[date] || 0) + 1;
-            });
-            const cvChart = Object.entries(dailyCVs).map(([date, count]) => ({ date, count }));
-
-            // Process Revenue for graph
-            const dailyRevenue: Record<string, number> = {};
-            dashboardMetrics.revenue.forEach((v: any) => {
-                const date = new Date(v.created_at).toLocaleDateString();
-                dailyRevenue[date] = (dailyRevenue[date] || 0) + v.amount;
-            });
-            const revenueChart = Object.entries(dailyRevenue).map(([date, amount]) => ({ date, amount }));
-
             setTrafficData(trafficChart);
             setRealtime(rt);
             setJourneys(userJourneys);
-            setMetrics({ ...dashboardMetrics, cvChart, revenueChart });
             setErrorLogs(logs);
+            setFunnelData(funnel);
+            setDailyMetrics(daily);
         } catch (e) {
             console.error("Failed to load analytics:", e);
         } finally {
@@ -244,18 +230,41 @@ export const AdminAnalytics: React.FC = () => {
                 </div>
             )}
 
+            {/* Conversion Funnel */}
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-bold text-slate-800">Conversion Funnel</h3>
+                    <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded">PROPRIETARY ANALYTICS</span>
+                </div>
+                <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={300}>
+                        <BarChart data={funnelData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                            <XAxis type="number" fontSize={10} axisLine={false} tickLine={false} />
+                            <YAxis dataKey="step" type="category" fontSize={10} axisLine={false} tickLine={false} width={120} />
+                            <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                            <Bar dataKey="count" fill="#4f46e5" radius={[0, 4, 4, 0]} barSize={30}>
+                                {funnelData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={['#94a3b8', '#64748b', '#475569', '#334155', '#1e293b'][index % 5]} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* CV Generations Graph */}
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="text-lg font-bold text-slate-800 mb-6">CV Generations</h3>
+                    <h3 className="text-lg font-bold text-slate-800 mb-6">CV Generations (Daily)</h3>
                     <div className="h-[250px] w-full">
                         <ResponsiveContainer width="100%" height="100%" minHeight={250}>
-                            <BarChart data={metrics?.cvChart}>
+                            <BarChart data={dailyMetrics}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis dataKey="date" fontSize={10} axisLine={false} tickLine={false} />
                                 <YAxis fontSize={10} axisLine={false} tickLine={false} />
                                 <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
-                                <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="cvs" fill="#6366f1" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -263,15 +272,15 @@ export const AdminAnalytics: React.FC = () => {
 
                 {/* Revenue Graph */}
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="text-lg font-bold text-slate-800 mb-6">Revenue (ZAR)</h3>
+                    <h3 className="text-lg font-bold text-slate-800 mb-6">Revenue (Daily ZAR)</h3>
                     <div className="h-[250px] w-full">
                         <ResponsiveContainer width="100%" height="100%" minHeight={250}>
-                            <LineChart data={metrics?.revenueChart}>
+                            <LineChart data={dailyMetrics}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis dataKey="date" fontSize={10} axisLine={false} tickLine={false} />
                                 <YAxis fontSize={10} axisLine={false} tickLine={false} />
                                 <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
-                                <Line type="monotone" dataKey="amount" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981' }} />
+                                <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981' }} />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>

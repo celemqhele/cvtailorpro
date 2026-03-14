@@ -104,6 +104,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [jobTitle, setJobTitle] = useState('');
   const [jobSpec, setJobSpec] = useState(''); 
   
+  // Track data entry start once per session
+  const hasTrackedDataEntry = useRef(false);
+  useEffect(() => {
+      if (!hasTrackedDataEntry.current && (file || jobSpec || jobTitle || manualJobText || jobLink)) {
+          analytics.trackEvent('data_entry_start');
+          hasTrackedDataEntry.current = true;
+      }
+  }, [file, jobSpec, jobTitle, manualJobText, jobLink]);
+  
   // Specific Job Application Link (from Find Jobs)
   const [directApplyLink, setDirectApplyLink] = useState<string | null>(null);
 
