@@ -214,30 +214,24 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, isEditable = false, onUpd
           {data.title}
         </div>
         <div style={styles.contact}>
-           <span>{data.location}</span>
-           <span style={styles.separator}>|</span>
-           <span>{data.phone}</span>
-           <span style={styles.separator}>|</span>
-           <a href={`mailto:${data.email}`} style={{ color: 'inherit', textDecoration: 'none' }}>{data.email}</a>
+           {data.location && <span>{data.location}</span>}
+           {data.location && data.phone && <span style={styles.separator}>|</span>}
+           {data.phone && <span>{data.phone}</span>}
+           {(data.location || data.phone) && data.email && <span style={styles.separator}>|</span>}
+           {data.email && <a href={`mailto:${data.email}`} style={{ color: 'inherit', textDecoration: 'none' }}>{data.email}</a>}
+           {(data.location || data.phone || data.email) && formattedLinkedIn && <span style={styles.separator}>|</span>}
            {formattedLinkedIn && (
-             <>
-               <span style={styles.separator}>|</span>
-               <a 
-                 href={data.linkedin?.startsWith('http') ? data.linkedin : `https://linkedin.com/in/${formattedLinkedIn}`} 
-                 target="_blank" 
-                 rel="noopener noreferrer"
-                 style={{ color: 'inherit', textDecoration: 'none' }}
-               >
-                 {formattedLinkedIn}
-               </a>
-             </>
+             <a 
+               href={data.linkedin?.startsWith('http') ? data.linkedin : `https://linkedin.com/in/${formattedLinkedIn}`} 
+               target="_blank" 
+               rel="noopener noreferrer"
+               style={{ color: 'inherit', textDecoration: 'none' }}
+             >
+               LinkedIn Profile URL
+             </a>
            )}
-           {data.availability && (
-             <>
-               <span style={styles.separator}>|</span>
-               <span>Available: {data.availability}</span>
-             </>
-           )}
+           {(data.location || data.phone || data.email || formattedLinkedIn) && data.availability && <span style={styles.separator}>|</span>}
+           {data.availability && <span>Available: {data.availability}</span>}
         </div>
       </header>
 

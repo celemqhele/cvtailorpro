@@ -60,13 +60,7 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
 
   // Check valid LinkedIn
   const hasLinkedIn = userData.linkedin && userData.linkedin !== 'null' && userData.linkedin.trim() !== '';
-
-  const contactParts = [
-    userData.location,
-    userData.phone,
-    userData.email,
-    hasLinkedIn ? userData.linkedin?.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, 'in/') : null
-  ].filter(Boolean);
+  const formattedLinkedIn = hasLinkedIn ? userData.linkedin?.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, '') : null;
 
   return (
     <div className={`cv-absolute-container cv-preview-background ${isEditable ? 'master-edit-active' : ''}`} style={styles.container}>
@@ -74,7 +68,22 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ content, user
       <div style={styles.header}>
         <div style={styles.name}>{userData.name}</div>
         <div style={styles.contactInfo}>
-          {contactParts.join(' | ')}
+          {userData.location && <span>{userData.location}</span>}
+          {userData.location && userData.phone && <span> | </span>}
+          {userData.phone && <span>{userData.phone}</span>}
+          {(userData.location || userData.phone) && userData.email && <span> | </span>}
+          {userData.email && <a href={`mailto:${userData.email}`} style={{ color: 'inherit', textDecoration: 'none' }}>{userData.email}</a>}
+          {(userData.location || userData.phone || userData.email) && hasLinkedIn && <span> | </span>}
+          {hasLinkedIn && (
+            <a 
+              href={userData.linkedin?.startsWith('http') ? userData.linkedin : `https://linkedin.com/in/${formattedLinkedIn}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={{ color: 'inherit', textDecoration: 'none' }}
+            >
+              LinkedIn Profile URL
+            </a>
+          )}
         </div>
       </div>
 
