@@ -15,7 +15,7 @@ import { isPreviewOrAdmin } from '../utils/envHelper';
 import { adminLogService } from '../services/adminLogService';
 import { analytics } from '../services/analyticsService';
 import { testModel } from '../services/geminiService';
-import { GoogleGenAI } from '@google/genai';
+import { interpretAnalytics } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
 
 import { AdminAIAssistant } from '../components/AdminAIAssistant';
@@ -68,7 +68,6 @@ export const AdminDashboard: React.FC = () => {
   const [cvStats, setCvStats] = useState({ last30m: 0, last1h: 0, last24h: 0 });
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalTraffic, setTotalTraffic] = useState(0);
-  const [unsolvedErrorsCount, setUnsolvedErrorsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
   const [detailedData, setDetailedData] = useState<any[]>([]);
@@ -216,7 +215,6 @@ export const AdminDashboard: React.FC = () => {
         setTotalGenerations(summary.cv_generated);
         setTotalRevenue(summary.revenue_total);
         setTotalTraffic(summary.traffic_total);
-        setUnsolvedErrorsCount(summary.errors_unsolved);
       }
 
       const [sessionsRes, viewsRes, adminLogsRes] = await Promise.all([
@@ -273,34 +271,19 @@ export const AdminDashboard: React.FC = () => {
     setIsInterpreting(true);
     setAiDataInterpretation(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
       // Prepare data for AI
       const dataSummary = {
         totalRevenue,
         totalGenerations,
         totalTraffic,
-        unsolvedErrorsCount,
         liveUsers,
         returningUsers,
         newUsers,
         recentCVs: recentGenerations.map(g => ({ title: g.metadata?.job_title, company: g.metadata?.company }))
       };
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `You are an expert business and technical analyst. Interpret the following platform analytics data for the admin:
-${JSON.stringify(dataSummary, null, 2)}
-
-Provide a detailed report using Markdown formatting:
-1. **Executive Summary**: A high-level overview of platform performance.
-2. **Trend Analysis**: Identification of any worrying trends (e.g., high error rates, low conversion) or positive growth.
-3. **Actionable Recommendations**: 3-5 specific, prioritized recommendations to improve user growth, revenue, or platform stability.
-4. **Platform Health Score**: A score out of 100 with a brief justification.
-
-Use bold headings, bullet points, and clear structure. Keep it professional and insightful.`,
-      });
-      setAiDataInterpretation(response.text || "Failed to generate interpretation.");
+      const interpretation = await interpretAnalytics(dataSummary, 'proxy');
+      setAiDataInterpretation(interpretation || "Failed to generate interpretation.");
     } catch (err) {
       console.error('AI Data Interpretation failed:', err);
       setAiDataInterpretation("Error communicating with AI service.");
@@ -511,13 +494,6 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
                 fetchLiveSessions();
                 setShowLiveDetails(true);
             }}
-          />
-          <StatCard 
-            title="Recent Errors" 
-            value={unsolvedErrorsCount.toString()} 
-            icon={<AlertCircle className="text-red-500" />} 
-            trend={unsolvedErrorsCount > 10 ? "High" : "Normal"} 
-            onClick={() => setSelectedMetric('errors')}
           />
         </div>
 
@@ -914,7 +890,6 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
           totalGenerations,
           totalRevenue,
           totalTraffic,
-          unsolvedErrorsCount,
           liveUsers,
           cvStats,
           recentGenerations: recentGenerations.slice(0, 5)
