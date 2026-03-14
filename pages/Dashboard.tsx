@@ -18,7 +18,6 @@ import { ModelSelectionModal } from '../components/ModelSelectionModal';
 import { analytics } from '../services/analyticsService';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile, generateSkeletonCV, generateGeneralJobDescriptionFromCV } from '../services/geminiService';
 import { getPlanDetails } from '../services/subscriptionService';
-import { progressService } from '../services/progressService';
 import { authService } from '../services/authService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis, SavedApplication, ManualCVData, ManualExperienceItem, ManualEducationItem } from '../types';
 
@@ -110,17 +109,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
   const [status, setStatus] = useState<Status>(Status.IDLE);
 
-  // Check for active job on mount
-  useEffect(() => {
-      const checkActiveJob = async () => {
-          if (!user?.id) return;
-          const activeJob = await progressService.getActiveJob(user.id);
-          if (activeJob && activeJob.status === 'processing') {
-              setStatus(Status.GENERATING);
-          }
-      };
-      checkActiveJob();
-  }, [user?.id]);
   const [analysis, setAnalysis] = useState<MatchAnalysis | null>(null);
   const [result, setResult] = useState<GeneratorResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -540,7 +528,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       const isAdmin = user?.email === 'mqhele03@gmail.com';
 
       setStatus(Status.GENERATING);
-      if (user?.id) await progressService.startJob(user.id, 'skeleton');
 
       setErrorMsg(null);
       setResult(null);
@@ -556,7 +543,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           if (response.outcome !== 'REJECT') {
               setResult(response);
               // Do not set SUCCESS yet, wait for save/navigation to keep progress bar mounted
-              if (user?.id) await progressService.completeJob(user.id);
 
               const savedId = await saveCurrentResultToHistory(response);
               if (savedId) {
@@ -574,13 +560,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           } else {
               setResult(response);
               setStatus(Status.REJECTED);
-              if (user?.id) await progressService.completeJob(user.id);
           }
       } catch (e: any) {
           console.error(e);
           setStatus(Status.ERROR);
           setErrorMsg(e.message || "An unexpected error occurred.");
-          if (user?.id) await progressService.completeJob(user.id);
       }
   };
 
@@ -591,7 +575,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
     const currentJobSpec = isDirectTitleMode ? jobTitle : jobSpec;
 
     setStatus(Status.GENERATING);
-    if (user?.id) await progressService.startJob(user.id, 'cv');
 
     setErrorMsg(null);
     setResult(null);
@@ -661,7 +644,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       if (response.outcome !== 'REJECT') {
           setResult(response);
           // Do not set SUCCESS yet, wait for save/navigation to keep progress bar mounted
-          if (user?.id) await progressService.completeJob(user.id);
           
           const savedId = await saveCurrentResultToHistory(response);
           if (savedId) {
@@ -686,13 +668,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       } else {
           setResult(response);
           setStatus(Status.REJECTED);
-          if (user?.id) await progressService.completeJob(user.id);
       }
     } catch (e: any) {
       console.error(e);
       setStatus(Status.ERROR);
       setErrorMsg(e.message || "An unexpected error occurred.");
-      if (user?.id) await progressService.completeJob(user.id);
     }
   };
 
