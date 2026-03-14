@@ -6,7 +6,6 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { TIER_1_PROMPT, TIER_2_PROMPT, TIER_3_PROMPT, ANALYSIS_PROMPT, CHAT_SYSTEM_PROMPT, SMART_EDIT_PROMPT, SMART_EDIT_CL_PROMPT, SKELETON_FILLER_PROMPT } from "../constants";
 import { FileData, GeneratorResponse, MatchAnalysis, ManualCVData, CVData } from "../types";
 import { naturalizeObject, naturalizeText } from "../utils/textHelpers";
-import { errorService } from "./errorService";
 
 /**
  * Scrapes job content using Jina.ai.
@@ -40,11 +39,6 @@ export const scrapeJobFromUrl = async (url: string): Promise<string> => {
 
     } catch (e: any) {
         console.warn("Jina scraping failed:", e);
-        errorService.logError({
-            message: `Jina Scrape Failed: ${e.message}`,
-            path: '/scrapeJobFromUrl',
-            metadata: { url, type: 'api_failure' }
-        });
         // Throw specific error message that the UI will recognize to switch modes
         throw new Error("We couldn't read this link automatically. Please copy and paste the job description text manually.");
     }
@@ -62,11 +56,6 @@ async function extractTextFromPdfOcrSpace(base64: string): Promise<string> {
 
     if (!response.ok) {
         const err = await response.json();
-        errorService.logError({
-            message: `OCR Proxy Error: ${err.error}`,
-            path: '/extractTextFromPdfOcrSpace',
-            metadata: { type: 'api_failure' }
-        });
         throw new Error(`OCR Error: ${err.error}`);
     }
 

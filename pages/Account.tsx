@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { Button } from '../components/Button';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export const Account: React.FC = () => {
   const { user, isAuthLoading, checkUserSession, triggerPayment } = useOutletContext<any>();
@@ -15,6 +16,7 @@ export const Account: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [showEmailConfirm, setShowEmailConfirm] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -50,7 +52,11 @@ export const Account: React.FC = () => {
 
   const handleUpdateEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!confirm("Changing email requires verification. Continue?")) return;
+    setShowEmailConfirm(true);
+  };
+
+  const confirmUpdateEmail = async () => {
+    setShowEmailConfirm(false);
     setIsLoading(true);
     setMessage(null);
     try {
@@ -97,6 +103,7 @@ export const Account: React.FC = () => {
   }
 
   return (
+    <>
     <div className="max-w-4xl mx-auto px-4 py-12 animate-fade-in">
         <h1 className="text-3xl font-bold text-slate-900 mb-8">Account Settings</h1>
         
@@ -187,5 +194,16 @@ export const Account: React.FC = () => {
             </div>
         </div>
     </div>
+    
+    <ConfirmModal
+      isOpen={showEmailConfirm}
+      title="Update Email"
+      message="Changing your email will require you to verify the new address via a link sent to your inbox. Continue?"
+      confirmText="Continue"
+      cancelText="Cancel"
+      onConfirm={confirmUpdateEmail}
+      onCancel={() => setShowEmailConfirm(false)}
+    />
+    </>
   );
 };

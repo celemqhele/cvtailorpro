@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { analyticsService } from '../services/analyticsService';
-import { errorService } from '../services/errorService';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, AreaChart, Area, Cell } from 'recharts';
 
 export const AdminAnalytics: React.FC = () => {
     const [trafficData, setTrafficData] = useState<any[]>([]);
     const [realtime, setRealtime] = useState<any>(null);
     const [journeys, setJourneys] = useState<any[]>([]);
-    const [errorLogs, setErrorLogs] = useState<any[]>([]);
     const [funnelData, setFunnelData] = useState<any[]>([]);
     const [dailyMetrics, setDailyMetrics] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -25,11 +23,10 @@ export const AdminAnalytics: React.FC = () => {
 
     const loadAllData = async () => {
         try {
-            const [traffic, rt, userJourneys, logs, funnel, daily] = await Promise.all([
+            const [traffic, rt, userJourneys, funnel, daily] = await Promise.all([
                 analyticsService.getTrafficStats(),
                 analyticsService.getRealtimeUsers(),
                 analyticsService.getUserJourneys(),
-                errorService.getLogs(),
                 analyticsService.getFunnelData(),
                 analyticsService.getDailyMetrics()
             ]);
@@ -61,7 +58,6 @@ export const AdminAnalytics: React.FC = () => {
             setTrafficData(trafficChart);
             setRealtime(rt);
             setJourneys(userJourneys);
-            setErrorLogs(logs);
             setFunnelData(funnel);
             setDailyMetrics(daily);
         } catch (e) {
@@ -284,51 +280,6 @@ export const AdminAnalytics: React.FC = () => {
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
-                </div>
-            </div>
-
-            {/* Error Logs */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-slate-800">Recent Error Logs</h3>
-                    <span className="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-1 rounded-full uppercase">System Health</span>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-slate-50">
-                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Time</th>
-                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Message</th>
-                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Path</th>
-                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Type</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {errorLogs.map((log) => (
-                                <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="p-4 text-xs text-slate-500 whitespace-nowrap">
-                                        {new Date(log.created_at).toLocaleString()}
-                                    </td>
-                                    <td className="p-4 text-xs font-medium text-red-600 max-w-md truncate">
-                                        {log.message}
-                                    </td>
-                                    <td className="p-4 text-xs text-slate-600">
-                                        {log.path}
-                                    </td>
-                                    <td className="p-4">
-                                        <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-slate-100 text-slate-600 uppercase">
-                                            {log.metadata?.type || 'unknown'}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))}
-                            {errorLogs.length === 0 && (
-                                <tr>
-                                    <td colSpan={4} className="p-8 text-center text-slate-400 text-sm italic">No errors logged recently.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
                 </div>
             </div>
 

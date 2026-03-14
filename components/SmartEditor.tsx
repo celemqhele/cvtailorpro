@@ -5,6 +5,8 @@ import { CVData, CVReference } from '../types';
 import { extractTextFromFile, fillSkeletonCV } from '../services/geminiService';
 import { ToastType } from './ToastNotification';
 
+import { ConfirmModal } from './ConfirmModal';
+
 interface SmartEditorProps {
   cvData: CVData | null;
   clContent?: string;
@@ -44,6 +46,7 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'ai' | 'manual' | 'fill'>('ai');
   const [instruction, setInstruction] = useState('');
+  const [showUpgradeConfirm, setShowUpgradeConfirm] = useState(false);
   
   // Reference File State (Smart Edit)
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -110,9 +113,7 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
       if (!file) return;
 
       if (!isReferenceUploadAllowed) {
-          if(confirm("Reference Uploads available on Growth Plan and up. Upgrade to unlock?")) {
-              onUnlock();
-          }
+          setShowUpgradeConfirm(true);
           if (fileInputRef.current) fileInputRef.current.value = '';
           return;
       }
@@ -560,6 +561,19 @@ export const SmartEditor: React.FC<SmartEditorProps> = ({
             </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showUpgradeConfirm}
+        title="Upgrade Required"
+        message="Reference Uploads are available on the Growth Plan and up. Would you like to upgrade to unlock this feature?"
+        confirmText="Upgrade"
+        cancelText="Cancel"
+        onConfirm={() => {
+          setShowUpgradeConfirm(false);
+          onUnlock();
+        }}
+        onCancel={() => setShowUpgradeConfirm(false)}
+      />
     </div>
   );
 };

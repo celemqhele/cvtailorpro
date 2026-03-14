@@ -15,7 +15,6 @@ import { ChatWidget } from './ChatWidget';
 import { CreditCountdown } from './CreditCountdown';
 import { ToastNotification, ToastType } from './ToastNotification';
 import { analytics } from '../services/analyticsService';
-import { errorService } from '../services/errorService';
 
 // Extend window for Google Analytics
 declare global {
@@ -204,23 +203,11 @@ export const Layout: React.FC = () => {
 
     // Global Error Listener
     const handleError = (event: ErrorEvent) => {
-        errorService.logError({
-            message: event.message,
-            stack: event.error?.stack,
-            path: window.location.pathname,
-            user_id: user?.id,
-            metadata: { type: 'runtime' }
-        });
+        console.error("Global error caught:", event.error);
     };
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-        errorService.logError({
-            message: event.reason?.message || 'Unhandled Promise Rejection',
-            stack: event.reason?.stack,
-            path: window.location.pathname,
-            user_id: user?.id,
-            metadata: { type: 'promise' }
-        });
+        console.error("Unhandled promise rejection:", event.reason);
     };
 
     window.addEventListener('error', handleError);

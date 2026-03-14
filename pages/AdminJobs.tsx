@@ -9,6 +9,7 @@ import { JobListing } from '../types';
 import { ContentItem } from '../data/blogData';
 import { Button } from '../components/Button';
 import { isPreviewOrAdmin } from '../utils/envHelper';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '../services/supabaseClient';
 
@@ -17,6 +18,8 @@ export const AdminJobs: React.FC = () => {
   const { user, showToast } = useOutletContext<any>();
   const [isChecking, setIsChecking] = useState(true);
   const [activeTab, setActiveTab] = useState<'jobs' | 'articles' | 'linkedin'>('jobs');
+  const [confirmDeleteJobId, setConfirmDeleteJobId] = useState<string | null>(null);
+  const [confirmDeleteArticleId, setConfirmDeleteArticleId] = useState<string | null>(null);
 
   // Robust Admin Check on Mount
   useEffect(() => {
@@ -138,12 +141,18 @@ export const AdminJobs: React.FC = () => {
   };
 
   const handleJobDelete = async (id: string) => {
-    if (!confirm('Delete job?')) return;
+    setConfirmDeleteJobId(id);
+  };
+
+  const confirmJobDelete = async () => {
+    if (!confirmDeleteJobId) return;
     try { 
-      await jobService.deleteJob(id); 
-      await adminLogService.logAction('DELETE_JOB', id);
+      await jobService.deleteJob(confirmDeleteJobId); 
+      await adminLogService.logAction('DELETE_JOB', confirmDeleteJobId);
       loadJobs(); 
+      showToast('Job deleted successfully', 'success');
     } catch (e: any) { showToast(`Error: ${e.message}`, 'error'); }
+    finally { setConfirmDeleteJobId(null); }
   };
 
   // --- Article Handlers ---
@@ -183,12 +192,18 @@ export const AdminJobs: React.FC = () => {
 
   const handleArticleDelete = async (id: string) => {
       if (id.length < 5) { showToast("Cannot delete static/legacy articles.", 'info'); return; } // Simple check for legacy IDs (usually '1', 'v1')
-      if (!confirm('Delete article?')) return;
+      setConfirmDeleteArticleId(id);
+  };
+
+  const confirmArticleDelete = async () => {
+      if (!confirmDeleteArticleId) return;
       try { 
-          await contentService.deleteArticle(id); 
-          await adminLogService.logAction('DELETE_ARTICLE', id);
+          await contentService.deleteArticle(confirmDeleteArticleId); 
+          await adminLogService.logAction('DELETE_ARTICLE', confirmDeleteArticleId);
           loadArticles(); 
+          showToast('Article deleted successfully', 'success');
       } catch (e: any) { showToast(`Error: ${e.message}`, 'error'); }
+      finally { setConfirmDeleteArticleId(null); }
   };
 
   // --- LinkedIn Handlers ---
@@ -464,6 +479,28 @@ export const AdminJobs: React.FC = () => {
                 </div>
             </div>
         )}
+
+      <ConfirmModal
+        isOpen={!!confirmDeleteJobId}
+        title="Delete Job"
+        message="Are you sure you want to delete this job? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmJobDelete}
+        onCancel={() => setConfirmDeleteJobId(null)}
+        isDestructive={true}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmDeleteArticleId}
+        title="Delete Article"
+        message="Are you sure you want to delete this article? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmArticleDelete}
+        onCancel={() => setConfirmDeleteArticleId(null)}
+        isDestructive={true}
+      />
     </div>
   );
 };

@@ -3,6 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SavedApplication } from '../types';
 import { authService } from '../services/authService';
+import { ConfirmModal } from './ConfirmModal';
+import { ToastNotification, ToastType } from './ToastNotification';
 
 interface HistoryModalProps {
   isOpen: boolean;
@@ -13,7 +15,13 @@ interface HistoryModalProps {
 export const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, onLoadApplication }) => {
   const [history, setHistory] = useState<SavedApplication[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ visible: boolean; message: string; type: ToastType }>({ visible: false, message: '', type: 'info' });
   const navigate = useNavigate();
+
+  const showToast = (message: string, type: ToastType) => {
+    setToast({ visible: true, message, type });
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -33,16 +41,22 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, onL
     }
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleDeleteClick = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this saved application? This cannot be undone.")) return;
-    
+    setConfirmDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return;
     try {
-      await authService.deleteApplication(id);
-      setHistory(prev => prev.filter(app => app.id !== id));
+      await authService.deleteApplication(confirmDeleteId);
+      setHistory(prev => prev.filter(app => app.id !== confirmDeleteId));
+      showToast("Application deleted successfully.", "success");
     } catch (error) {
       console.error("Failed to delete", error);
-      alert("Failed to delete application. Please try again.");
+      showToast("Failed to delete application. Please try again.", "error");
+    } finally {
+      setConfirmDeleteId(null);
     }
   };
 
@@ -101,7 +115,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, onL
                       View
                     </button>
                     <button 
-                      onClick={(e) => handleDelete(app.id, e)}
+                      onClick={(e) => handleDeleteClick(app.id, e)}
                       className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Delete Application"
                     >
@@ -115,6 +129,24 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, onL
         </div>
 
       </div>
+      
+      <ConfirmModal
+        isOpen={!!confirmDeleteId}
+        title="Delete Application"
+        message="Are you sure you want to delete this saved application? This cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+        isDestructive={true}
+      />
+      
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.visible}
+        onClose={() => setToast(prev => ({ ...prev, visible: false }))}
+      />
     </div>
   );
 };

@@ -67,7 +67,7 @@ export const generateWordDocument = async (
     if (blob) {
         saveAs(blob, filename.replace(/\.(txt|md)$/, '.docx'));
     } else {
-        alert("Failed to generate Word document.");
+        throw new Error("Failed to generate Word document.");
     }
 };
 

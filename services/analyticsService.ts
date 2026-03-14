@@ -41,11 +41,6 @@ class AnalyticsService {
     private async initSession() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            
-            // Ignore admin activity
-            if (user?.email === 'mqhele03@gmail.com') {
-                return;
-            }
 
             // Check if session already exists
             const { data: existingSession } = await supabase
@@ -82,9 +77,6 @@ class AnalyticsService {
     async trackPageView(path: string, referrer?: string) {
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            if (user?.email === 'mqhele03@gmail.com') {
-                return;
-            }
 
             // Meta Pixel PageView
             if (window.fbq) {
@@ -122,9 +114,6 @@ class AnalyticsService {
     async trackEvent(eventName: string, metadata: any = {}) {
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            if (user?.email === 'mqhele03@gmail.com') {
-                return;
-            }
 
             // Meta Pixel Standard Events Mapping
             if (window.fbq) {

@@ -5,6 +5,7 @@ import { jobService } from '../services/jobService';
 import { JobListing } from '../types';
 import { AdBanner } from '../components/AdBanner';
 import { isPreviewOrAdmin } from '../utils/envHelper';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export const FindJobs: React.FC = () => {
   const { isPaidUser, user, showToast } = useOutletContext<any>();
@@ -13,6 +14,7 @@ export const FindJobs: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
   const showAdmin = isPreviewOrAdmin() || user?.email === 'mqhele03@gmail.com';
 
@@ -42,15 +44,22 @@ export const FindJobs: React.FC = () => {
     setFilteredJobs(filtered);
   }, [searchQuery, locationFilter, jobs]);
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this job?")) return;
+    setConfirmDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return;
     try {
-        await jobService.deleteJob(id);
-        setJobs(prev => prev.filter(j => j.id !== id));
+        await jobService.deleteJob(confirmDeleteId);
+        setJobs(prev => prev.filter(j => j.id !== confirmDeleteId));
+        showToast('Job deleted successfully', 'success');
     } catch(e: any) {
         showToast(`Failed to delete job: ${e.message}`, 'error');
+    } finally {
+        setConfirmDeleteId(null);
     }
   };
 
@@ -112,7 +121,7 @@ export const FindJobs: React.FC = () => {
                 {filteredJobs.map(job => (
                     <div key={job.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow flex flex-col relative group">
                         {showAdmin && (
-                            <button onClick={(e) => handleDelete(e, job.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors z-20">
+                            <button onClick={(e) => handleDeleteClick(e, job.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors z-20">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </button>
                         )}
@@ -163,6 +172,17 @@ export const FindJobs: React.FC = () => {
                  </div>
              </div>
         </div>
+
+        <ConfirmModal
+          isOpen={!!confirmDeleteId}
+          title="Delete Job"
+          message="Are you sure you want to delete this job? This action cannot be undone."
+          confirmText="Delete"
+          cancelText="Cancel"
+          onConfirm={confirmDelete}
+          onCancel={() => setConfirmDeleteId(null)}
+          isDestructive={true}
+        />
     </div>
   );
 };

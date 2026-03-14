@@ -19,6 +19,8 @@ import { checkUsageLimit, incrementUsage } from '../services/usageService';
 import { LimitReachedModal } from '../components/LimitReachedModal';
 import saveAs from 'file-saver';
 
+import { ConfirmModal } from '../components/ConfirmModal';
+
 export const GeneratedCV: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -55,6 +57,7 @@ export const GeneratedCV: React.FC = () => {
   const [showRewardedAd, setShowRewardedAd] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [pendingDownload, setPendingDownload] = useState<{ docType: 'cv' | 'cl', format: 'pdf' | 'docx' } | null>(null);
+  const [confirmDocxDownload, setConfirmDocxDownload] = useState<{ docType: 'cv' | 'cl' } | null>(null);
 
   const handleLimitUpgrade = () => {
       setShowLimitModal(false);
@@ -344,10 +347,7 @@ export const GeneratedCV: React.FC = () => {
               }
           } else if (format === 'pdf') {
               // PDF failed, prompt for DOCX
-              const message = `PDF Generation service is currently unavailable. Would you like to download the DOCX version instead?`;
-              if (window.confirm(message)) {
-                  handleDownload(docType, 'docx');
-              }
+              setConfirmDocxDownload({ docType });
           } else {
               showToast("Failed to generate file.", 'error');
           }
@@ -902,6 +902,21 @@ export const GeneratedCV: React.FC = () => {
               <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-600">Rate us on Google</p>
           </div>
        </a>
+
+      <ConfirmModal
+        isOpen={!!confirmDocxDownload}
+        title="PDF Unavailable"
+        message="PDF Generation service is currently unavailable. Would you like to download the DOCX version instead?"
+        confirmText="Download DOCX"
+        cancelText="Cancel"
+        onConfirm={() => {
+            if (confirmDocxDownload) {
+                handleDownload(confirmDocxDownload.docType, 'docx');
+                setConfirmDocxDownload(null);
+            }
+        }}
+        onCancel={() => setConfirmDocxDownload(null)}
+      />
     </div>
   );
 };

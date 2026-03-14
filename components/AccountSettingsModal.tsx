@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { authService } from '../services/authService';
 import { Button } from './Button';
+import { ConfirmModal } from './ConfirmModal';
 
 interface AccountSettingsModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOp
   const [activeTab, setActiveTab] = useState<Tab>('profile');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [showEmailConfirm, setShowEmailConfirm] = useState(false);
 
   // Form States
   const [fullName, setFullName] = useState('');
@@ -53,8 +55,11 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOp
 
   const handleUpdateEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!confirm("Changing your email will require you to verify the new address via a link sent to your inbox. Continue?")) return;
-    
+    setShowEmailConfirm(true);
+  };
+
+  const confirmUpdateEmail = async () => {
+    setShowEmailConfirm(false);
     setIsLoading(true);
     setMessage(null);
     try {
@@ -260,6 +265,16 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOp
 
         </div>
       </div>
+      
+      <ConfirmModal
+        isOpen={showEmailConfirm}
+        title="Update Email"
+        message="Changing your email will require you to verify the new address via a link sent to your inbox. Continue?"
+        confirmText="Continue"
+        cancelText="Cancel"
+        onConfirm={confirmUpdateEmail}
+        onCancel={() => setShowEmailConfirm(false)}
+      />
     </div>
   );
 };

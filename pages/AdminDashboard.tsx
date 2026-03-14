@@ -54,13 +54,14 @@ interface AdminLog {
   created_at: string;
 }
 
+import { ConfirmModal } from '../components/ConfirmModal';
+
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, showToast } = useOutletContext<any>();
   const [isChecking, setIsChecking] = useState(true);
   const [sessions, setSessions] = useState<VisitorSession[]>([]);
   const [pageViews, setPageViews] = useState<PageView[]>([]);
-  const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
   const [adminLogs, setAdminLogs] = useState<AdminLog[]>([]);
   const [totalGenerations, setTotalGenerations] = useState(0);
   const [recentGenerations, setRecentGenerations] = useState<any[]>([]);
@@ -69,9 +70,6 @@ export const AdminDashboard: React.FC = () => {
   const [totalTraffic, setTotalTraffic] = useState(0);
   const [unsolvedErrorsCount, setUnsolvedErrorsCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [selectedError, setSelectedError] = useState<ErrorLog | null>(null);
-  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
-  const [isExplaining, setIsExplaining] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
   const [detailedData, setDetailedData] = useState<any[]>([]);
   const [detailedEvents, setDetailedEvents] = useState<any[]>([]);
@@ -86,6 +84,8 @@ export const AdminDashboard: React.FC = () => {
   const [testModelName, setTestModelName] = useState('gemini-3-flash-preview');
   const [testResult, setTestResult] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
+  const [showClearAnalyticsConfirm, setShowClearAnalyticsConfirm] = useState(false);
+  const [showClearAdminLogsConfirm, setShowClearAdminLogsConfirm] = useState(false);
 
   // Robust Admin Check on Mount
   useEffect(() => {
@@ -236,10 +236,6 @@ export const AdminDashboard: React.FC = () => {
       ]);
       setCvStats(cvStatsRes);
       setRecentGenerations(recentGensRes);
-      
-      // Error logs are now in summary, but we might want the full list for the sidebar
-      const { data: errorsRes } = await supabase.from('error_logs').select('*').eq('is_solved', false).order('created_at', { ascending: false }).limit(50);
-      if (errorsRes) setErrorLogs(errorsRes);
 
     } catch (err) {
       console.error('Error fetching admin data:', err);
@@ -273,50 +269,6 @@ export const AdminDashboard: React.FC = () => {
     };
   });
 
-  const handleMarkSolved = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('error_logs')
-        .update({ is_solved: true })
-        .eq('id', id);
-      
-      if (error) throw error;
-      
-      setErrorLogs(prev => prev.filter(log => log.id !== id));
-      if (selectedError?.id === id) setSelectedError(null);
-      
-      adminLogService.logAction('MARK_ERROR_SOLVED', id, { timestamp: new Date().toISOString() });
-    } catch (err) {
-      console.error('Error marking as solved:', err);
-    }
-  };
-
-  const handleExplainError = async (log: ErrorLog) => {
-    setIsExplaining(true);
-    setAiExplanation(null);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Analyze this application error and provide:
-1. A clear explanation of what likely went wrong.
-2. A technical guess on the root cause.
-3. A suggested prompt that the developer can send to an AI assistant to fix this specific issue.
-
-Error Message: ${log.message}
-Stack Trace: ${log.stack || 'N/A'}
-Path: ${log.path}
-`,
-      });
-      setAiExplanation(response.text || "Failed to generate explanation.");
-    } catch (err) {
-      console.error('AI Explanation failed:', err);
-      setAiExplanation("Error communicating with AI service.");
-    } finally {
-      setIsExplaining(false);
-    }
-  };
-
   const handleInterpretData = async () => {
     setIsInterpreting(true);
     setAiDataInterpretation(null);
@@ -332,8 +284,7 @@ Path: ${log.path}
         liveUsers,
         returningUsers,
         newUsers,
-        recentCVs: recentGenerations.map(g => ({ title: g.metadata?.job_title, company: g.metadata?.company })),
-        recentErrors: errorLogs.slice(0, 5).map(e => e.message)
+        recentCVs: recentGenerations.map(g => ({ title: g.metadata?.job_title, company: g.metadata?.company }))
       };
 
       const response = await ai.models.generateContent({
@@ -358,30 +309,12 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
     }
   };
 
-  const handleClearLogs = async () => {
-    if (!window.confirm("Are you sure you want to clear all error logs? This action cannot be undone.")) return;
-    
-    try {
-      const { error } = await supabase.rpc('clear_error_logs');
-      if (error) {
-        // Fallback to direct delete if RPC fails
-        const { error: deleteError } = await supabase.from('error_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        if (deleteError) throw deleteError;
-      }
-      
-      setErrorLogs([]);
-      setUnsolvedErrorsCount(0);
-      showToast("All error logs have been cleared.", 'success');
-      adminLogService.logAction('CLEAR_ERROR_LOGS', 'all', { timestamp: new Date().toISOString() });
-    } catch (err) {
-      console.error('Error clearing logs:', err);
-      showToast("Failed to clear logs.", 'error');
-    }
+  const handleClearAllAnalytics = async () => {
+    setShowClearAnalyticsConfirm(true);
   };
 
-  const handleClearAllAnalytics = async () => {
-    if (!window.confirm("Are you sure you want to clear ALL platform analytics (traffic, sessions, events)? This action cannot be undone.")) return;
-    
+  const confirmClearAllAnalytics = async () => {
+    setShowClearAnalyticsConfirm(false);
     try {
       const { error } = await supabase.rpc('clear_all_analytics');
       if (error) {
@@ -404,8 +337,11 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
   };
 
   const handleClearAdminLogs = async () => {
-    if (!window.confirm("Are you sure you want to clear all admin activity logs?")) return;
-    
+    setShowClearAdminLogsConfirm(true);
+  };
+
+  const confirmClearAdminLogs = async () => {
+    setShowClearAdminLogsConfirm(false);
     try {
       await adminLogService.clearLogs();
       setAdminLogs([]);
@@ -675,164 +611,6 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
 
           {/* Sidebar Section */}
           <div className="space-y-8">
-            {/* Error Logs */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <AlertCircle size={18} className="text-red-500" />
-                  Recent Error Logs
-                </h3>
-                <div className="flex gap-2">
-                    <button 
-                        onClick={handleClearLogs}
-                        className="text-[10px] font-bold text-zinc-500 hover:text-red-400 transition-colors uppercase tracking-wider"
-                    >
-                        Clear All
-                    </button>
-                    <button 
-                        onClick={async () => {
-                            try {
-                                const { error } = await supabase.from('error_logs').delete().lt('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
-                                if (error) throw error;
-                                fetchData();
-                                showToast("Recent errors cleared.", 'success');
-                            } catch (err) {
-                                console.error('Error clearing recent logs:', err);
-                                showToast("Failed to clear recent logs.", 'error');
-                            }
-                        }}
-                        className="text-[10px] font-bold text-zinc-500 hover:text-orange-400 transition-colors uppercase tracking-wider"
-                    >
-                        Clear Recent
-                    </button>
-                </div>
-              </div>
-              <div className="space-y-4">
-                {errorLogs.length === 0 ? (
-                  <p className="text-sm text-zinc-500 italic">No errors reported recently.</p>
-                ) : (
-                  errorLogs.slice(0, 8).map((log) => (
-                    <div 
-                      key={log.id} 
-                      onClick={() => setSelectedError(log)}
-                      className="p-3 bg-red-500/5 border border-red-500/10 rounded-xl cursor-pointer hover:bg-red-500/10 transition-colors group"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-xs font-mono text-red-400 truncate mb-1 flex-1">{log.message}</p>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleMarkSolved(log.id);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-emerald-500/20 rounded text-emerald-500 transition-all"
-                          title="Mark as Solved"
-                        >
-                          <CheckCircle size={14} />
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-zinc-500">{log.path}</span>
-                        <span className="text-[10px] text-zinc-500">{new Date(log.created_at).toLocaleTimeString()}</span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Error Detail Modal */}
-            <AnimatePresence>
-              {selectedError && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
-                  >
-                    <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <AlertCircle className="text-red-500" />
-                        <h2 className="text-xl font-bold">Error Details</h2>
-                      </div>
-                      <button onClick={() => { setSelectedError(null); setAiExplanation(null); }} className="text-zinc-500 hover:text-white">
-                        <X size={24} />
-                      </button>
-                    </div>
-
-                    <div className="p-6 overflow-y-auto space-y-6">
-                      <div>
-                        <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Message</h4>
-                        <p className="text-red-400 font-mono text-sm bg-red-500/5 p-3 rounded-lg border border-red-500/10">
-                          {selectedError.message}
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Path</h4>
-                          <p className="text-sm text-zinc-300">{selectedError.path}</p>
-                        </div>
-                        <div>
-                          <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Timestamp</h4>
-                          <p className="text-sm text-zinc-300">{new Date(selectedError.created_at).toLocaleString()}</p>
-                        </div>
-                      </div>
-
-                      {selectedError.stack && (
-                        <div>
-                          <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Stack Trace</h4>
-                          <pre className="text-[10px] font-mono text-zinc-500 bg-black/40 p-4 rounded-lg overflow-x-auto max-h-40">
-                            {selectedError.stack}
-                          </pre>
-                        </div>
-                      )}
-
-                      <div className="pt-4 border-t border-zinc-800">
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-sm font-bold flex items-center gap-2">
-                            <Brain size={16} className="text-emerald-500" />
-                            AI Explanation
-                          </h4>
-                          {!aiExplanation && !isExplaining && (
-                            <button 
-                              onClick={() => handleExplainError(selectedError)}
-                              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-medium transition-colors"
-                            >
-                              Generate Explanation
-                            </button>
-                          )}
-                        </div>
-
-                        {isExplaining && (
-                          <div className="flex items-center gap-3 text-zinc-500 text-sm animate-pulse">
-                            <Brain className="animate-bounce" size={16} />
-                            Analyzing error patterns...
-                          </div>
-                        )}
-
-                        {aiExplanation && (
-                          <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-4 text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
-                            {aiExplanation}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="p-6 border-t border-zinc-800 bg-zinc-900/50 flex items-center justify-end gap-3">
-                      <button 
-                        onClick={() => handleMarkSolved(selectedError.id)}
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-all"
-                      >
-                        <CheckCircle size={18} />
-                        Mark as Solved
-                      </button>
-                    </div>
-                  </motion.div>
-                </div>
-              )}
-            </AnimatePresence>
-
             {/* Platform Health */}
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
               <h3 className="text-lg font-semibold mb-6">Platform Health</h3>
@@ -1139,9 +917,30 @@ Use bold headings, bullet points, and clear structure. Keep it professional and 
           unsolvedErrorsCount,
           liveUsers,
           cvStats,
-          recentGenerations: recentGenerations.slice(0, 5),
-          errorLogs: errorLogs.slice(0, 5)
+          recentGenerations: recentGenerations.slice(0, 5)
         }} 
+      />
+
+      <ConfirmModal
+        isOpen={showClearAnalyticsConfirm}
+        title="Clear Analytics"
+        message="Are you sure you want to clear ALL platform analytics (traffic, sessions, events)? This action cannot be undone."
+        confirmText="Clear Analytics"
+        cancelText="Cancel"
+        onConfirm={confirmClearAllAnalytics}
+        onCancel={() => setShowClearAnalyticsConfirm(false)}
+        isDestructive={true}
+      />
+      
+      <ConfirmModal
+        isOpen={showClearAdminLogsConfirm}
+        title="Clear Admin Logs"
+        message="Are you sure you want to clear all admin activity logs? This action cannot be undone."
+        confirmText="Clear Logs"
+        cancelText="Cancel"
+        onConfirm={confirmClearAdminLogs}
+        onCancel={() => setShowClearAdminLogsConfirm(false)}
+        isDestructive={true}
       />
     </div>
   );
