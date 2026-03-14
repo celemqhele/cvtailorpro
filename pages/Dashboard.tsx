@@ -9,7 +9,6 @@ import { AdBanner } from '../components/AdBanner';
 import { RewardedAdModal } from '../components/RewardedAdModal';
 import { SupportModal } from '../components/SupportModal';
 import { HistoryModal } from '../components/HistoryModal';
-import { LimitReachedModal } from '../components/LimitReachedModal';
 import { ProPlusFeatureCard } from '../components/ProPlusFeatureCard';
 import { AdDecisionModal } from '../components/AdDecisionModal';
 import { FeatureLockedModal } from '../components/FeatureLockedModal';
@@ -18,10 +17,9 @@ import { ModelSelectionModal } from '../components/ModelSelectionModal';
 
 import { analytics } from '../services/analyticsService';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile, generateSkeletonCV, generateGeneralJobDescriptionFromCV } from '../services/geminiService';
+import { getPlanDetails } from '../services/subscriptionService';
 import { progressService } from '../services/progressService';
 import { authService } from '../services/authService';
-import { checkUsageLimit, incrementUsage } from '../services/usageService';
-import { getPlanDetails, PLANS } from '../services/subscriptionService';
 import { FileData, GeneratorResponse, Status, MatchAnalysis, SavedApplication, ManualCVData, ManualExperienceItem, ManualEducationItem } from '../types';
 
 interface DashboardProps {
@@ -66,7 +64,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showRewardedModal, setShowRewardedModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
-  const [showLimitModal, setShowLimitModal] = useState(false);
   const [showAdDecisionModal, setShowAdDecisionModal] = useState(false);
   const [showSkeletonPromo, setShowSkeletonPromo] = useState(false);
   const [showModelModal, setShowModelModal] = useState(false);
@@ -249,11 +246,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
       handleSkeletonClick();
   };
 
-  const handleLimitUpgrade = (withDiscount: boolean) => {
-      setShowLimitModal(false);
-      triggerPayment(undefined, withDiscount);
-  };
-
   const handleAdDecisionWatch = () => {
       setShowAdDecisionModal(false);
       setAdContext('generation');
@@ -416,11 +408,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
       // Check if user is free and needs to watch ad or is blocked BEFORE status change
       if (!isPaidUser) {
-          const canProceed = await checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
-          if (!canProceed) {
-              setShowLimitModal(true);
-              return;
-          }
           // For scanning, we don't strictly REQUIRE an ad yet, but we could.
           // The user specifically mentioned the generation progress bar.
       }
@@ -551,13 +538,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
   const handleGenerateSkeleton = async (bypassAd: boolean = false) => {
       const isAdmin = user?.email === 'mqhele03@gmail.com';
-      // If they hit the limit, they are done. No more ads. Must upgrade.
-      const canProceed = bypassAd || await checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
-      if (!canProceed && !isAdmin) {
-          setShowAdDecisionModal(false);
-          setShowLimitModal(true); // Block them
-          return;
-      }
 
       setStatus(Status.GENERATING);
       if (user?.id) await progressService.startJob(user.id, 'skeleton');
@@ -577,11 +557,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
               setResult(response);
               // Do not set SUCCESS yet, wait for save/navigation to keep progress bar mounted
               if (user?.id) await progressService.completeJob(user.id);
-              
-              if (!isAdmin) {
-                  await incrementUsage(user?.id);
-                  setDailyCvCount((prev: number) => prev + 1);
-              }
 
               const savedId = await saveCurrentResultToHistory(response);
               if (savedId) {
@@ -610,25 +585,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   };
 
   const handleGenerate = async (forceOverride: boolean = false, isDirectTitleMode: boolean = false, bypassAd: boolean = false) => {
-        // If they hit the limit, they are done. No more ads. Must upgrade.
-        const canProceed = await checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
-        if (!canProceed) {
-            setShowAdDecisionModal(false);
-            setShowLimitModal(true); // Block them
-            return;
-        }
-
-        // NO MORE AD FOR GENERATION - User wants it for download instead
-        // Just proceed to generation
-
-    // 2. Double check limit just in case (for paid users too)
-    const canProceedFinal = bypassAd || await checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
     const isAdmin = user?.email === 'mqhele03@gmail.com';
-
-    if (!canProceedFinal && !isAdmin) {
-        setShowLimitModal(true);
-        return;
-    }
 
     const force = typeof forceOverride === 'boolean' ? forceOverride : false;
     const currentJobSpec = isDirectTitleMode ? jobTitle : jobSpec;
@@ -705,11 +662,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
           setResult(response);
           // Do not set SUCCESS yet, wait for save/navigation to keep progress bar mounted
           if (user?.id) await progressService.completeJob(user.id);
-
-          if (!isAdmin) {
-             await incrementUsage(user?.id);
-             setDailyCvCount((prev: number) => prev + 1);
-          }
           
           const savedId = await saveCurrentResultToHistory(response);
           if (savedId) {
@@ -1170,16 +1122,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
             <RewardedAdModal isOpen={showRewardedModal} onClose={() => setShowRewardedModal(false)} onComplete={handleAdComplete} />
             <SupportModal isOpen={showSupportModal} onClose={() => setShowSupportModal(false)} onConfirmSupport={() => { setShowSupportModal(false); triggerPayment(); }} onContinueFree={() => { setShowSupportModal(false); setAdContext('download'); setShowRewardedModal(true); }} />
             <HistoryModal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} onLoadApplication={handleLoadHistory} />
-            <LimitReachedModal 
-                isOpen={showLimitModal} 
-                onClose={() => setShowLimitModal(false)} 
-                onWatchAd={() => {}} // Disabled for hard limit
-                onUpgrade={handleLimitUpgrade} 
-                isMaxPlan={isMaxPlan} 
-                isPaidUser={isPaidUser}
-                eligibleForDiscount={discountEligible}
-                limit={dailyLimit}
-            />
             
             <FeatureLockedModal
                 isOpen={showSkeletonLockModal}

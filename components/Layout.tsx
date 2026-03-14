@@ -196,11 +196,11 @@ export const Layout: React.FC = () => {
   }, [location, user?.id, user?.email]); // Re-run if location or user changes
 
   useEffect(() => {
-    const handleFocus = () => {
+    const handleUsageUpdated = () => {
         if (!isAuthLoading) fetchStats(user?.id, user?.plan_id);
     };
     
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('usageUpdated', handleUsageUpdated);
 
     // Global Error Listener
     const handleError = (event: ErrorEvent) => {
@@ -227,7 +227,7 @@ export const Layout: React.FC = () => {
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
     return () => {
-        window.removeEventListener('focus', handleFocus);
+        window.removeEventListener('usageUpdated', handleUsageUpdated);
         window.removeEventListener('error', handleError);
         window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };

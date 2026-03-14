@@ -134,15 +134,6 @@ export const JobDetails: React.FC = () => {
         return;
     }
 
-    // 2. Check Daily CV Credit Limit (e.g. 5 per day)
-    const allowedDaily = await usageService.checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
-    if (!allowedDaily) {
-        setLimitType('daily');
-        setShowApplyModal(false);
-        setShowLimitModal(true);
-        return;
-    }
-
     // Start Generation Immediately
     setShowApplyModal(false);
     handleSkeletonGenerate();
@@ -169,10 +160,6 @@ export const JobDetails: React.FC = () => {
             const isAdmin = user?.email === 'mqhele03@gmail.com';
 
             if (!isAdmin) {
-                // Deduct Daily CV Credit
-                await usageService.incrementUsage(user?.id);
-                if (setDailyCvCount) setDailyCvCount((prev: number) => prev + 1);
-
                 // Deduct Quick Apply (Once per day) Credit if not unlimited
                 if (userPlanId !== 'tier_3' && userPlanId !== 'tier_4') {
                     await usageService.incrementQuickApply();
@@ -520,7 +507,7 @@ export const JobDetails: React.FC = () => {
             title={limitType === 'quick' ? "Skeleton Mode Limit Reached" : "Daily Credit Limit Reached"}
             message={limitType === 'quick' 
                 ? "You can only use the Quick Tailor (Skeleton Mode) feature once per day on your current plan. Upgrade to Pro for unlimited access."
-                : `You have used all your ${isPaidUser ? 'plan' : 'free'} CV generations for today (${dailyLimit}/${dailyLimit}). Upgrade to continue.`
+                : `You have used all your ${isPaidUser ? 'plan' : 'free'} CV downloads for today (${dailyLimit}/${dailyLimit}). Upgrade to continue.`
             }
         />
 

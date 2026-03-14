@@ -70,25 +70,8 @@ const getIdentifier = async (userId?: string): Promise<string> => {
  */
 export const checkUsageLimit = async (userId: string | undefined, limit: number, planId: string = 'free'): Promise<boolean> => {
     try {
-        const identifier = await getIdentifier(userId);
-        
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-
-        const { data, error } = await supabase
-            .from('daily_usage')
-            .select('cv_count')
-            .eq('identifier', identifier)
-            .eq('date', todayStr)
-            .maybeSingle();
-
-        if (error) {
-            console.warn("Usage check error:", error);
-            return true; 
-        }
-
-        const currentCount = data?.cv_count || 0;
-        return currentCount < limit;
+        const stats = await getUsageStats(userId, planId);
+        return stats.count < limit;
     } catch (e) {
         return true;
     }
@@ -104,8 +87,18 @@ export const incrementUsage = async (userId: string | undefined): Promise<void> 
         
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
+        const cacheKey = `goapply_usage_${identifier}_${todayStr}`;
 
-        // First get current count
+        // 1. Optimistic Local Update
+        const cached = localStorage.getItem(cacheKey);
+        const currentLocalCount = cached ? parseInt(cached, 10) : 0;
+        const newLocalCount = currentLocalCount + 1;
+        
+        localStorage.setItem(cacheKey, newLocalCount.toString());
+        window.dispatchEvent(new window.Event('usageUpdated'));
+
+        // 2. Sync to Supabase
+        // First get current count from DB to ensure accuracy
         const { data: current } = await supabase
             .from('daily_usage')
             .select('cv_count')
@@ -113,7 +106,12 @@ export const incrementUsage = async (userId: string | undefined): Promise<void> 
             .eq('date', todayStr)
             .maybeSingle();
 
-        const newCount = (current?.cv_count || 0) + 1;
+        const currentDbCount = current?.cv_count || 0;
+
+        // If local usage is higher (fewer credits remaining) than DB, use local.
+        // Otherwise, use DB + 1 (to account for the current usage).
+        // This ensures Supabase is always updated to reflect the lowest available credit balance.
+        const newDbCount = Math.max(newLocalCount, currentDbCount + 1);
 
         // Then upsert
         const { error } = await supabase
@@ -121,11 +119,18 @@ export const incrementUsage = async (userId: string | undefined): Promise<void> 
             .upsert({ 
                 identifier, 
                 date: todayStr, 
-                cv_count: newCount 
+                cv_count: newDbCount 
             });
 
         if (error) {
             console.error("Failed to increment usage securely:", error);
+            // Rollback local cache on failure
+            localStorage.setItem(cacheKey, currentLocalCount.toString());
+            window.dispatchEvent(new window.Event('usageUpdated'));
+        } else if (newDbCount !== newLocalCount) {
+            // Re-sync local cache if DB had a different value
+            localStorage.setItem(cacheKey, newDbCount.toString());
+            window.dispatchEvent(new window.Event('usageUpdated'));
         }
     } catch (e) {
         console.error("Failed to increment usage:", e);
@@ -135,12 +140,23 @@ export const incrementUsage = async (userId: string | undefined): Promise<void> 
 /**
  * Gets the current CV count and Time to Refill
  */
-export const getUsageStats = async (userId?: string, planId: string = 'free'): Promise<{ count: number, secondsLeft: number }> => {
+export const getUsageStats = async (userId?: string, planId: string = 'free', forceRefresh = false): Promise<{ count: number, secondsLeft: number }> => {
      try {
         const identifier = await getIdentifier(userId);
         
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
+        const cacheKey = `goapply_usage_${identifier}_${todayStr}`;
+        
+        const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+        const secondsLeft = Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
+
+        if (!forceRefresh) {
+            const cached = localStorage.getItem(cacheKey);
+            if (cached !== null) {
+                return { count: parseInt(cached, 10), secondsLeft };
+            }
+        }
         
         const { data, error } = await supabase
             .from('daily_usage')
@@ -150,9 +166,7 @@ export const getUsageStats = async (userId?: string, planId: string = 'free'): P
             .maybeSingle();
 
         const count = data?.cv_count || 0;
-        
-        const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
-        const secondsLeft = Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
+        localStorage.setItem(cacheKey, count.toString());
 
         return { count, secondsLeft };
     } catch {

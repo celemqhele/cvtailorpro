@@ -15,6 +15,8 @@ import { createWordBlob } from '../utils/docHelper';
 import { generatePdfFromApi } from '../utils/pdfHelper';
 import { analytics } from '../services/analyticsService';
 import { supabase } from '../services/supabaseClient';
+import { checkUsageLimit, incrementUsage } from '../services/usageService';
+import { LimitReachedModal } from '../components/LimitReachedModal';
 import saveAs from 'file-saver';
 
 export const GeneratedCV: React.FC = () => {
@@ -51,7 +53,13 @@ export const GeneratedCV: React.FC = () => {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showLeadModal, setShowLeadModal] = useState(false);
   const [showRewardedAd, setShowRewardedAd] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
   const [pendingDownload, setPendingDownload] = useState<{ docType: 'cv' | 'cl', format: 'pdf' | 'docx' } | null>(null);
+
+  const handleLimitUpgrade = () => {
+      setShowLimitModal(false);
+      triggerPayment();
+  };
   
   // Click outside to close menus
   const menuRef = useRef<HTMLDivElement>(null);
@@ -230,6 +238,14 @@ export const GeneratedCV: React.FC = () => {
   const handleDownload = async (docType: 'cv' | 'cl', format: 'pdf' | 'docx', bypassAd: boolean = false) => {
       if (!application || !cvData) return;
       
+      const isAdmin = user?.email === 'mqhele03@gmail.com';
+      const canProceed = await checkUsageLimit(user?.id, dailyLimit, user?.plan_id);
+      
+      if (!canProceed && !isAdmin) {
+          setShowLimitModal(true);
+          return;
+      }
+
       // Check PDF Access - Now free for all via lead capture/ads
       // We no longer block paid users without PDF access (Starter), they just fall through to the Ad flow.
       /*
@@ -322,6 +338,9 @@ export const GeneratedCV: React.FC = () => {
 
           if (blob) {
               saveAs(blob, fileName);
+              if (!isAdmin) {
+                  await incrementUsage(user?.id);
+              }
           } else if (format === 'pdf') {
               // PDF failed, prompt for DOCX
               const message = `PDF Generation service is currently unavailable. Would you like to download the DOCX version instead?`;
@@ -850,6 +869,17 @@ export const GeneratedCV: React.FC = () => {
            isOpen={showRewardedAd}
            onClose={() => setShowRewardedAd(false)}
            onComplete={handleAdComplete}
+       />
+
+       <LimitReachedModal 
+           isOpen={showLimitModal} 
+           onClose={() => setShowLimitModal(false)} 
+           onWatchAd={() => {}} // Disabled for hard limit
+           onUpgrade={handleLimitUpgrade} 
+           isMaxPlan={isMaxPlan} 
+           isPaidUser={isPaidUser}
+           eligibleForDiscount={false}
+           limit={dailyLimit}
        />
 
        {/* Rate Us Floating Button */}
