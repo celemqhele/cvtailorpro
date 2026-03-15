@@ -447,21 +447,21 @@ export const Layout: React.FC = () => {
              <div className="md:hidden bg-white border-b border-slate-200 px-4 py-6 space-y-4 shadow-lg animate-fade-in">
                  {!isRecruiterMode ? (
                    <>
-                     <Link to="/" className="block text-base font-medium text-slate-600">Home</Link>
-                     <Link to="/why-us" className="block text-base font-medium text-slate-600">Why Us</Link>
-                     <Link to="/find-jobs" className="block text-base font-medium text-slate-600">Find Jobs</Link>
-                     <Link to="/content" className="block text-base font-medium text-slate-600">Content</Link>
-                     <Link to="/pricing" className="block text-base font-medium text-slate-600">Pricing</Link>
+                     <Link to="/" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-slate-600">Home</Link>
+                     <Link to="/why-us" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-slate-600">Why Us</Link>
+                     <Link to="/find-jobs" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-slate-600">Find Jobs</Link>
+                     <Link to="/content" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-slate-600">Content</Link>
+                     <Link to="/pricing" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-slate-600">Pricing</Link>
                    </>
                  ) : (
                    <>
-                     <Link to="/recruiter" className="block text-base font-medium text-slate-600">Home</Link>
-                     <Link to="/recruiter-dashboard" className="block text-base font-medium text-slate-600">Talent Search</Link>
-                     <Link to="/pricing?tab=recruiter" className="block text-base font-medium text-slate-600">Pricing</Link>
+                     <Link to="/recruiter" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-slate-600">Home</Link>
+                     <Link to="/recruiter-dashboard" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-slate-600">Talent Search</Link>
+                     <Link to="/pricing?tab=recruiter" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-slate-600">Pricing</Link>
                    </>
                  )}
                  
-                 {showAdmin && <Link to="/admin-jobs" className="block text-base font-bold text-red-500">Admin</Link>}
+                 {showAdmin && <Link to="/admin-jobs" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-bold text-red-500">Admin</Link>}
                  
                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
                     <span className="text-sm font-medium text-slate-600">{isRecruiterMode ? 'Search Credits' : 'Daily Credits'}</span>
@@ -485,9 +485,9 @@ export const Layout: React.FC = () => {
 
                  {user ? (
                      <>
-                        <Link to="/dashboard" className="block text-base font-medium text-indigo-600">Dashboard</Link>
-                        <Link to="/account" className="block text-base font-medium text-slate-600">Account Settings</Link>
-                        <button onClick={handleSignOut} className="block w-full text-left text-base font-medium text-red-500">Sign Out</button>
+                        <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-indigo-600">Dashboard</Link>
+                        <Link to="/account" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-slate-600">Account Settings</Link>
+                        <button onClick={() => { handleSignOut(); setIsMenuOpen(false); }} className="block w-full text-left py-2 text-base font-medium text-red-500">Sign Out</button>
                      </>
                  ) : isAuthLoading && document.cookie.includes('goapply_auth=true') ? (
                      <div className="pt-4 border-t border-slate-100 flex flex-col gap-3">
@@ -496,8 +496,8 @@ export const Layout: React.FC = () => {
                      </div>
                  ) : (
                      <div className="pt-4 border-t border-slate-100 flex flex-col gap-3">
-                         <button onClick={() => setShowAuthModal(true)} className="w-full py-3 border border-slate-300 rounded-xl font-bold text-slate-700">Log In</button>
-                         <Link to="/guestuserdashboard" className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-center">{hasFreeCredits ? 'Get Free CV' : 'CV Generator'}</Link>
+                         <button onClick={() => { setShowAuthModal(true); setIsMenuOpen(false); }} className="w-full py-3 border border-slate-300 rounded-xl font-bold text-slate-700">Log In</button>
+                         <Link to="/guestuserdashboard" onClick={() => setIsMenuOpen(false)} className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-center">{hasFreeCredits ? 'Get Free CV' : 'CV Generator'}</Link>
                      </div>
                  )}
              </div>
