@@ -83,6 +83,15 @@ class AnalyticsService {
                 window.fbq('track', 'PageView');
             }
 
+            // Google Analytics 4 PageView (Crucial for SPA route changes)
+            if (window.gtag) {
+                window.gtag('event', 'page_view', {
+                    page_path: path,
+                    page_location: window.location.href,
+                    page_title: document.title
+                });
+            }
+
             await supabase.from('page_views').insert({
                 session_token: this.sessionToken,
                 path,
