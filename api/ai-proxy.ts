@@ -7,7 +7,7 @@ function isJsonResponse(response: any) {
   return contentType && contentType.includes("application/json");
 }
 
-async function callGemini(modelName: any, systemPrompt: any, userPrompt: any, temperature: any, apiKey: any, jsonMode = false, timeoutMs = 60000, stream = false) {
+async function callGemini(modelName: any, systemPrompt: any, userPrompt: any, temperature: any, apiKey: any, jsonMode = false, timeoutMs = 60000, stream = false, lowThinking = false) {
   const ai = new GoogleGenAI({ apiKey });
   const timeoutPromise = new Promise((_, reject) =>
     setTimeout(() => reject(new Error("Gemini Timeout")), timeoutMs)
@@ -18,6 +18,10 @@ async function callGemini(modelName: any, systemPrompt: any, userPrompt: any, te
     temperature: temperature,
     responseMimeType: jsonMode ? "application/json" : "text/plain"
   };
+
+  if (lowThinking) {
+    config.thinkingConfig = { thinkingLevel: 'LOW' };
+  }
 
   if (stream) {
     const apiCall = ai.models.generateContentStream({
@@ -133,12 +137,14 @@ export default async function handler(req: any, res: any) {
     ];
   }
 
+  const isFreePlan = !planId || planId === 'free' || planId === 'tier_1';
+
   for (const step of activeChain) {
     try {
       if (step.provider === 'gemini' && step.keys.length > 0) {
         for (const key of step.keys) {
           try {
-            const result = await callGemini(step.model, finalSystemPrompt, userPrompt, temperature, key, jsonMode, step.timeout, stream);
+            const result = await callGemini(step.model, finalSystemPrompt, userPrompt, temperature, key, jsonMode, step.timeout, stream, isFreePlan);
             
             if (stream) {
               // Handle Streaming Response

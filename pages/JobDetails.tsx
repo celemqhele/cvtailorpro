@@ -15,6 +15,7 @@ import CVTemplate from '../components/CVTemplate';
 import { QuickApplyUploadModal } from '../components/QuickApplyUploadModal';
 import { ToastNotification, ToastType } from '../components/ToastNotification';
 import { LimitReachedModal } from '../components/LimitReachedModal';
+import { ProgressBar } from '../components/ProgressBar';
 
 export const JobDetails: React.FC = () => {
   const { id } = useParams();
@@ -295,12 +296,9 @@ export const JobDetails: React.FC = () => {
         {/* Loading Overlay for Generation */}
         {isGenerating && (
             <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
-                 <div className="flex flex-col items-center justify-center text-center space-y-4 bg-white p-8 rounded-2xl shadow-2xl">
-                     <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                     <div>
-                         <h3 className="text-lg font-bold text-slate-900">Generating your CV...</h3>
-                         <p className="text-slate-500 text-sm">This may take up to 30 seconds.</p>
-                     </div>
+                 <div className="flex flex-col items-center justify-center text-center space-y-4 bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
+                     <ProgressBar isGenerating={isGenerating} label="Generating your CV..." />
+                     <p className="text-slate-500 text-sm mt-4">This may take up to 30 seconds.</p>
                 </div>
             </div>
         )}

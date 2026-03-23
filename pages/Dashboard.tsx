@@ -14,6 +14,7 @@ import { AdDecisionModal } from '../components/AdDecisionModal';
 import { FeatureLockedModal } from '../components/FeatureLockedModal';
 import { SkeletonPromoModal } from '../components/SkeletonPromoModal';
 import { ModelSelectionModal } from '../components/ModelSelectionModal';
+import { ProgressBar } from '../components/ProgressBar';
 
 import { analytics } from '../services/analyticsService';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile, generateSkeletonCV, generateGeneralJobDescriptionFromCV } from '../services/geminiService';
@@ -1031,10 +1032,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
                     {status === Status.GENERATING ? (
                         <div className="pt-8 border-t border-slate-200 flex flex-col items-center justify-center text-center space-y-4">
-                             <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                             <div>
-                                 <h3 className="text-lg font-bold text-slate-900">Generating your CV...</h3>
-                                 <p className="text-slate-500 text-sm">This may take up to 30 seconds. Please do not close this tab.</p>
+                             <div className="w-full max-w-md">
+                                 <ProgressBar isGenerating={status === Status.GENERATING} label="Generating your CV..." />
+                                 <p className="text-slate-500 text-sm mt-4">This may take up to 30 seconds. Please do not close this tab.</p>
                              </div>
                         </div>
                     ) : (
