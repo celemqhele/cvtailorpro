@@ -55,9 +55,19 @@ export default async function handler(req: any, res: any) {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Calculate end date (30 days from now)
+    // Calculate end date based on plan
+    const planDurations: Record<string, number> = {
+      'tier_1': 1,
+      'tier_2': 30,
+      'tier_3': 90,
+      'tier_4': 365,
+      'recruiter_starter': 30,
+      'recruiter_growth': 30,
+      'recruiter_pro': 30
+    };
+    const durationDays = planDurations[planId] || 30;
     const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 30);
+    endDate.setDate(endDate.getDate() + durationDays);
 
     const updates: any = {
         plan_id: planId,

@@ -162,7 +162,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       </li>
                       <li className="flex items-start gap-2">
                           <svg className="w-5 h-5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                          <span><strong>Auto-Cancels:</strong> Access automatically expires after 30 days.</span>
+                          <span><strong>Auto-Cancels:</strong> Access automatically expires after {plan.durationDays} days.</span>
                       </li>
                       <li className="flex items-start gap-2">
                           <svg className="w-5 h-5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -191,7 +191,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   </button>
                   
                   <p className="text-[10px] text-slate-400 text-center mt-3 px-4">
-                      This is a <strong>one-time payment</strong>. Your access will automatically expire after 30 days. No recurring charges.
+                      This is a <strong>one-time payment</strong>. Your access will automatically expire after {plan.durationDays} days. No recurring charges.
                   </p>
                   
                   <div className="mt-4 text-center">

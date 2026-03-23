@@ -17,10 +17,10 @@ export interface SubscriptionPlan {
 
 export const PLANS: SubscriptionPlan[] = [
   { id: 'free', name: 'Free', price: 0, durationDays: 0, dailyLimit: 1, description: '1 CV / Day (Basic)', quality: 'Gemini 3 Flash (Standard)', hasPdfDownload: false },
-  { id: 'tier_1', name: 'Starter', price: 49.00, durationDays: 30, dailyLimit: 5, description: '5 CVs / Day', quality: 'Gemini 3 Flash (Professional)', hasPdfDownload: false },
-  { id: 'tier_2', name: 'Growth', price: 99.00, durationDays: 30, dailyLimit: 10, description: 'Skeleton Mode', quality: 'Gemini 3 Flash (High-Impact)', hasSkeletonMode: true, hasReferenceUpload: true, hasPdfDownload: true },
-  { id: 'tier_3', name: 'Pro', price: 199.00, durationDays: 30, dailyLimit: 25, description: 'Auto-Fill Skeleton', quality: 'Gemini 3.1 Pro (Elite Reasoning)', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true, hasPdfDownload: true },
-  { id: 'tier_4', name: 'Unlimited', price: 399.00, durationDays: 30, dailyLimit: 1000000, description: 'Unlimited + All Features', quality: 'Gemini 3.1 Pro (Elite Reasoning)', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true, hasPdfDownload: true },
+  { id: 'tier_1', name: 'Starter', price: 49.00, durationDays: 1, dailyLimit: 5, description: '24-Hour Full Access', quality: 'Gemini 3 Flash (Professional)', hasPdfDownload: true },
+  { id: 'tier_2', name: 'Growth', price: 149.00, durationDays: 30, dailyLimit: 10, description: '30-Day Access + Skeleton Mode', quality: 'Gemini 3 Flash (High-Impact)', hasSkeletonMode: true, hasReferenceUpload: true, hasPdfDownload: true },
+  { id: 'tier_3', name: 'Pro', price: 349.00, durationDays: 90, dailyLimit: 25, description: '90-Day Access + Auto-Fill', quality: 'Gemini 3.1 Pro (Elite Reasoning)', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true, hasPdfDownload: true },
+  { id: 'tier_4', name: 'Unlimited', price: 899.00, durationDays: 365, dailyLimit: 1000000, description: '1-Year Access + All Features', quality: 'Gemini 3.1 Pro (Elite Reasoning)', hasSkeletonMode: true, hasAutoFill: true, hasMasterEditor: true, hasReferenceUpload: true, hasPdfDownload: true },
   
   // Recruiter Plans
   { id: 'recruiter_free', name: 'Recruiter Free', price: 0, durationDays: 0, dailyLimit: 1, description: '1 AI Search', quality: 'Gemini 3 Flash (Standard)', hasPdfDownload: false },
@@ -113,7 +113,7 @@ export const updateUserSubscription = async (
     let startDate = now;
     
     // If it's NOT an upgrade (i.e. renewal or same tier extension), we stack the time.
-    // If it IS an upgrade, we reset the clock to NOW (because they paid for a fresh 30 days minus credit).
+    // If it IS an upgrade, we reset the clock to NOW (because they paid for a fresh duration minus credit).
     if (!isUpgrade) {
         const { data: profile } = await supabase.from('profiles').select('subscription_end_date').eq('id', userId).single();
         if (profile?.subscription_end_date) {

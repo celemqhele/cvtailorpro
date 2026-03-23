@@ -13,7 +13,7 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
         <div className="text-center mb-12">
            <h2 className="text-3xl font-extrabold text-slate-900 mb-4">Flexible, One-Time Pricing</h2>
            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-             Pay once, use Pro features for 30 days. <br/>
+             Pay once, use Pro features for the duration you need. <br/>
              <span className="font-bold text-indigo-600">No auto-renewal. No hidden subscriptions. Automatically cancels.</span>
            </p>
         </div>
@@ -37,7 +37,9 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ onSelectPlan, userPl
                   
                   <div className="mb-4">
                       <h3 className="text-lg font-bold text-slate-900">{plan.name}</h3>
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">{isFree ? 'Basic Access' : '30-Day Pass'}</p>
+                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">
+                        {isFree ? 'Basic Access' : plan.durationDays === 1 ? '24-Hour Pass' : plan.durationDays === 365 ? '1-Year Pass' : `${plan.durationDays}-Day Pass`}
+                      </p>
                   </div>
 
                   <div className="mb-6">
