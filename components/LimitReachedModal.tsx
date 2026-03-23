@@ -49,7 +49,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
             <h3 className="text-2xl font-bold text-slate-800">{title || "Oops! Limit Reached"}</h3>
             
             <p className="text-slate-600 text-sm leading-relaxed">
-                {message || `You have used all your ${isPaidUser ? 'plan' : 'free'} CV downloads for today (${limit}/${limit}). Please wait for tomorrow or upgrade to continue.`}
+                {message || `You have used all your ${isPaidUser ? 'plan' : 'free'} CV downloads for today (${limit === 1000000 ? 'Unlimited' : `${limit}/${limit}`}). Please wait for tomorrow or upgrade to continue.`}
             </p>
 
             {eligibleForDiscount && (

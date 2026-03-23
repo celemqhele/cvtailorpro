@@ -507,7 +507,7 @@ export const JobDetails: React.FC = () => {
             title={limitType === 'quick' ? "Skeleton Mode Limit Reached" : "Daily Credit Limit Reached"}
             message={limitType === 'quick' 
                 ? "You can only use the Quick Tailor (Skeleton Mode) feature once per day on your current plan. Upgrade to Pro for unlimited access."
-                : `You have used all your ${isPaidUser ? 'plan' : 'free'} CV downloads for today (${dailyLimit}/${dailyLimit}). Upgrade to continue.`
+                : `You have used all your ${isPaidUser ? 'plan' : 'free'} CV downloads for today (${dailyLimit === 1000000 ? 'Unlimited' : `${dailyLimit}/${dailyLimit}`}). Upgrade to continue.`
             }
         />
 
