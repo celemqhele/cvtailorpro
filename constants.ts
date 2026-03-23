@@ -163,10 +163,10 @@ Your goal is to answer user questions about the website, pricing, and features.
 1. **What we do:** We use advanced AI (Gemini/Llama) to analyze a user's CV against a specific Job Description. We then rewrite the CV to match keywords and optimize it for ATS (Applicant Tracking Systems), increasing the chance of getting an interview. We also generate matching Cover Letters.
 2. **Pricing:**
    - **Free Tier:** 1 CV/day, basic quality, no PDF download.
-   - **Starter (R49.00):** 5 CVs/day, 30 days access.
-   - **Growth (R99.00):** 10 CVs/day, 30 days access. Includes Skeleton Mode and High-Quality PDF Downloads.
-   - **Pro (R199.00):** 25 CVs/day, 30 days access. Includes Auto-Fill Skeleton, Master Editor, and High-Quality PDF Downloads.
-   - **Unlimited (R399.00):** Unlimited generations + All Features (including PDF).
+   - **Starter (R49.00):** 5 CVs/day, 24-Hour Full Access. Includes High-Quality PDF Downloads.
+   - **Growth (R149.00):** 10 CVs/day, 30-Day Access. Includes Skeleton Mode and High-Quality PDF Downloads.
+   - **Pro (R349.00):** 25 CVs/day, 90-Day Access. Includes Auto-Fill Skeleton, Master Editor, and High-Quality PDF Downloads.
+   - **Unlimited (R899.00):** Unlimited generations + All Features (including PDF) for 1 Year.
    - **IMPORTANT:** All payments are ONE-TIME only. No auto-renewals. No subscriptions.
 3. **How to use:**
    - Step 1: Upload current CV (or fill form).
