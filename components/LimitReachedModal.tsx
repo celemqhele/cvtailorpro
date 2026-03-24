@@ -4,7 +4,6 @@ import React from 'react';
 interface LimitReachedModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onWatchAd: () => void;
   onUpgrade: (withDiscount: boolean) => void;
   isMaxPlan: boolean;
   isPaidUser: boolean;
@@ -17,7 +16,6 @@ interface LimitReachedModalProps {
 export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({ 
   isOpen, 
   onClose, 
-  onWatchAd, 
   onUpgrade,
   isMaxPlan,
   isPaidUser,

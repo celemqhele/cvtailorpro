@@ -497,7 +497,6 @@ export const JobDetails: React.FC = () => {
         <LimitReachedModal
             isOpen={showLimitModal}
             onClose={() => setShowLimitModal(false)}
-            onWatchAd={() => {}} // No ad option for this specific flow
             onUpgrade={handleUpgrade}
             isMaxPlan={false}
             isPaidUser={isPaidUser}

@@ -10,7 +10,6 @@ import { SmartEditor } from '../components/SmartEditor';
 import { FeatureLockedModal } from '../components/FeatureLockedModal';
 import { SubscriptionModal } from '../components/SubscriptionModal';
 import { LeadCaptureModal } from '../components/LeadCaptureModal';
-import { RewardedAdModal } from '../components/RewardedAdModal';
 import { createWordBlob } from '../utils/docHelper';
 import { generatePdfFromApi } from '../utils/pdfHelper';
 import { analytics } from '../services/analyticsService';
@@ -54,7 +53,6 @@ export const GeneratedCV: React.FC = () => {
   // Subscription Popup State
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showLeadModal, setShowLeadModal] = useState(false);
-  const [showRewardedAd, setShowRewardedAd] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [pendingDownload, setPendingDownload] = useState<{ docType: 'cv' | 'cl', format: 'pdf' | 'docx' } | null>(null);
   const [confirmDocxDownload, setConfirmDocxDownload] = useState<{ docType: 'cv' | 'cl' } | null>(null);
@@ -250,20 +248,14 @@ export const GeneratedCV: React.FC = () => {
           return;
       }
 
-      // Check PDF Access - Now free for all via lead capture/ads
-      // We no longer block paid users without PDF access (Starter), they just fall through to the Ad flow.
-      /*
-      if (format === 'pdf' && !hasPdfAccess && !isPaidUser) {
-          // Fall through to lead capture/ad flow
-      } else if (format === 'pdf' && !hasPdfAccess) {
+      // Check PDF Access
+      if (format === 'pdf' && !hasPdfAccess) {
           setShowPdfLockedModal(true);
           return;
       }
-      */
 
-      // Ad Reward & Lead Capture for Free Users on Download (Paid users skip this)
-      // Updated: Now checks hasPdfAccess instead of isPaidUser so Starter users also see ads/leads
-      if (!hasPdfAccess && !bypassAd) {
+      // Lead Capture for Free Users on Download (Paid users skip this)
+      if (!isPaidUser && !bypassAd) {
           setPendingDownload({ docType, format });
           
           // Check if lead capture is needed first
@@ -279,10 +271,9 @@ export const GeneratedCV: React.FC = () => {
 
           if (!hasCapturedLead) {
               setShowLeadModal(true);
-          } else {
-              setShowRewardedAd(true);
+              return;
           }
-          return;
+          // If lead is captured and no ads, just proceed
       }
 
       const processId = `${docType}-${format}`;
@@ -395,20 +386,13 @@ export const GeneratedCV: React.FC = () => {
           }
           
           if (pendingDownload) {
-              // After lead capture, show the ad
-              setShowRewardedAd(true);
+              // After lead capture, proceed to download
+              handleDownload(pendingDownload.docType, pendingDownload.format, true);
+              setPendingDownload(null);
           }
       } catch (err) {
           console.error('Failed to save lead:', err);
           throw err;
-      }
-  };
-
-  const handleAdComplete = () => {
-      setShowRewardedAd(false);
-      if (pendingDownload) {
-          handleDownload(pendingDownload.docType, pendingDownload.format, true);
-          setPendingDownload(null);
       }
   };
 
@@ -866,16 +850,9 @@ export const GeneratedCV: React.FC = () => {
           onSubmit={handleLeadSubmit}
        />
 
-       <RewardedAdModal 
-           isOpen={showRewardedAd}
-           onClose={() => setShowRewardedAd(false)}
-           onComplete={handleAdComplete}
-       />
-
        <LimitReachedModal 
            isOpen={showLimitModal} 
            onClose={() => setShowLimitModal(false)} 
-           onWatchAd={() => {}} // Disabled for hard limit
            onUpgrade={handleLimitUpgrade} 
            isMaxPlan={isMaxPlan} 
            isPaidUser={isPaidUser}

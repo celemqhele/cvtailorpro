@@ -6,15 +6,13 @@ import { ArrowRight, ShieldCheck, Clock, Zap } from 'lucide-react';
 import { Button } from '../components/Button';
 import { FileUpload } from '../components/FileUpload';
 import { AdBanner } from '../components/AdBanner';
-import { RewardedAdModal } from '../components/RewardedAdModal';
-import { SupportModal } from '../components/SupportModal';
 import { HistoryModal } from '../components/HistoryModal';
 import { ProPlusFeatureCard } from '../components/ProPlusFeatureCard';
-import { AdDecisionModal } from '../components/AdDecisionModal';
 import { FeatureLockedModal } from '../components/FeatureLockedModal';
 import { SkeletonPromoModal } from '../components/SkeletonPromoModal';
 import { ModelSelectionModal } from '../components/ModelSelectionModal';
 import { ProgressBar } from '../components/ProgressBar';
+import { LimitReachedModal } from '../components/LimitReachedModal';
 
 import { analytics } from '../services/analyticsService';
 import { generateTailoredApplication, scrapeJobFromUrl, analyzeMatch, extractTextFromFile, generateSkeletonCV, generateGeneralJobDescriptionFromCV } from '../services/geminiService';
@@ -62,15 +60,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   }, [mode, user, isAuthLoading, navigate]);
 
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [showRewardedModal, setShowRewardedModal] = useState(false);
-  const [showSupportModal, setShowSupportModal] = useState(false);
-  const [showAdDecisionModal, setShowAdDecisionModal] = useState(false);
   const [showSkeletonPromo, setShowSkeletonPromo] = useState(false);
   const [showModelModal, setShowModelModal] = useState(false);
   
   // Confirmation Modal State
   const [showRemoveCvModal, setShowRemoveCvModal] = useState(false);
   const [showSkeletonLockModal, setShowSkeletonLockModal] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
   const [isAnalysisVisible, setIsAnalysisVisible] = useState(true);
   
   // Input Modes
@@ -125,10 +121,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const [generatedCvId, setGeneratedCvId] = useState<string | null>(null);
   const [adminPlanOverride, setAdminPlanOverride] = useState<string | null>(null);
   
-  // Pending actions for ad completion
-  const [pendingGenParams, setPendingGenParams] = useState<{force: boolean, isTitle: boolean, isSkeleton: boolean} | null>(null);
-  const [adContext, setAdContext] = useState<'generation' | 'download'>('generation');
-
   const previewRef = useRef<HTMLDivElement>(null);
 
   // Check Plan Details for Features
@@ -242,35 +234,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const handleSkeletonPromoTry = () => {
       setShowSkeletonPromo(false);
       handleSkeletonClick();
-  };
-
-  const handleAdDecisionWatch = () => {
-      setShowAdDecisionModal(false);
-      setAdContext('generation');
-      setShowRewardedModal(true);
-  };
-
-  const handleAdDecisionUpgrade = () => {
-      setShowAdDecisionModal(false);
-      triggerPayment();
-  };
-
-  const handleAdComplete = () => {
-      setShowRewardedModal(false);
-      
-      if (adContext === 'generation' && pendingGenParams) {
-          // Resume generation after ad
-          if (pendingGenParams.isSkeleton) {
-              handleGenerateSkeleton(true); // true = bypassAd
-          } else {
-              handleGenerate(pendingGenParams.force, pendingGenParams.isTitle, true); // true = bypassAd
-          }
-          setPendingGenParams(null);
-      } else if (adContext === 'download') {
-          if (generatedCvId) {
-            navigate(`/cv-generated/${generatedCvId}`);
-          }
-      }
   };
 
   const handleRemoveCvClick = () => {
@@ -537,6 +500,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
   const handleGenerateSkeleton = async (bypassAd: boolean = false) => {
       const isAdmin = user?.email === 'mqhele03@gmail.com';
 
+      if (!isPaidUser && !isAdmin) {
+          if (dailyCvCount >= dailyLimit) {
+              setShowLimitModal(true);
+              return;
+          }
+      }
+
       setStatus(Status.GENERATING);
 
       setErrorMsg(null);
@@ -580,6 +550,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
 
   const handleGenerate = async (forceOverride: boolean = false, isDirectTitleMode: boolean = false, bypassAd: boolean = false) => {
     const isAdmin = user?.email === 'mqhele03@gmail.com';
+
+    if (!isPaidUser && !isAdmin) {
+        if (dailyCvCount >= dailyLimit) {
+            setShowLimitModal(true);
+            return;
+        }
+    }
 
     const force = typeof forceOverride === 'boolean' ? forceOverride : false;
     const currentJobSpec = isDirectTitleMode ? jobTitle : jobSpec;
@@ -1101,15 +1078,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                     )}
             </div>
 
-            <AdDecisionModal 
-                isOpen={showAdDecisionModal}
-                onClose={() => setShowAdDecisionModal(false)}
-                onWatchAd={handleAdDecisionWatch}
-                onUpgrade={handleAdDecisionUpgrade}
-            />
-
-            <RewardedAdModal isOpen={showRewardedModal} onClose={() => setShowRewardedModal(false)} onComplete={handleAdComplete} />
-            <SupportModal isOpen={showSupportModal} onClose={() => setShowSupportModal(false)} onConfirmSupport={() => { setShowSupportModal(false); triggerPayment(); }} onContinueFree={() => { setShowSupportModal(false); setAdContext('download'); setShowRewardedModal(true); }} />
             <HistoryModal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} onLoadApplication={handleLoadHistory} />
             
             <FeatureLockedModal
@@ -1134,6 +1102,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ mode }) => {
                     setShowModelModal(false);
                     triggerPayment(planId);
                 }}
+            />
+
+            <LimitReachedModal
+                isOpen={showLimitModal}
+                onClose={() => setShowLimitModal(false)}
+                onUpgrade={(withDiscount) => {
+                    setShowLimitModal(false);
+                    triggerPayment(withDiscount ? 'tier_2' : undefined);
+                }}
+                isMaxPlan={isMaxPlan}
+                isPaidUser={isPaidUser}
+                limit={dailyLimit}
+                eligibleForDiscount={!isPaidUser && dailyCvCount >= 2}
             />
 
             {showRemoveCvModal && (
